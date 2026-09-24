@@ -1,21 +1,17 @@
 import React from "react";
 
-// success/warning/danger stay as universally-understood status colors
-// (green/amber/red) per the brief's "clear status badges" requirement for
-// dense portal tables - only the theme-neutral "info"/"neutral" variants
-// were recolored from cyan/white to the site's actual accent (arc) and
-// off-white, so a default Badge no longer looks like a leftover from the
-// old palette.
+// Status colours stay green/amber/red for scannability in dense portal
+// tables; the shape is the main site's mono `.pill`.
 const STYLES = {
-  pending: "bg-warning/15 text-warning border border-warning/40",
-  approved: "bg-success/15 text-success border border-success/40",
-  present: "bg-success/15 text-success border border-success/40",
-  rejected: "bg-danger/15 text-danger border border-danger/40",
-  absent: "bg-danger/15 text-danger border border-danger/40",
-  collected: "bg-success/15 text-success border border-success/40",
-  "not-collected": "bg-offwhite/10 text-offwhite/70 border border-offwhite/20",
-  info: "bg-arc/15 text-arc border border-arc/40",
-  neutral: "bg-offwhite/10 text-offwhite/70 border border-offwhite/20",
+  pending: "bg-warning/10 text-warning border-warning/35",
+  approved: "bg-success/10 text-success border-success/35",
+  present: "bg-success/10 text-success border-success/35",
+  rejected: "bg-danger/10 text-danger border-danger/35",
+  absent: "bg-danger/10 text-danger border-danger/35",
+  collected: "bg-success/10 text-success border-success/35",
+  "not-collected": "bg-white/5 text-[#cfc8c0] border-white/15",
+  info: "bg-amber/10 text-amber-pale border-amber/40",
+  neutral: "bg-white/5 text-[#cfc8c0] border-white/15",
 };
 
 const LABELS = {
@@ -31,7 +27,7 @@ const LABELS = {
 export default function Badge({ status = "neutral", children, className = "" }) {
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium uppercase tracking-wider ${STYLES[status] || STYLES.neutral} ${className}`}
+      className={`inline-flex items-center px-2.5 py-1 rounded-full border font-mono text-[10px] uppercase tracking-[0.1em] whitespace-nowrap ${STYLES[status] || STYLES.neutral} ${className}`}
     >
       {children || LABELS[status] || status}
     </span>

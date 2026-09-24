@@ -1,10 +1,11 @@
 import React from "react";
-import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Link } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import HelpDeskPanel from "./components/panels/HelpDeskPanel";
-import CinematicBackground from "./components/CinematicBackground";
 
+import Home from "./pages/Home";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import Cart from "./pages/Cart";
@@ -24,65 +25,14 @@ import VolunteerPortal from "./pages/portals/VolunteerPortal";
 import AdminPortal from "./pages/portals/AdminPortal";
 
 export default function App() {
-  const { pathname } = useLocation();
-  // "The Core" cinematic Login scene (Login.jsx) renders its own
-  // full-viewport header, cursor, and background - it is intentionally
-  // NOT another page living inside the site's normal chrome. Skipping
-  // the global Navbar/Footer/top-padding ONLY for this one route (every
-  // other page is completely unaffected) avoids stacking two headers/
-  // cursors/footers on top of each other on /login.
-  const isCinematicLogin = pathname === "/login";
-  // Event Detail (/events/:id) opts OUT of the shared cinematic backdrop -
-  // that route now has its own full-screen video Hero (that event's own
-  // real video where one's been uploaded, hack-nexus.mp4 as a fallback
-  // otherwise - see getEventVideoSrc in lib/eventVideos.js) as its sole
-  // background, and
-  // flat solid-color sections below it (see .event-detail-solid-bg in
-  // index.css) - the ambient site-wide video would otherwise still show
-  // through those solid sections' semi-transparent paint, which is
-  // exactly the "no cinematic/ambient bg bleeding in anywhere on this
-  // page" requirement this excludes. Every other route (Events list,
-  // Login, Dashboard, portals, etc.) is completely unaffected - this
-  // checks ONE specific route pattern, not a general rule change.
-  const isEventDetail = /^\/events\/[^/]+$/.test(pathname);
-
   return (
-    <div className="app-shell min-h-screen flex flex-col">
-      {/* Single shared cinematic video backdrop for the ENTIRE app - fixed,
-          semi-blurred, dimmed - mounted once here so every route (incl.
-          /login) shows the exact same treatment instead of each page
-          rendering its own separately-tuned video. See CinematicBackground
-          and the .cinematic-bg-* / .app-shell rules in index.css for the
-          stacking-order fix that keeps this actually visible.
-          NOT mounted on Event Detail (/events/:id) - see isEventDetail
-          above. */}
-      {!isEventDetail && <CinematicBackground />}
-
-      {!isCinematicLogin && <Navbar />}
-      {/*
-        The navbar is `fixed` (so it can transparently overlay hero
-        imagery on pages like EventDetail's banner), so normal page flow
-        needs top padding to avoid content sitting underneath it. Every
-        route gets this uniformly now - there used to be a marketing
-        homepage exempted from it (a full-bleed hero running behind the
-        transparent nav), but this app's scope was corrected to be the
-        Registration Portal only, with no homepage of its own (see
-        Events.jsx, the actual entry point). /login is the one other
-        exception, for the reason above - its own Login.css handles the
-        page's full-viewport layout itself.
-      */}
-      {/* Top padding locked to the Navbar's canonical h-14 (56px) - see
-          the note there. Was `pt-[76px]` when the nav still contained
-          the corner logo/watermark and used py-4 padding; the nav is
-          now a slim 56px functional-only bar (logo moved to be the
-          Events hero centerpiece), so this must match or every page
-          gets a 20px empty gap between the nav bottom and its content. */}
-      <main className={isCinematicLogin ? "flex-1" : "flex-1 pt-14"}>
+    <div className="page-glow min-h-screen flex flex-col">
+      <Navbar />
+      {/* The navbar is fixed; pages start below it. The landing hero pulls
+          itself back up under the nav with a negative margin (.hero). */}
+      <main className="flex-1" style={{ paddingTop: "var(--nav-h)" }}>
         <Routes>
-          {/* This app's entry point is /events, not a marketing
-              homepage - the separate main site links "Register"
-              straight into /events. */}
-          <Route path="/" element={<Navigate to="/events" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/cart" element={<Cart />} />
@@ -153,17 +103,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isCinematicLogin && <Footer />}
-
-      {/*
-        Help Desk is still a slide-in overlay panel (mounted once here,
-        alongside FullScreenMenu) - only Registration moved off this
-        pattern and onto routed pages. See PanelContext for how any page
-        opens this via usePanels().openPanel("help"). Left mounted on
-        every route including /login, since Login's own header still
-        needs somewhere for its hamburger to open a menu from, and this
-        is also where Help Desk's panel state lives.
-      */}
+      <Footer />
       <HelpDeskPanel />
     </div>
   );
@@ -171,32 +111,10 @@ export default function App() {
 
 function NotFound() {
   return (
-    <div className="min-h-[50vh] flex items-center justify-center flex-col gap-2">
-      <h1 className="font-heading text-3xl font-bold">404</h1>
-      <p className="text-white/60">Page not found.</p>
+    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 px-6 text-center">
+      <p className="kicker">Error 404</p>
+      <h1 className="h2">Page not found</h1>
+      <Link to="/events" className="btn-ghost-sm mt-4">Back to events</Link>
     </div>
-  );
-}
-
-// A single minimal dark bar - small utility links only, nothing
-// decorative - per the reference site's restrained footer treatment.
-// FAQ was dropped (marketing content, lives on the separate main site
-// now); Verify Certificate and Status remain since both are part of
-// this Registration Portal's own flow.
-function Footer() {
-  return (
-    <footer className="border-t border-crimson/10 bg-void">
-      <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] tracking-wide text-offwhite/35">
-        <span>&copy; {new Date().getFullYear()} TechAstra National Symposium</span>
-        <div className="flex items-center gap-6">
-          <Link to="/verify-certificate" className="hover:text-arc transition-colors" data-log="footer-verify-certificate">
-            Verify Certificate
-          </Link>
-          <Link to="/status" className="hover:text-arc transition-colors" data-log="footer-status">
-            Status
-          </Link>
-        </div>
-      </div>
-    </footer>
   );
 }

@@ -7,7 +7,7 @@ import Card from "../../../components/ui/Card";
 import InteractiveAnalyticsChart from "../../../components/InteractiveAnalyticsChart";
 import { api } from "../../../lib/api";
 
-const COLORS = ["#3DD9EB", "#8B5CF6", "#22C55E", "#F59E0B", "#EF4444", "#60A5FA"];
+const COLORS = ["#e8a25c", "#7ba3cf", "#22C55E", "#F59E0B", "#EF4444", "#3d5f85"];
 
 function StatCard({ label, value }) {
   return (
@@ -42,7 +42,7 @@ export default function AnalyticsTab() {
               <XAxis type="number" stroke="rgba(255,255,255,0.5)" fontSize={12} />
               <YAxis dataKey="eventName" type="category" width={140} stroke="rgba(255,255,255,0.5)" fontSize={11} />
               <Tooltip contentStyle={{ background: "var(--color-bg-elevated)", border: "1px solid rgba(255,255,255,0.1)" }} />
-              <Bar dataKey="seatsTaken" fill="#3DD9EB" radius={[0, 6, 6, 0]} />
+              <Bar dataKey="seatsTaken" fill="#e8a25c" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>

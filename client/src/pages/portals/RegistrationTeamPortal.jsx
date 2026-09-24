@@ -344,7 +344,7 @@ export default function RegistrationTeamPortal() {
                     key={event.id}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                       cashRegistration.eventIds.includes(event.id)
-                        ? "border-cyan bg-cyan/10"
+                        ? "border-amber/55 bg-amber/10"
                         : "border-white/10 bg-white/5 hover:border-white/20"
                     }`}
                   >
@@ -548,7 +548,7 @@ export default function RegistrationTeamPortal() {
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === s ? "bg-cyan text-void" : "bg-white/5 text-white/70"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === s ? "bg-[linear-gradient(100deg,#c8762f,#8f5b30)] text-white" : "bg-white/5 text-[#a9a29a] hover:text-white"}`}
           >
             {s}
           </button>

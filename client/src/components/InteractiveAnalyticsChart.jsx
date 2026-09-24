@@ -13,7 +13,7 @@ const metrics = [
   {
     key: "totalRegistrations",
     label: "Total Registrations",
-    color: "#3DD9EB",
+    color: "#e8a25c",
     format: (val) => val.toLocaleString(),
   },
   {
@@ -31,17 +31,17 @@ const metrics = [
   {
     key: "revenue",
     label: "Revenue Collected",
-    color: "#8B5CF6",
+    color: "#7ba3cf",
     format: (val) => `₹${val.toLocaleString()}`,
   },
 ];
 
 // Chart config for our metrics
 const chartConfig = {
-  totalRegistrations: { label: "Total Registrations", color: "#3DD9EB" },
+  totalRegistrations: { label: "Total Registrations", color: "#e8a25c" },
   approved: { label: "Approved", color: "#22C55E" },
   pending: { label: "Pending", color: "#F59E0B" },
-  revenue: { label: "Revenue Collected", color: "#8B5CF6" },
+  revenue: { label: "Revenue Collected", color: "#7ba3cf" },
 };
 
 // Custom Tooltip

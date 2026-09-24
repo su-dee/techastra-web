@@ -1,62 +1,33 @@
 import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
-import { EASE_CINEMATIC } from "@/lib/motion";
 
 /**
- * Shared panel primitive. Recolored from the old gold-glow "glass" look
- * to the crimson/arc cinematic palette (the .glass CSS class itself is
- * already crimson-tinted, see index.css) so every page that still used
- * the default Card styling - Leaderboard, Login, Status, Cart,
- * VerifyCertificate, Dashboard, and every staff portal - picks up the
- * theme automatically instead of looking like a separate, older design.
- * Corners are squared off (rounded-sm) rather than heavily rounded,
- * matching the sharper-edged look of the rest of the cinematic UI.
+ * Shared panel primitive - the main site's glass `.card` (hairline border,
+ * faint diagonal sheen, 14px corners).
  *
- * Opt-in animation props (both respect prefers-reduced-motion):
- *   - `hover`  : lifts the card slightly on hover, for interactive cards.
- *   - `reveal` : fades/rises the card into view on scroll. Only use this
- *                on a card that is NOT already inside a motion stagger
- *                container (otherwise let the parent drive the reveal).
+ *   - `glow`  : amber-tinted corner wash, for the one card a page is about.
+ *   - `hover` : lifts slightly and warms the border on hover.
+ *   - `hud` / `reveal` are accepted for older callers and ignored.
  */
 export default function Card({
   children,
   className = "",
   glow = false,
-  hud = false,
   hover = false,
-  reveal = false,
+  hud,
+  reveal,
   as: Tag = "div",
   ...props
 }) {
-  const reduce = useReducedMotion();
-  const classes = `glass rounded-sm p-6 ${glow ? "shadow-crimson" : ""} ${hud ? "hud-corners" : ""} ${className}`;
-
-  // Plain, non-animated card - keep it a lightweight host element so
-  // nothing changes for the many existing callers that don't opt in.
-  if ((!hover && !reveal) || reduce) {
-    return (
-      <Tag className={classes} {...props}>
-        {children}
-      </Tag>
-    );
-  }
-
-  const MotionTag = motion(Tag);
-  const revealProps = reveal
-    ? {
-        initial: { opacity: 0, y: 24 },
-        whileInView: { opacity: 1, y: 0 },
-        viewport: { once: true, margin: "0px 0px -12% 0px" },
-        transition: { duration: 0.6, ease: EASE_CINEMATIC },
-      }
-    : {};
-  const hoverProps = hover
-    ? { whileHover: { y: -4, transition: { duration: 0.25, ease: EASE_CINEMATIC } } }
-    : {};
+  const classes = [
+    "card p-6",
+    glow ? "border-amber/35 bg-[radial-gradient(90%_120%_at_0%_0%,rgba(196,110,40,0.16)_0%,rgba(12,12,16,0)_60%),linear-gradient(150deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.015)_100%)]" : "",
+    hover ? "transition-[transform,border-color] duration-200 hover:-translate-y-[3px] hover:border-amber/50" : "",
+    className,
+  ].join(" ");
 
   return (
-    <MotionTag className={classes} {...revealProps} {...hoverProps} {...props}>
+    <Tag className={classes} {...props}>
       {children}
-    </MotionTag>
+    </Tag>
   );
 }

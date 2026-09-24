@@ -1,43 +1,29 @@
 import React from "react";
 
-// Thin, uppercase micro-labels (matching .nav-link-cinematic elsewhere)
-// instead of a plain sentence-case label - the small premium-form detail
-// used throughout the reference site's own forms.
+const FIELD =
+  "w-full rounded-[10px] bg-white/[0.03] border border-white/10 px-3.5 py-2.5 text-[15px] text-text placeholder-[#6f6962] " +
+  "hover:border-white/20 focus:border-amber/60 focus:ring-2 focus:ring-amber/20 outline-none transition-colors";
+
+// Mono uppercase micro-labels, matching the main site's `.mono-label`.
 export function Label({ children, htmlFor }) {
   return (
-    <label htmlFor={htmlFor} className="block text-[11px] uppercase tracking-wider text-offwhite/55 font-medium mb-2">
+    <label htmlFor={htmlFor} className="block mono-label mb-2">
       {children}
     </label>
   );
 }
 
 export function Input({ className = "", ...props }) {
-  return (
-    <input
-      className={`w-full rounded-sm bg-black/40 border border-crimson/25 px-3.5 py-2.5 text-offwhite placeholder-offwhite/30
-        focus:border-arc focus:ring-1 focus:ring-arc outline-none transition-colors ${className}`}
-      {...props}
-    />
-  );
+  return <input className={`${FIELD} ${className}`} {...props} />;
 }
 
 export function Textarea({ className = "", ...props }) {
-  return (
-    <textarea
-      className={`w-full rounded-sm bg-black/40 border border-crimson/25 px-3.5 py-2.5 text-offwhite placeholder-offwhite/30
-        focus:border-arc focus:ring-1 focus:ring-arc outline-none transition-colors ${className}`}
-      {...props}
-    />
-  );
+  return <textarea className={`${FIELD} ${className}`} {...props} />;
 }
 
 export function Select({ className = "", children, ...props }) {
   return (
-    <select
-      className={`w-full rounded-sm bg-black/40 border border-crimson/25 px-3.5 py-2.5 text-offwhite
-        focus:border-arc focus:ring-1 focus:ring-arc outline-none transition-colors ${className}`}
-      {...props}
-    >
+    <select className={`${FIELD} [&>option]:bg-ink-panel ${className}`} {...props}>
       {children}
     </select>
   );
