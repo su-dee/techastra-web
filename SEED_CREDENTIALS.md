@@ -37,13 +37,25 @@ management, event management, results override, announcements, data export.
 | Pixel Protocol | Technical | coordinator.pixelprotocol@techastra.dev |
 | Forensic Alibi | Technical | coordinator.forensicalibi@techastra.dev |
 | Prompt Arena | Technical | coordinator.promptarena@techastra.dev |
-| Rythm Riot | Non-Technical | coordinator.rythmriot@techastra.dev |
-| 70MM Decode | Non-Technical | coordinator.70mmdecode@techastra.dev |
+| Rhythm Riot | Non-Technical | coordinator.rhythmriot@techastra.dev |
+| Hidden Frames | Non-Technical | coordinator.hiddenframes@techastra.dev |
 | Verbal Combat | Non-Technical | coordinator.verbalcombat@techastra.dev |
 | Blitz Hunt | Non-Technical | coordinator.blitzhunt@techastra.dev |
 | Plot Twist | Non-Technical | coordinator.plottwist@techastra.dev |
-| Team Fued | Non-Technical | coordinator.teamfued@techastra.dev |
+| Team Feud | Non-Technical | coordinator.teamfeud@techastra.dev |
 | Cap Chaos | Non-Technical | coordinator.capchaos@techastra.dev |
+| Clash Squad E-Sports | Non-Technical | coordinator.clashsquadesports@techastra.dev |
+| Byte Rush | Junior Technical | coordinator.byterush@techastra.dev |
+| Prompt Wars | Junior Technical | coordinator.promptwars@techastra.dev |
+| Vision Forge | Junior Technical | coordinator.visionforge@techastra.dev |
+| Cipher Quest | Junior Technical | coordinator.cipherquest@techastra.dev |
+| TRACE//X | Junior Technical | coordinator.tracex@techastra.dev |
+| Mind Merge | Junior Non-Technical | coordinator.mindmerge@techastra.dev |
+| Whatzit? | Junior Non-Technical | coordinator.whatzit@techastra.dev |
+| Actventure | Junior Non-Technical | coordinator.actventure@techastra.dev |
+| Seekret | Junior Non-Technical | coordinator.seekret@techastra.dev |
+| Huntify | Junior Non-Technical | coordinator.huntify@techastra.dev |
+| Stack N' Dash | Junior Non-Technical | coordinator.stackndash@techastra.dev |
 
 Each coordinator can only check in / submit results for their own
 `assignedEventId` - enforced server-side, not just hidden in the UI.

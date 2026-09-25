@@ -19,6 +19,7 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
  * POST /api/registrations
  * Creates a new registration in "pending" status, along with the participant
  * User record (lead, for team events). Also validates:
+ *  - all events are the same level (senior or junior)
  *  - no time-clash between the chosen events
  *  - seat availability
  * Rate limited: 3 registrations per hour per IP to prevent spam.
@@ -47,6 +48,14 @@ router.post("/", registrationLimiter, upload.single("paymentProof"), async (req,
     const events = await prisma.event.findMany({ where: { id: { in: eventIds } } });
     if (events.length !== eventIds.length) {
       return res.status(400).json({ error: "One or more selected events could not be found" });
+    }
+
+    // Senior events are for college students and Junior events for school
+    // students, so one registration can't mix them (UI also blocks this).
+    if (new Set(events.map((e) => e.level || "senior")).size > 1) {
+      return res.status(400).json({
+        error: "Senior (college) and Junior (school) events can't be registered together. Register for them separately.",
+      });
     }
 
     // Time-clash validation (server-side safety net; UI also blocks this)

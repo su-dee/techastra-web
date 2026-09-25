@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import Button from "../components/ui/Button";
 import { Label, Input } from "../components/ui/Input";
 import { useCart } from "../context/CartContext";
+import { levelOf } from "../lib/site";
 
 export const REGISTRATION_DRAFT_KEY = "techastra_registration_draft";
 
@@ -33,6 +34,11 @@ export default function Register() {
   const [members, setMembers] = useState([{ name: "", regNo: "", role: "member" }]);
 
   const anyTeamEvent = items.some((i) => i.isTeamEvent);
+  // Junior events are for school students, so ask for school and class
+  // instead of college and register number (stored in the same fields).
+  const junior = items.length > 0 && levelOf(items[0]) === "junior";
+  const orgLabel = junior ? "School Name" : "College Name";
+  const idLabel = junior ? "Class / Grade" : "Register Number";
 
   const updateForm = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const updateMember = (idx, key, value) =>
@@ -119,11 +125,11 @@ export default function Register() {
                 <Input id="reg-password" type="password" required value={form.password} onChange={(e) => updateForm("password", e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="reg-college">College Name</Label>
+                <Label htmlFor="reg-college">{orgLabel}</Label>
                 <Input id="reg-college" value={form.collegeName} onChange={(e) => updateForm("collegeName", e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="reg-regno">Register Number</Label>
+                <Label htmlFor="reg-regno">{idLabel}</Label>
                 <Input id="reg-regno" value={form.registerNo} onChange={(e) => updateForm("registerNo", e.target.value)} />
               </div>
             </div>
@@ -140,7 +146,7 @@ export default function Register() {
                   {members.map((m, idx) => (
                     <div key={idx} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
                       <Input placeholder="Name" value={m.name} onChange={(e) => updateMember(idx, "name", e.target.value)} />
-                      <Input placeholder="Register No." value={m.regNo} onChange={(e) => updateMember(idx, "regNo", e.target.value)} />
+                      <Input placeholder={junior ? "Class / Grade" : "Register No."} value={m.regNo} onChange={(e) => updateMember(idx, "regNo", e.target.value)} />
                       <button type="button" className="text-danger text-xs px-2 sm:shrink-0" onClick={() => removeMember(idx)}>
                         Remove
                       </button>

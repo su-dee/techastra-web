@@ -105,22 +105,31 @@ sample participant accounts, is in [`SEED_CREDENTIALS.md`](./SEED_CREDENTIALS.md
 All seeded accounts share the password `TechAstra@2026` — change this before
 any real deployment.
 
-## Demo Events
+## Events
 
-The seed script populates the **finalized 15-event list** — 8 Technical +
-7 Non-Technical:
+The seed script loads 27 events: 16 **Senior** (college students) from
+`Techastra '26 List.docx` and 11 **Junior** (school students) from
+`JUNIOR TECHASTRA EVENTS LIST.docx`. Each event has a `level`
+(`senior` | `junior`); one registration can't mix levels.
 
-**Technical:** Pen Your Vision, Hack Nexus, Crypt Clash, Trial of Truth,
+**Senior Technical:** Pen Your Vision, Hack Nexus, Crypt Clash, Trial of Truth,
 Code Rescue, Pixel Protocol, Forensic Alibi, Prompt Arena
 
-**Non-Technical:** Rythm Riot, 70MM Decode, Verbal Combat, Blitz Hunt,
-Plot Twist, Team Fued, Cap Chaos
+**Senior Non-Technical:** Rhythm Riot, Hidden Frames, Verbal Combat, Blitz Hunt,
+Plot Twist, Team Feud, Cap Chaos, Clash Squad E-Sports
 
-Sample times, fees, seat counts, venues, and rulebook text in
-`server/prisma/seed.js` (`buildDemoEvents()`) are still illustrative
-placeholders for those specific details — update them there, or add/edit
-events directly via the Master Admin Portal's Event Management tab, once
-the real schedule/fee/venue numbers are finalized.
+**Junior Technical:** Byte Rush, Prompt Wars, Vision Forge, Cipher Quest, TRACE//X
+
+**Junior Non-Technical:** Mind Merge, Whatzit?, Actventure, Seekret, Huntify,
+Stack N' Dash
+
+Names, descriptions, rules, coordinators (with phone numbers for senior
+technical events), junior team sizes and the senior non-technical
+days/venues are real, matching the main site. **Times, fees, seat counts,
+senior team sizes, and the dates of senior technical and all junior events
+are not confirmed yet** — they are working values in `server/prisma/eventData.js`.
+Update them there, or edit events in the Master Admin Portal's Events tab,
+once the organisers finalise them.
 
 ## End-to-End Flow (manual test checklist)
 

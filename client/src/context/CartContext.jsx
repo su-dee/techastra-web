@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { LEVEL_LABEL, LEVEL_AUDIENCE, levelOf } from "../lib/site";
 
 const CartContext = createContext(null);
 const STORAGE_KEY = "techastra_cart";
@@ -30,8 +31,18 @@ export function CartProvider({ children }) {
     [items]
   );
 
+  // Senior (college) and Junior (school) events are separate registrations,
+  // so a cart only ever holds one level. The server enforces this too.
+  const levelMismatch = (event) => {
+    if (!items.length || levelOf(items[0]) === levelOf(event)) return null;
+    const cur = levelOf(items[0]);
+    return `Your cart has ${LEVEL_LABEL[cur]} events (for ${LEVEL_AUDIENCE[cur]}). ${LEVEL_LABEL[levelOf(event)]} events need a separate registration.`;
+  };
+
   const addItem = (event) => {
     if (items.some((i) => i.id === event.id)) return { ok: false, reason: "Already in cart" };
+    const mismatch = levelMismatch(event);
+    if (mismatch) return { ok: false, reason: mismatch };
     const clash = findClash(event);
     if (clash) return { ok: false, reason: `Clashes with "${clash}" already in your cart` };
     setItems((prev) => [...prev, event]);
@@ -44,6 +55,8 @@ export function CartProvider({ children }) {
    * If any event clashes, the entire combo is blocked (no partial add).
    */
   const addCombo = (comboPass, comboEvents) => {
+    const mismatch = comboEvents.map(levelMismatch).find(Boolean);
+    if (mismatch) return { ok: false, reason: mismatch };
     // Check if any combo event is already in cart
     const alreadyInCart = comboEvents.find((e) => items.some((i) => i.id === e.id));
     if (alreadyInCart) {

@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import Countdown from "../components/Countdown";
 import Ticker from "../components/Ticker";
 import Partners from "../components/Partners";
-import { EventCard, EventModal, useCartToggle, useEventModal, useEvents } from "../components/EventBrowser";
+import { EventCard, EventFilters, EventModal, useCartToggle, useEventModal, useEvents } from "../components/EventBrowser";
 import { formatTimeRange, teamLabel } from "../components/EventInfo";
 import {
   ADDRESS,
   CATEGORY_COORDINATORS,
   CATEGORY_LABEL,
+  LEVEL_AUDIENCE,
+  LEVEL_LABEL,
   DAYS,
   EDITION,
   EVENT_DATES,
@@ -19,6 +21,7 @@ import {
   TECHASTRA_COORDINATORS,
   categoryOf,
   dayOf,
+  levelOf,
 } from "../lib/site";
 import logo from "../assets/logo.webp";
 import annaBlock from "../assets/anna-block.webp";
@@ -57,8 +60,73 @@ const COURSES = [
 
 const PREVIEW_COUNT = 6;
 
-const BACKDROP_VIDEO = "/videos/stones-backdrop.mp4";
-const BACKDROP_POSTER = "/videos/stones-backdrop-poster.jpg";
+// Encoded from stones-backdrop.mp4 (1080p, 11 MB) with ffmpeg: audio stripped,
+// 720p landscape + a 540x960 centre crop for portrait screens (phones only
+// ever show the middle of the frame), each as AV1 with an H.264 fallback.
+// If the clip is re-encoded, rename the files: vercel.json caches
+// /videos/backdrop/* as immutable.
+const BACKDROP = {
+  landscape: {
+    av1: "/videos/backdrop/stones-720-av1.mp4", // 0.94 MB
+    h264: "/videos/backdrop/stones-720-h264.mp4", // 1.16 MB
+    poster: "/videos/backdrop/stones-720-poster.webp",
+    width: 1280,
+    height: 720,
+  },
+  portrait: {
+    av1: "/videos/backdrop/stones-portrait-av1.mp4", // 0.59 MB
+    h264: "/videos/backdrop/stones-portrait-h264.mp4", // 0.72 MB
+    poster: "/videos/backdrop/stones-portrait-poster.webp",
+    width: 540,
+    height: 960,
+  },
+};
+const AV1_TYPE = 'video/mp4; codecs="av01.0.05M.08"';
+
+// AV1 only where the browser decodes it smoothly (Safari without AV1
+// hardware, weak phones) - otherwise H.264, which every browser plays.
+async function pickCodec(variant) {
+  if (!document.createElement("video").canPlayType(AV1_TYPE)) return variant.h264;
+  try {
+    const info = await navigator.mediaCapabilities?.decodingInfo({
+      type: "file",
+      video: { contentType: AV1_TYPE, width: variant.width, height: variant.height, bitrate: 800000, framerate: 24 },
+    });
+    return !info || (info.supported && info.smooth) ? variant.av1 : variant.h264;
+  } catch {
+    return variant.av1;
+  }
+}
+
+// Chooses the backdrop files for this screen and delays the video download
+// until the page has finished loading, so it never competes with the
+// hero's text, logo and fonts. The poster shows until then - and is all that
+// loads on Save-Data or 2G connections.
+function useBackdropSource() {
+  const [variant] = useState(() =>
+    window.matchMedia("(max-aspect-ratio: 3/4)").matches ? BACKDROP.portrait : BACKDROP.landscape
+  );
+  const [src, setSrc] = useState(null);
+
+  useEffect(() => {
+    const conn = navigator.connection;
+    if (conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || ""))) return;
+    let cancelled = false;
+    const start = () =>
+      pickCodec(variant).then((url) => {
+        if (!cancelled) setSrc(url);
+      });
+    const kick = () => ("requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 1500 }) : setTimeout(start, 200));
+    if (document.readyState === "complete") kick();
+    else window.addEventListener("load", kick, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", kick);
+    };
+  }, [variant]);
+
+  return { poster: variant.poster, src };
+}
 
 // Looping video behind the hero.
 //
@@ -90,6 +158,11 @@ function HeroBackdrop() {
   const visible = useRef(true);
   const frame = useRef(0);
   const [paused, setPaused] = useState(readPaused);
+  const { poster, src } = useBackdropSource();
+  // The loop's second copy only starts downloading once the first is fully
+  // buffered, so it comes from the HTTP cache instead of a second download.
+  const [srcB, setSrcB] = useState(null);
+  const shown = useRef(false);
 
   const videos = () => [refA.current, refB.current];
 
@@ -97,7 +170,7 @@ function HeroBackdrop() {
     const [a, b] = videos();
     const cur = active.current === 0 ? a : b;
     const next = active.current === 0 ? b : a;
-    if (cur && next && !fading.current && cur.duration && cur.currentTime >= cur.duration - CROSSFADE_S - 0.25) {
+    if (cur && next && next.readyState >= 2 && !fading.current && cur.duration && cur.currentTime >= cur.duration - CROSSFADE_S - 0.25) {
       fading.current = true;
       next.currentTime = 0;
       next.play().catch(() => {});
@@ -159,8 +232,23 @@ function HeroBackdrop() {
   return (
     <>
       <div className="hero__backdrop" aria-hidden="true">
-        <video ref={refA} className="is-active" src={BACKDROP_VIDEO} poster={BACKDROP_POSTER} muted loop playsInline preload="auto" />
-        <video ref={refB} src={BACKDROP_VIDEO} muted loop playsInline preload="auto" />
+        <img src={poster} alt="" decoding="async" fetchpriority="high" />
+        <video
+          ref={refA}
+          src={src || undefined}
+          muted
+          loop
+          playsInline
+          preload="auto"
+          onCanPlay={sync}
+          onCanPlayThrough={() => setSrcB(src)}
+          onPlaying={(e) => {
+            // Fade the video in over the poster once real frames are showing.
+            if (!shown.current && active.current === 0) e.currentTarget.classList.add("is-active");
+            shown.current = true;
+          }}
+        />
+        <video ref={refB} src={srcB || undefined} muted loop playsInline preload="auto" />
         <div className="hero__scrim" />
       </div>
       <button
@@ -206,8 +294,8 @@ function Hero({ eventCount }) {
         </div>
         <Countdown />
         <div className="hero__ctas">
-          <Link className="btn-pill" to="/events" data-log="home-hero-register">Register now</Link>
-          <Link className="btn-ghost" to="/status" data-log="home-hero-status">Check registration status</Link>
+          <Link className="btn-pill" to="/events?level=senior" data-log="home-hero-senior">Senior Registration</Link>
+          <Link className="btn-ghost" to="/events?level=junior" data-log="home-hero-junior">Junior Registration</Link>
         </div>
         <a className="hero__explore" href="#events">
           Explore {eventCount ? `all ${eventCount}` : "the"} events ↓
@@ -276,7 +364,7 @@ function AboutTechastra({ eventCount }) {
   const highlights = [
     { k: "When", v: EVENT_DATES },
     { k: "Where", v: INSTITUTE },
-    { k: "Events", v: eventCount ? `${eventCount} technical & non-technical` : "Technical & non-technical" },
+    { k: "Events", v: eventCount ? `${eventCount} across senior & junior` : "Senior & junior" },
   ];
   return (
     <section id="techastra" className="section techastra">
@@ -311,7 +399,7 @@ function AboutTechastra({ eventCount }) {
             success and remarkable impact year after year. This year’s theme, <b className="accent">VISION</b> —
             Virtual, Intelligence, Sustainable, Innovation, Operations and Next-Generation Network —
             brings together a dynamic and diverse audience, making it a premier platform for young
-            engineers to showcase their talents.
+            engineers and school students to showcase their talents.
           </p>
           <p className="lead mt-4">
             By participating in Techastra ’26, you get the opportunity to enrich your technical skills
@@ -320,13 +408,13 @@ function AboutTechastra({ eventCount }) {
             grand success.
           </p>
           <div className="tags mt-7">
-            {["Team & solo events", "Technical & non-technical", "Combo passes", "Digital ID & certificates"].map((t) => (
+            {["Senior (college) events", "Junior (school) events", "Team & solo events", "Technical & non-technical"].map((t) => (
               <span key={t} className="tag">{t}</span>
             ))}
           </div>
           <div className="techastra__ctas">
-            <Link className="btn-small" to="/events">Register for events</Link>
-            <Link className="btn-ghost-sm" to="/verify-certificate">Verify a certificate</Link>
+            <Link className="btn-small" to="/events?level=senior">Senior Registration</Link>
+            <Link className="btn-ghost-sm" to="/events?level=junior">Junior Registration</Link>
           </div>
         </div>
       </div>
@@ -334,12 +422,12 @@ function AboutTechastra({ eventCount }) {
   );
 }
 
-const FILTERS = [["all", "All"], ["technical", "Technical"], ["non_technical", "Non-Technical"]];
-
-function EventsPreview({ events, loading, inCart, onOpen, onToggle }) {
+function EventsPreview({ events, loading, items, inCart, onOpen, onToggle }) {
+  const [level, setLevel] = useState(() => (items[0] ? levelOf(items[0]) : "senior"));
   const [cat, setCat] = useState("all");
-  const list = events.filter((e) => cat === "all" || categoryOf(e) === cat);
+  const list = events.filter((e) => levelOf(e) === level && (cat === "all" || categoryOf(e) === cat));
   const shown = list.slice(0, PREVIEW_COUNT);
+  const label = `${LEVEL_LABEL[level]} · ${cat === "all" ? "All" : CATEGORY_LABEL[cat]}`;
   return (
     <section id="events" className="section events">
       <div className="wrap">
@@ -348,18 +436,12 @@ function EventsPreview({ events, loading, inCart, onOpen, onToggle }) {
             <div className="kicker">03 — Events</div>
             <h2 className="h2">{events.length ? `${events.length} ways to compete` : "Ways to compete"}</h2>
           </div>
-          <div className="events__filters">
-            <div className="seg" role="group" aria-label="Category">
-              {FILTERS.map(([k, v]) => (
-                <button key={k} className={cat === k ? "is-active" : ""} aria-pressed={cat === k} onClick={() => setCat(k)}>
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
+          <EventFilters level={level} onLevel={setLevel} category={cat} onCategory={setCat} />
         </div>
         <div className="events__count">
-          {loading ? "LOADING EVENTS…" : `${(cat === "all" ? "ALL" : CATEGORY_LABEL[cat]).toUpperCase()} — ${list.length} EVENT${list.length === 1 ? "" : "S"}`}
+          {loading
+            ? "LOADING EVENTS…"
+            : `${label.toUpperCase()} — ${list.length} EVENT${list.length === 1 ? "" : "S"} · FOR ${LEVEL_AUDIENCE[level].toUpperCase()}`}
         </div>
         <div className="events__grid">
           {shown.map((e) => (
@@ -368,8 +450,8 @@ function EventsPreview({ events, loading, inCart, onOpen, onToggle }) {
         </div>
         {list.length > shown.length && (
           <div className="mt-10 text-center">
-            <Link to="/events" className="btn-ghost" data-log="home-events-all">
-              See all {list.length} {cat === "all" ? "" : CATEGORY_LABEL[cat].toLowerCase() + " "}events →
+            <Link to={`/events?level=${level}`} className="btn-ghost" data-log="home-events-all">
+              See all {list.length} {LEVEL_LABEL[level].toLowerCase()} {cat === "all" ? "" : CATEGORY_LABEL[cat].toLowerCase() + " "}events →
             </Link>
           </div>
         )}
@@ -415,7 +497,7 @@ function Schedule({ events, onOpen }) {
                   {e.venue || "Venue TBA"} · {e.track || teamLabel(e)}
                 </div>
               </div>
-              <span className="pill">{CATEGORY_LABEL[categoryOf(e)].toUpperCase()}</span>
+              <span className="pill">{LEVEL_LABEL[levelOf(e)].toUpperCase()} · {CATEGORY_LABEL[categoryOf(e)].toUpperCase()}</span>
             </button>
           ))}
         </div>
@@ -436,12 +518,13 @@ function Contact() {
         <div className="kicker mb-[18px]">05 — Register &amp; Contact</div>
         <h2>See you on 8 October</h2>
         <p className="lead mx-auto mt-[18px] max-w-[560px]">
-          Pick your events, register once as an individual or a team, and pay online. Reach out to
-          the coordinators below for any queries.
+          Senior events are open to college students and Junior events to school students — each
+          registers separately. Pick your events, register as an individual or a team, and pay
+          online. Reach out to the coordinators below for any queries.
         </p>
         <div className="contact__ctas">
-          <Link className="btn-pill" to="/events" data-log="home-contact-register">Register now</Link>
-          <Link className="btn-ghost" to="/status">Check registration status</Link>
+          <Link className="btn-pill" to="/events?level=senior" data-log="home-contact-senior">Senior Registration</Link>
+          <Link className="btn-ghost" to="/events?level=junior" data-log="home-contact-junior">Junior Registration</Link>
         </div>
 
         <div className="overall card">
@@ -505,7 +588,7 @@ function Contact() {
 
 export default function Home() {
   const { events, loading } = useEvents();
-  const { inCart, toggle } = useCartToggle();
+  const { items, inCart, toggle } = useCartToggle();
   const modal = useEventModal(events);
 
   return (
@@ -514,7 +597,7 @@ export default function Home() {
       <Ticker eventCount={events.length} />
       <About />
       <AboutTechastra eventCount={events.length} />
-      <EventsPreview events={events} loading={loading} inCart={inCart} onOpen={modal.open} onToggle={toggle} />
+      <EventsPreview events={events} loading={loading} items={items} inCart={inCart} onOpen={modal.open} onToggle={toggle} />
       <Schedule events={events} onOpen={modal.open} />
       <Partners />
       <Contact />

@@ -5,7 +5,7 @@ import Modal from "./ui/Modal";
 import EventInfo, { formatDay, formatTimeRange, kickerFor, seatsLabel, teamLabel } from "./EventInfo";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
-import { CATEGORY_LABEL, categoryOf } from "../lib/site";
+import { CATEGORY_LABEL, LEVEL_LABEL, categoryOf, levelOf } from "../lib/site";
 
 // Shared pieces for pages that list events (Home, Events): data loading,
 // cart toggling, the event card and the details modal.
@@ -45,9 +45,84 @@ export function useEventModal(events) {
   const [params, setParams] = useSearchParams();
   const activeId = params.get("event");
   const active = events.find((e) => e.id === activeId) || null;
-  const open = useCallback((e) => setParams({ event: e.id }), [setParams]);
-  const close = useCallback(() => setParams({}, { replace: true }), [setParams]);
+  const open = useCallback(
+    (e) =>
+      setParams((p) => {
+        p.set("event", e.id);
+        return p;
+      }),
+    [setParams]
+  );
+  const close = useCallback(
+    () =>
+      setParams(
+        (p) => {
+          p.delete("event");
+          return p;
+        },
+        { replace: true }
+      ),
+    [setParams]
+  );
   return { active, open, close };
+}
+
+const CATEGORY_FILTERS = [
+  ["all", "ALL"],
+  ["technical", "TECHNICAL"],
+  ["non_technical", "NON-TECHNICAL"],
+];
+
+// Level lives in the URL (?level=junior) so links can point straight at
+// the junior events; with no param it follows the cart, else Senior.
+export function useLevelFilter(items) {
+  const [params, setParams] = useSearchParams();
+  const fromUrl = params.get("level");
+  const level = fromUrl === "junior" || fromUrl === "senior" ? fromUrl : items[0] ? levelOf(items[0]) : "senior";
+  const setLevel = useCallback(
+    (l) =>
+      setParams(
+        (p) => {
+          p.set("level", l);
+          return p;
+        },
+        { replace: true }
+      ),
+    [setParams]
+  );
+  return [level, setLevel];
+}
+
+// Senior/Junior switch + category (and optional day) chips, laid out like
+// the main site's events header.
+export function EventFilters({ level, onLevel, category, onCategory, days = [], day, onDay }) {
+  return (
+    <div className="events__filters">
+      <div className="seg" role="group" aria-label="Level">
+        {Object.entries(LEVEL_LABEL).map(([k, v]) => (
+          <button key={k} className={level === k ? "is-active" : ""} aria-pressed={level === k} onClick={() => onLevel(k)} data-log={`events-level-${k}`}>
+            {v}
+          </button>
+        ))}
+      </div>
+      <div className="events__chips" role="group" aria-label="Category">
+        {CATEGORY_FILTERS.map(([k, v]) => (
+          <button key={k} className={"chip" + (category === k ? " is-active" : "")} aria-pressed={category === k} onClick={() => onCategory(k)} data-log={`events-filter-${k}`}>
+            {v}
+          </button>
+        ))}
+      </div>
+      {onDay && days.length > 1 && (
+        <div className="events__chips" role="group" aria-label="Day">
+          {["all", ...days].map((d) => (
+            <button key={d} className={"chip" + (day === d ? " is-active" : "")} aria-pressed={day === d} onClick={() => onDay(d)}>
+              {d === "all" ? "ALL DAYS" : `DAY 0${d}`}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function EventCard({ event, inCart, onOpen, onToggle }) {
@@ -59,7 +134,7 @@ export function EventCard({ event, inCart, onOpen, onToggle }) {
       <div className={"orb ev__orb ev__orb--" + cat} aria-hidden="true" />
       <div className="ev__top">
         <span className="mono-label">{formatDay(event)}</span>
-        <span className="pill">{CATEGORY_LABEL[cat].toUpperCase()}</span>
+        <span className="pill">{LEVEL_LABEL[levelOf(event)].toUpperCase()} · {CATEGORY_LABEL[cat].toUpperCase()}</span>
       </div>
       <h3>{event.name}</h3>
       <div className="ev__tagline">{event.track || teamLabel(event)}</div>

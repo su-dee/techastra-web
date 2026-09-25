@@ -53,12 +53,12 @@ export const EVENT_IMAGES = {
   "Prompt Arena": PICSUM("prompt-arena"),
 
   // ---- NON-TECHNICAL (7) ----
-  "Rythm Riot": PICSUM("rythm-riot"),
-  "70MM Decode": PICSUM("70mm-decode"),
+  "Rhythm Riot": PICSUM("rhythm-riot"),
+  "Hidden Frames": PICSUM("hidden-frames"),
   "Verbal Combat": PICSUM("verbal-combat"),
   "Blitz Hunt": PICSUM("blitz-hunt"),
   "Plot Twist": PICSUM("plot-twist"),
-  "Team Fued": PICSUM("team-fued"),
+  "Team Feud": PICSUM("team-feud"),
   "Cap Chaos": PICSUM("cap-chaos"),
 };
 
@@ -116,10 +116,10 @@ export function getEventImage(eventName) {
  *         Prompt arena.png
  *         TRIAL OF TRUTH.png
  *       Non-Technical Events/
- *         70mm DECODE.png
+ *         70mm DECODE.png        <- old event name, not used
  *         BLITZ HUNT.png
  *         CAP CHAOS.png
- *         Free fire.png          <- no matching event in the DB, unused
+ *         Free fire.png          <- Clash Squad E-Sports
  *         plot twist.png
  *         RHYTHM RIOT.png
  *         Team FUED.png
@@ -127,10 +127,9 @@ export function getEventImage(eventName) {
  *
  * WHY THIS IS AN EXPLICIT MAP, NOT A DERIVED PATH: the filenames don't
  * consistently match `event.name` even case-insensitively - most just
- * differ in capitalization (fixable with a case-insensitive compare),
- * but "Rythm Riot" (the actual event name in the DB) is spelled
- * "RHYTHM RIOT.png" on disk - a genuinely different spelling, not a
- * casing difference. No string transform derives one from the other,
+ * differ in capitalization, but some are different words entirely
+ * ("Team FUED.png" for Team Feud, "Free fire.png" for Clash Squad
+ * E-Sports). No string transform derives one from the other,
  * so a lookup table keyed by the exact `event.name` is the only
  * reliable option, same pattern as EVENT_IMAGES above.
  *
@@ -153,12 +152,13 @@ const EVENT_ICON_FILES = {
   "Trial of Truth": { folder: "Technical Events", file: "TRIAL OF TRUTH.png" },
 
   // ---- NON-TECHNICAL ----
-  "70MM Decode": { folder: "Non-Technical Events", file: "70mm DECODE.png" },
   "Blitz Hunt": { folder: "Non-Technical Events", file: "BLITZ HUNT.png" },
   "Cap Chaos": { folder: "Non-Technical Events", file: "CAP CHAOS.png" },
   "Plot Twist": { folder: "Non-Technical Events", file: "plot twist.png" },
-  "Rythm Riot": { folder: "Non-Technical Events", file: "RHYTHM RIOT.png" }, // spelling differs from the DB name - see note above
-  "Team Fued": { folder: "Non-Technical Events", file: "Team FUED.png" },
+  "Rhythm Riot": { folder: "Non-Technical Events", file: "RHYTHM RIOT.png" },
+  "Team Feud": { folder: "Non-Technical Events", file: "Team FUED.png" },
+  "Clash Squad E-Sports": { folder: "Non-Technical Events", file: "Free fire.png" },
+  // Hidden Frames has no icon yet - it falls back to the stock photo.
   "Verbal Combat": { folder: "Non-Technical Events", file: "VERBAL COMBAT.png" },
 };
 

@@ -6,7 +6,9 @@ import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import { useCart } from "../context/CartContext";
 import { api } from "../lib/api";
-import { getEventIconSrc } from "../lib/eventImages";
+import { getEventIconSrc, getEventImage } from "../lib/eventImages";
+import { useLevelFilter } from "../components/EventBrowser";
+import { LEVEL_AUDIENCE, LEVEL_LABEL, levelOf } from "../lib/site";
 
 /**
  * Consolidated event registration list page showing all events in one
@@ -35,7 +37,7 @@ function formatDay(day) {
 }
 
 function EventRow({ event, inCart, onAdd, onRemove }) {
-  const iconSrc = getEventIconSrc(event);
+  const iconSrc = getEventIconSrc(event) || getEventImage(event.name);
   const available = event.maxSeats - event.seatsTaken;
   const isFull = available <= 0;
   const isInCart = inCart(event.id);
@@ -189,6 +191,7 @@ function ComboPassCard({ combo, comboEvents, onAddCombo }) {
 export default function Register() {
   const navigate = useNavigate();
   const { items, addItem, removeItem, addCombo } = useCart();
+  const [level, setLevel] = useLevelFilter(items);
   const [events, setEvents] = useState([]);
   const [combos, setCombos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -239,9 +242,13 @@ export default function Register() {
     navigate("/register/form");
   };
 
-  const technicalEvents = events.filter(e => e.category === "technical");
-  const nonTechnicalEvents = events.filter(e => e.category === "non_technical");
-  const activeCombos = combos.filter(c => c.isActive);
+  const levelEvents = events.filter((e) => levelOf(e) === level);
+  const technicalEvents = levelEvents.filter(e => e.category === "technical");
+  const nonTechnicalEvents = levelEvents.filter(e => e.category === "non_technical");
+  // A combo only shows under the level all of its events belong to.
+  const activeCombos = combos.filter(
+    (c) => c.isActive && c.eventIds.every((id) => levelEvents.some((e) => e.id === id))
+  );
 
   if (loading) {
     return (
@@ -260,9 +267,17 @@ export default function Register() {
           Choose Your Events
         </h1>
         <p className="text-offwhite/60 max-w-2xl mx-auto">
-          Select events to add to your cart. Two clearly separated categories: Technical and Non-Technical events.
+          Senior events are for college students and Junior events for school students — each registers
+          separately. Select events to add to your cart.
           {activeCombos.length > 0 && " Plus combo passes for bundled savings."}
         </p>
+        <div className="seg mt-8" role="group" aria-label="Level">
+          {Object.entries(LEVEL_LABEL).map(([k, v]) => (
+            <button key={k} className={level === k ? "is-active" : ""} aria-pressed={level === k} onClick={() => setLevel(k)} data-log={`register-level-${k}`}>
+              {v} · {LEVEL_AUDIENCE[k]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Cart Summary */}
@@ -286,7 +301,7 @@ export default function Register() {
       <section className="mb-12">
         <div className="flex items-center gap-4 mb-6">
           <h2 className="text-2xl font-bold text-offwhite uppercase tracking-tight">
-            Technical Events
+            {LEVEL_LABEL[level]} Technical Events
           </h2>
           <div className="flex-1 h-px bg-white/10" />
           <Badge variant="outline" className="text-xs">
@@ -315,7 +330,7 @@ export default function Register() {
       <section className="mb-12">
         <div className="flex items-center gap-4 mb-6">
           <h2 className="text-2xl font-bold text-offwhite uppercase tracking-tight">
-            Non-Technical Events
+            {LEVEL_LABEL[level]} Non-Technical Events
           </h2>
           <div className="flex-1 h-px bg-white/10" />
           <Badge variant="outline" className="text-xs">

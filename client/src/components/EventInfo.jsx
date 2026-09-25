@@ -1,5 +1,5 @@
 import React from "react";
-import { CATEGORY_LABEL, categoryOf, dayOf } from "../lib/site";
+import { CATEGORY_LABEL, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/site";
 
 export function formatDay(event) {
   const day = dayOf(event);
@@ -25,7 +25,7 @@ export function seatsLabel(event) {
 }
 
 export function kickerFor(event) {
-  const cat = CATEGORY_LABEL[categoryOf(event)];
+  const cat = `${LEVEL_LABEL[levelOf(event)]} ${CATEGORY_LABEL[categoryOf(event)]}`;
   return event.track ? `${cat} · ${event.track}` : cat;
 }
 

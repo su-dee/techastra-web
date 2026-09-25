@@ -39,6 +39,7 @@ model Event {
   description   String
   track         String?
   category      String   @default("technical") // technical | non_technical
+  level         String   @default("senior") // senior (college students) | junior (school students)
   day           Int?     // 1 or 2 (Day 1 or Day 2 of the symposium)
   startTime     DateTime
   endTime       DateTime

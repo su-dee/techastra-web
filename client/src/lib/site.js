@@ -73,3 +73,11 @@ export function dayOf(event) {
   const date = new Date(event.startTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
   return DAYS.find((d) => d.date === date)?.id ?? null;
 }
+
+// Senior events are for college students, Junior events for school students.
+export const LEVEL_LABEL = { senior: "Senior", junior: "Junior" };
+export const LEVEL_AUDIENCE = { senior: "college students", junior: "school students" };
+
+export function levelOf(event) {
+  return event.level === "junior" ? "junior" : "senior";
+}

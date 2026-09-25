@@ -3,11 +3,11 @@ import toast from "react-hot-toast";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Modal from "../../../components/ui/Modal";
-import { Label, Input, Textarea } from "../../../components/ui/Input";
+import { Label, Input, Textarea, Select } from "../../../components/ui/Input";
 import { api } from "../../../lib/api";
 
 const EMPTY_FORM = {
-  name: "", description: "", track: "", startTime: "", endTime: "",
+  name: "", description: "", track: "", level: "senior", category: "technical", startTime: "", endTime: "",
   fee: "", maxSeats: "", isTeamEvent: false, minTeamSize: 1, maxTeamSize: 1,
   venue: "", rulebook: "",
 };
@@ -89,7 +89,7 @@ export default function EventsTab() {
             <div>
               <p className="font-semibold">{ev.name}</p>
               <p className="text-sm text-white/60">
-                ₹{ev.fee} · {ev.seatsTaken}/{ev.maxSeats} seats · {new Date(ev.startTime).toLocaleString()}
+                {ev.level === "junior" ? "Junior" : "Senior"} · {ev.category === "non_technical" ? "Non-Technical" : "Technical"} · ₹{ev.fee} · {ev.seatsTaken}/{ev.maxSeats} seats · {new Date(ev.startTime).toLocaleString()}
               </p>
             </div>
             <div className="flex gap-2">
@@ -109,6 +109,22 @@ export default function EventsTab() {
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea id="description" rows={2} value={form.description} onChange={(e) => update("description", e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="level">Level</Label>
+              <Select id="level" value={form.level || "senior"} onChange={(e) => update("level", e.target.value)}>
+                <option value="senior">Senior (college students)</option>
+                <option value="junior">Junior (school students)</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Select id="category" value={form.category || "technical"} onChange={(e) => update("category", e.target.value)}>
+                <option value="technical">Technical</option>
+                <option value="non_technical">Non-Technical</option>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

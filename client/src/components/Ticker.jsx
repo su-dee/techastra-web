@@ -6,6 +6,7 @@ export default function Ticker({ eventCount }) {
     "08–09 OCT 2026",
     "DR. MGR EDUCATIONAL & RESEARCH INSTITUTE",
     eventCount ? `${eventCount} EVENTS` : "REGISTRATIONS OPEN",
+    "SENIOR & JUNIOR CATEGORIES",
     "TECHNICAL & NON-TECHNICAL",
     "COMBO PASSES AVAILABLE",
     `${EDITION.toUpperCase()} EDITION`,

@@ -35,7 +35,7 @@ router.get("/:id", async (req, res) => {
 router.post("/", requireAuth, requireRole("master_admin"), async (req, res) => {
   try {
     const {
-      name, description, track, category, startTime, endTime, fee, maxSeats,
+      name, description, track, category, level, startTime, endTime, fee, maxSeats,
       isTeamEvent, minTeamSize, maxTeamSize, rulebook, venue,
     } = req.body;
 
@@ -52,6 +52,7 @@ router.post("/", requireAuth, requireRole("master_admin"), async (req, res) => {
         description: description || "",
         track,
         category: normalizedCategory,
+        level: level === "junior" ? "junior" : "senior",
         startTime: new Date(startTime),
         endTime: new Date(endTime),
         fee: Number(fee),
@@ -82,6 +83,7 @@ router.put("/:id", requireAuth, requireRole("master_admin"), async (req, res) =>
     if (data.category !== undefined) {
       data.category = data.category === "non_technical" ? "non_technical" : "technical";
     }
+    if (data.level !== undefined) data.level = data.level === "junior" ? "junior" : "senior";
     delete data.id;
     delete data.seatsTaken;
 

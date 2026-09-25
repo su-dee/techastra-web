@@ -2,10 +2,9 @@
  * Seed script for TechAstra Symposium Portal.
  *
  * Populates:
- *  - 16 FINAL events across two tracks - 8 Technical + 8 Non-Technical (including Esports),
- *    per the finalized official event list (this is NOT placeholder
- *    data anymore; the earlier 8-event "Coding Marathon / Hackathon /
- *    Tech Quiz / ..." set was the placeholder, replaced wholesale here)
+ *  - the 16 senior events (8 Technical + 8 Non-Technical) with real names,
+ *    descriptions and coordinators - see eventData.js for which details
+ *    (times, fees, seats) are still unconfirmed
  *  - 4 sample colleges (used indirectly via registration collegeName)
  *  - one login per staff role (+ one coordinator per event)
  *  - ~14 dummy registrations spread across pending/approved/rejected
@@ -20,6 +19,7 @@
 const bcrypt = require("bcrypt");
 const prisma = require("../db");
 const { generateCertificatePdf } = require("../utils/certificatePdf");
+const { buildEvents } = require("./eventData");
 
 const DEMO_PASSWORD = "TechAstra@2026";
 
@@ -30,295 +30,8 @@ const COLLEGES = [
   "PSG College of Technology",
 ];
 
-// FINAL event list (8 Technical + 8 Non-Technical including Esports). Sample times, fees,
-// seat counts, venues, and rulebook text below are still illustrative
-// placeholders for THOSE specific details - swap in the real schedule/
-// fee/venue numbers once finalized - but the event NAMES, tracks, and
-// category split are final.
-function buildDemoEvents() {
-  const day = (h, m = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() + 14); // symposium day, 2 weeks out
-    d.setHours(h, m, 0, 0);
-    return d;
-  };
-
-  return [
-    // ---------------------------------------------------------------
-    // TECHNICAL EVENTS (8)
-    // ---------------------------------------------------------------
-    {
-      name: "Pen Your Vision",
-      description: "Pitch your boldest technical idea or research concept as a written paper and a stand-up pitch to a panel of judges.",
-      track: "Paper Presentation",
-      category: "technical",
-      startTime: day(9, 0),
-      endTime: day(11, 0),
-      fee: 100,
-      maxSeats: 40,
-      isTeamEvent: false,
-      minTeamSize: 1,
-      maxTeamSize: 1,
-      venue: "Seminar Hall A",
-      rulebook: "Individual event. Submit a 2-page abstract one day prior via the help desk email. 8 minutes pitch + 2 minutes Q&A on stage.",
-    },
-    {
-      name: "Hack Nexus",
-      description: "A high-intensity hackathon where teams build a working prototype for a surprise problem statement in a single day.",
-      track: "Hackathon",
-      category: "technical",
-      startTime: day(9, 0),
-      endTime: day(17, 0),
-      fee: 300,
-      maxSeats: 60,
-      isTeamEvent: true,
-      minTeamSize: 2,
-      maxTeamSize: 4,
-      venue: "Main Auditorium",
-      rulebook: "Teams of 2-4. Problem statements released at 9 AM sharp. Final demo at 4:30 PM. Any tech stack allowed.",
-    },
-    {
-      name: "Crypt Clash",
-      description: "Crack ciphers, puzzles, and cryptographic challenges head-to-head in a fast elimination format.",
-      track: "Cybersecurity",
-      category: "technical",
-      startTime: day(10, 0),
-      endTime: day(12, 0),
-      fee: 120,
-      maxSeats: 50,
-      isTeamEvent: true,
-      minTeamSize: 1,
-      maxTeamSize: 2,
-      venue: "Computer Lab 1",
-      rulebook: "Teams of 1-2. Multiple rounds of increasing difficulty; fastest correct submissions advance to the next round.",
-    },
-    {
-      name: "Trial of Truth",
-      description: "A rapid-fire technical quiz that puts your knowledge on trial - answer fast and accurately to survive each round.",
-      track: "Technical Quiz",
-      category: "technical",
-      startTime: day(10, 15),
-      endTime: day(12, 0),
-      fee: 50,
-      maxSeats: 100,
-      isTeamEvent: true,
-      minTeamSize: 2,
-      maxTeamSize: 2,
-      venue: "Seminar Hall B",
-      rulebook: "Teams of 2. Written prelims followed by an on-stage final for the top 6 teams.",
-    },
-    {
-      name: "Code Rescue",
-      description: "Debug broken, misbehaving code under time pressure and rescue it before the clock runs out.",
-      track: "Debugging",
-      category: "technical",
-      startTime: day(13, 0),
-      endTime: day(15, 0),
-      fee: 100,
-      maxSeats: 60,
-      isTeamEvent: false,
-      minTeamSize: 1,
-      maxTeamSize: 1,
-      venue: "Computer Lab 2",
-      rulebook: "Individual event. Bring your own laptop. Languages allowed: C, C++, Java, Python. Bugs are scored by difficulty.",
-    },
-    {
-      name: "Pixel Protocol",
-      description: "Design and build a pixel-perfect responsive webpage or interface from a surprise theme, live.",
-      track: "Web/UI Design",
-      category: "technical",
-      startTime: day(13, 0),
-      endTime: day(15, 0),
-      fee: 120,
-      maxSeats: 50,
-      isTeamEvent: false,
-      minTeamSize: 1,
-      maxTeamSize: 1,
-      venue: "Computer Lab 3",
-      rulebook: "Individual event. Theme revealed at start. HTML/CSS/JS only, no frameworks.",
-    },
-    {
-      name: "Forensic Alibi",
-      description: "Analyze digital evidence, decode clues, and piece together the truth behind a simulated cybercrime scene.",
-      track: "Digital Forensics",
-      category: "technical",
-      startTime: day(9, 30),
-      endTime: day(11, 30),
-      fee: 150,
-      maxSeats: 40,
-      isTeamEvent: true,
-      minTeamSize: 2,
-      maxTeamSize: 3,
-      venue: "Cyber Lab",
-      rulebook: "Teams of 2-3. Analyze provided logs and files to identify the culprit; submit your case report before time runs out.",
-    },
-    {
-      name: "Prompt Arena",
-      description: "Craft the sharpest AI prompts to solve given challenges - precision and creativity decide the winner.",
-      track: "Artificial Intelligence",
-      category: "technical",
-      startTime: day(15, 0),
-      endTime: day(17, 0),
-      fee: 100,
-      maxSeats: 50,
-      isTeamEvent: false,
-      minTeamSize: 1,
-      maxTeamSize: 1,
-      venue: "Computer Lab 4",
-      rulebook: "Individual event. Given a target output, write the best-performing prompt within the time and token limits provided.",
-    },
-
-    // ---------------------------------------------------------------
-    // NON-TECHNICAL EVENTS (8 including Esports)
-    // ---------------------------------------------------------------
-    {
-      name: "Rythm Riot",
-      description: "A high-energy dance battle where solo performers or crews bring their best moves to the stage.",
-      track: "Dance",
-      category: "non_technical",
-      startTime: day(14, 0),
-      endTime: day(16, 0),
-      fee: 80,
-      maxSeats: 60,
-      isTeamEvent: true,
-      minTeamSize: 1,
-      maxTeamSize: 8,
-      venue: "Open Air Theatre",
-      rulebook: "Solo or group (up to 8). 3-5 minutes per performance. Own music track required (submit in advance).",
-    },
-    {
-      name: "70MM Decode",
-      description: "A movie-lovers' quiz spanning dialogues, scenes, and trivia across cinema - decode the clues before your rivals do.",
-      track: "Cinema Quiz",
-      category: "non_technical",
-      startTime: day(11, 0),
-      endTime: day(12, 30),
-      fee: 50,
-      maxSeats: 100,
-      isTeamEvent: true,
-      minTeamSize: 2,
-      maxTeamSize: 4,
-      venue: "Seminar Hall C",
-      rulebook: "Teams of 2-4. Rounds include dialogue identification, scene guessing, and rapid-fire cinema trivia.",
-    },
-    {
-      name: "Verbal Combat",
-      description: "A sharp-tongued debate showdown where words are your only weapon - argue, counter, and win the room.",
-      track: "Debate",
-      category: "non_technical",
-      startTime: day(10, 0),
-      endTime: day(12, 0),
-      fee: 80,
-      maxSeats: 40,
-      isTeamEvent: true,
-      minTeamSize: 1,
-      maxTeamSize: 2,
-      venue: "Debate Hall",
-      rulebook: "Solo or pairs. Topics announced 10 minutes before each round. 3 minutes per speaker, judged on argument and delivery.",
-    },
-    {
-      name: "Blitz Hunt",
-      description: "A campus-wide clue-solving chase against the clock, in teams.",
-      track: "Treasure Hunt",
-      category: "non_technical",
-      startTime: day(11, 0),
-      endTime: day(13, 0),
-      fee: 60,
-      maxSeats: 90,
-      isTeamEvent: true,
-      minTeamSize: 3,
-      maxTeamSize: 5,
-      venue: "Campus Grounds",
-      rulebook: "Teams of 3-5. Clues are physical and digital. First team to the final location wins; no vehicles allowed.",
-    },
-    {
-      name: "Plot Twist",
-      description: "Build a story live with your team - then survive the surprise twist announced mid-event.",
-      track: "Storytelling",
-      category: "non_technical",
-      startTime: day(13, 30),
-      endTime: day(15, 30),
-      fee: 90,
-      maxSeats: 50,
-      isTeamEvent: true,
-      minTeamSize: 2,
-      maxTeamSize: 5,
-      venue: "Drama Studio",
-      rulebook: "Teams of 2-5. A base scenario is given; a plot twist is revealed halfway through and must be woven into the finale.",
-    },
-    {
-      name: "Team Fued",
-      description: "A head-to-head team quiz show, game-show style - buzz in first, answer sharp, out-survey the other team.",
-      track: "Team Quiz",
-      category: "non_technical",
-      startTime: day(13, 0),
-      endTime: day(14, 30),
-      fee: 70,
-      maxSeats: 60,
-      isTeamEvent: true,
-      minTeamSize: 4,
-      maxTeamSize: 6,
-      venue: "Seminar Hall D",
-      rulebook: "Teams of 4-6. Survey-style questions; fastest correct buzz-in scores for the team. Bracket-style knockout rounds.",
-    },
-    {
-      name: "Cap Chaos",
-      description: "Caption the chaos - submit the funniest, sharpest caption for each surprise image within the time limit.",
-      track: "Meme/Caption Contest",
-      category: "non_technical",
-      startTime: day(9, 0),
-      endTime: day(15, 0),
-      fee: 40,
-      maxSeats: 100,
-      isTeamEvent: false,
-      minTeamSize: 1,
-      maxTeamSize: 1,
-      venue: "Media Lab",
-      rulebook: "Individual event. New image revealed every round; submit your caption within 60 seconds. Audience + judges vote.",
-    },
-    {
-      name: "Clash Squad Esports",
-      description: "Battle it out in intense Free Fire and BGMI tournaments. Form your squad and compete for supremacy in the ultimate mobile esports showdown.",
-      track: "Esports",
-      category: "non_technical",
-      startTime: day(10, 0),
-      endTime: day(16, 0),
-      fee: 200,
-      maxSeats: 80,
-      isTeamEvent: true,
-      minTeamSize: 4,
-      maxTeamSize: 4,
-      venue: "Gaming Arena",
-      rulebook: "Teams of 4 players. Tournament format: group stage followed by knockout rounds. Players must bring their own devices. Both Free Fire and BGMI tournaments will run simultaneously.",
-    },
-  ];
-}
-
-/**
- * Dummy `coordinatorContacts` data (Event Detail page's "COORDINATORS"
- * block - see EventDetail.jsx). Real names/roles/numbers will replace
- * this once coordinators confirm; for now every event gets 2-3
- * placeholder entries (mixing "Event Coordinator" and "Staff
- * Coordinator" roles) so the variable-length layout can be checked
- * against a realistic count before real data comes in.
- *
- * Deterministic per event (based on its position in the array) rather
- * than random, so re-running the seed produces the same dummy contacts
- * each time instead of a different count on every run.
- */
-function buildDummyCoordinatorContacts(index) {
-  const contacts = [
-    { name: `TBD Coordinator ${index + 1}A`, role: "Event Coordinator", phone: "+91 00000 00000" },
-    { name: `TBD Staff ${index + 1}A`, role: "Staff Coordinator", phone: "+91 00000 00000" },
-  ];
-  // Every third event (index 2, 5, 8, ...) gets a 3rd contact, so the
-  // seed data includes a realistic mix of 2-coordinator and
-  // 3-coordinator events instead of a uniform count everywhere.
-  if (index % 3 === 2) {
-    contacts.push({ name: `TBD Coordinator ${index + 1}B`, role: "Event Coordinator", phone: "+91 00000 00000" });
-  }
-  return contacts;
-}
+// Real event list, coordinators and known dates live in eventData.js;
+// see the header there for which fields are still unconfirmed.
 
 async function upsertStaff({ name, email, role, assignedEventId, dutyDesk, dutyTiming, dutyRole }) {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -386,17 +99,15 @@ async function main() {
   console.log("Seeding TechAstra database...\n");
 
   // 1. Events
-  const eventData = buildDemoEvents();
   const events = [];
-  for (let i = 0; i < eventData.length; i++) {
-    const data = { ...eventData[i], coordinatorContacts: buildDummyCoordinatorContacts(i) };
+  for (const data of buildEvents()) {
     const event = await prisma.event.create({ data });
     events.push(event);
     console.log(`Created event: ${event.name} (${data.coordinatorContacts.length} coordinator contacts)`);
   }
   const [
     penVision, hackNexus, cryptClash, trialOfTruth, codeRescue, pixelProtocol, forensicAlibi, promptArena,
-    rythmRiot, decode70mm, verbalCombat, blitzHunt, plotTwist, teamFued, capChaos,
+    rhythmRiot, hiddenFrames, verbalCombat, blitzHunt, plotTwist, teamFeud, capChaos,
   ] = events;
 
   // 2. Staff accounts

@@ -1,32 +1,28 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { EventCard, EventModal, useCartToggle, useEventModal, useEvents } from "../components/EventBrowser";
-import { categoryOf, dayOf } from "../lib/site";
+import { EventCard, EventFilters, EventModal, useCartToggle, useEventModal, useEvents, useLevelFilter } from "../components/EventBrowser";
+import { LEVEL_AUDIENCE, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/site";
 
 /**
  * Full event catalogue - the "shop" step of registration. The landing page
  * (Home.jsx) previews a few events and links here; this page lists them all
- * with category/day filters and add-to-cart.
+ * with level (Senior/Junior), category and day filters, and add-to-cart.
  */
-
-const CATEGORY_FILTERS = [
-  ["all", "All"],
-  ["technical", "Technical"],
-  ["non_technical", "Non-Technical"],
-];
 
 export default function Events() {
   const { events, loading } = useEvents();
   const { items, inCart, toggle } = useCartToggle();
   const modal = useEventModal(events);
+  const [level, setLevel] = useLevelFilter(items);
   const [category, setCategory] = useState("all");
   const [day, setDay] = useState("all");
 
-  const days = useMemo(() => [...new Set(events.map(dayOf).filter(Boolean))].sort(), [events]);
+  const ofLevel = useMemo(() => events.filter((e) => levelOf(e) === level), [events, level]);
+  const days = useMemo(() => [...new Set(ofLevel.map(dayOf).filter(Boolean))].sort(), [ofLevel]);
 
   const visible = useMemo(
-    () => events.filter((e) => (category === "all" || categoryOf(e) === category) && (day === "all" || dayOf(e) === day)),
-    [events, category, day]
+    () => ofLevel.filter((e) => (category === "all" || categoryOf(e) === category) && (day === "all" || dayOf(e) === day)),
+    [ofLevel, category, day]
   );
 
   return (
@@ -38,43 +34,29 @@ export default function Events() {
               <div className="kicker">Events · Step 1 of 3</div>
               <h1 className="h2">Choose what you’ll compete in</h1>
               <p className="lead mt-3 max-w-xl">
-                Add events to your cart, then register once for all of them. Events that overlap in time
-                can’t go in the same cart — we’ll tell you if you pick a clash.
+                Senior events are for college students and Junior events for school students — each
+                registers separately. Add events to your cart, then register once for all of them;
+                events that overlap in time can’t go in the same cart.
               </p>
             </div>
-            <div className="events__filters">
-              <div className="seg" role="group" aria-label="Filter by category">
-                {CATEGORY_FILTERS.map(([key, label]) => (
-                  <button
-                    key={key}
-                    className={category === key ? "is-active" : ""}
-                    aria-pressed={category === key}
-                    onClick={() => setCategory(key)}
-                    data-log={`events-filter-${key}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {days.length > 1 && (
-                <div className="events__chips" role="group" aria-label="Filter by day">
-                  {["all", ...days].map((d) => (
-                    <button
-                      key={d}
-                      className={"chip" + (day === d ? " is-active" : "")}
-                      aria-pressed={day === d}
-                      onClick={() => setDay(d)}
-                    >
-                      {d === "all" ? "ALL DAYS" : `DAY 0${d}`}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <EventFilters
+              level={level}
+              onLevel={(l) => {
+                setLevel(l);
+                setDay("all");
+              }}
+              category={category}
+              onCategory={setCategory}
+              days={days}
+              day={day}
+              onDay={setDay}
+            />
           </div>
 
           <div className="events__count">
-            {loading ? "LOADING EVENTS…" : `SHOWING ${visible.length} OF ${events.length} EVENTS`}
+            {loading
+              ? "LOADING EVENTS…"
+              : `${LEVEL_LABEL[level].toUpperCase()} · FOR ${LEVEL_AUDIENCE[level].toUpperCase()} — SHOWING ${visible.length} OF ${ofLevel.length} EVENTS`}
             {items.length > 0 && ` · ${items.length} IN CART`}
           </div>
 
