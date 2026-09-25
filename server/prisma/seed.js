@@ -11,9 +11,10 @@
  *  - a few locked results + generated certificates for demo purposes
  *
  * Run with: npm run seed  (inside /server, after `npx prisma migrate dev`)
- * Safe to re-run against a fresh database; it does NOT clear existing data
- * automatically - see the note at the bottom of this file if you need a
- * clean slate.
+ * Safe to re-run: events are updated in place (matched on name + level),
+ * staff logins are upserted, and the demo data is skipped once it exists.
+ * It does NOT clear existing data - see the note at the bottom of this file
+ * if you need a clean slate.
  */
 
 const bcrypt = require("bcrypt");
@@ -98,12 +99,21 @@ async function createParticipantWithRegistration({
 async function main() {
   console.log("Seeding TechAstra database...\n");
 
-  // 1. Events
+  // 1. Events - matched on (name, level) so a re-run refreshes the details
+  // from eventData.js instead of inserting a second copy. seatsTaken isn't
+  // in the seed data, so live seat counts survive the update.
   const events = [];
   for (const data of buildEvents()) {
-    const event = await prisma.event.create({ data });
+    const level = data.level || "senior";
+    const existing = await prisma.event.findFirst({
+      where: { name: data.name, level },
+      orderBy: { createdAt: "asc" },
+    });
+    const event = existing
+      ? await prisma.event.update({ where: { id: existing.id }, data })
+      : await prisma.event.create({ data });
     events.push(event);
-    console.log(`Created event: ${event.name} (${data.coordinatorContacts.length} coordinator contacts)`);
+    console.log(`${existing ? "Updated" : "Created"} event: ${event.name} (${data.coordinatorContacts.length} coordinator contacts)`);
   }
   const [
     penVision, hackNexus, cryptClash, trialOfTruth, codeRescue, pixelProtocol, forensicAlibi, promptArena,
@@ -137,6 +147,16 @@ async function main() {
     });
     coordinators.push(coordinator);
     console.log(`Created coordinator for: ${event.name} (${coordinator.email})`);
+  }
+
+  // 3-6 are one-off demo data (participants, results, certificates,
+  // announcements, combo pass). They're created together, so if the first
+  // demo participant exists they all do - skip them rather than crash on
+  // duplicate emails / registration codes.
+  if (await prisma.user.findUnique({ where: { email: "arun.kumar@example.com" } })) {
+    console.log("\nDemo registrations already exist - skipping demo data.");
+    console.log("\nSeeding complete.\n");
+    return;
   }
 
   // 3. Dummy registrations (spread across pending/approved/rejected)
