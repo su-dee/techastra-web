@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Countdown from "../components/Countdown";
 import Ticker from "../components/Ticker";
@@ -60,87 +60,22 @@ const COURSES = [
 
 const PREVIEW_COUNT = 6;
 
-// Encoded from stones-backdrop.mp4 (1080p, 11 MB) with ffmpeg: audio stripped,
-// 720p landscape + a 540x960 centre crop for portrait screens (phones only
-// ever show the middle of the frame), each as AV1 with an H.264 fallback.
-// If the clip is re-encoded, rename the files: vercel.json caches
-// /videos/backdrop/* as immutable.
-const BACKDROP = {
-  landscape: {
-    av1: "/videos/backdrop/stones-720-av1.mp4", // 0.94 MB
-    h264: "/videos/backdrop/stones-720-h264.mp4", // 1.16 MB
-    poster: "/videos/backdrop/stones-720-poster.webp",
-    width: 1280,
-    height: 720,
-  },
-  portrait: {
-    av1: "/videos/backdrop/stones-portrait-av1.mp4", // 0.59 MB
-    h264: "/videos/backdrop/stones-portrait-h264.mp4", // 0.72 MB
-    poster: "/videos/backdrop/stones-portrait-poster.webp",
-    width: 540,
-    height: 960,
-  },
-};
-const AV1_TYPE = 'video/mp4; codecs="av01.0.05M.08"';
-
-// AV1 only where the browser decodes it smoothly (Safari without AV1
-// hardware, weak phones) - otherwise H.264, which every browser plays.
-async function pickCodec(variant) {
-  if (!document.createElement("video").canPlayType(AV1_TYPE)) return variant.h264;
-  try {
-    const info = await navigator.mediaCapabilities?.decodingInfo({
-      type: "file",
-      video: { contentType: AV1_TYPE, width: variant.width, height: variant.height, bitrate: 800000, framerate: 24 },
-    });
-    return !info || (info.supported && info.smooth) ? variant.av1 : variant.h264;
-  } catch {
-    return variant.av1;
-  }
-}
-
-// Chooses the backdrop files for this screen and delays the video download
-// until the page has finished loading, so it never competes with the
-// hero's text, logo and fonts. The poster shows until then - and is all that
-// loads on Save-Data or 2G connections.
-function useBackdropSource() {
-  const [variant] = useState(() =>
-    window.matchMedia("(max-aspect-ratio: 3/4)").matches ? BACKDROP.portrait : BACKDROP.landscape
-  );
-  const [src, setSrc] = useState(null);
-
-  useEffect(() => {
-    const conn = navigator.connection;
-    if (conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || ""))) return;
-    let cancelled = false;
-    const start = () =>
-      pickCodec(variant).then((url) => {
-        if (!cancelled) setSrc(url);
-      });
-    const kick = () => ("requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 1500 }) : setTimeout(start, 200));
-    if (document.readyState === "complete") kick();
-    else window.addEventListener("load", kick, { once: true });
-    return () => {
-      cancelled = true;
-      window.removeEventListener("load", kick);
-    };
-  }, [variant]);
-
-  return { poster: variant.poster, src };
-}
-
-// Looping video behind the hero.
+// Camera lens behind the hero (three.js, lib/particleLens.js) - focus,
+// perspective, precision: an 8-blade aperture that slowly opens and closes,
+// a rotating focus ring and distance scale, and glass reflections. three.js is loaded with a
+// dynamic import after the page has loaded, so it never delays first paint;
+// the .hero CSS gradient shows until then, and is all that shows without
+// WebGL2 or on Save-Data / 2G connections.
 //
-// A plain <video loop> stalls for a moment when it jumps back to the start,
-// and this clip's last frame doesn't match its first, so the restart is
-// visible. Instead two copies of the clip are stacked: shortly before the
-// visible one ends, the other starts from 0 and they crossfade.
+// Scrolling through the hero flies through the lens: the canvas stays pinned
+// while the text scrolls over it, the aperture opens wide and the camera moves
+// in as it fades. Rendering stops while the hero is off-screen or paused. On
+// desktop the lens tilts toward the cursor and its reflections shift.
 //
-// It plays even when the OS asks for reduced motion (Windows reports that
+// It animates even when the OS asks for reduced motion (Windows reports that
 // whenever "Animation effects" is off), so a pause button is always shown
-// instead; the choice is remembered. Playback also stops while the hero is
-// scrolled out of view.
+// instead; the choice is remembered.
 const PAUSE_KEY = "techastra_backdrop_paused";
-const CROSSFADE_S = 1.2; // keep in sync with .hero__backdrop video transition
 
 function readPaused() {
   try {
@@ -150,72 +85,143 @@ function readPaused() {
   }
 }
 
+function canAnimate() {
+  const conn = navigator.connection;
+  return !(conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || "")));
+}
+
+function hasWebGL2() {
+  try {
+    return !!document.createElement("canvas").getContext("webgl2");
+  } catch {
+    return false;
+  }
+}
+
+// The hero text from the headline down to the dates. The lens dims behind
+// this area (not behind the logo, which it frames) so the text stays legible.
+const TEXT_SELECTORS = [".hero__title", ".hero__depts", ".hero__vision", ".hero__sub", ".hero__details"];
+const TEXT_PAD = 24;
+
+function textZone(canvasEl) {
+  const hero = canvasEl?.closest(".hero");
+  if (!hero) return null;
+  const boxes = TEXT_SELECTORS.map((sel) => hero.querySelector(sel)?.getBoundingClientRect()).filter(Boolean);
+  if (!boxes.length) return null;
+  const c = canvasEl.getBoundingClientRect();
+  const left = Math.min(...boxes.map((b) => b.left)) - TEXT_PAD;
+  const top = Math.min(...boxes.map((b) => b.top)) - TEXT_PAD;
+  const right = Math.max(...boxes.map((b) => b.right)) + TEXT_PAD;
+  const bottom = Math.max(...boxes.map((b) => b.bottom)) + TEXT_PAD;
+  return { x: left - c.left, y: top - c.top, width: right - left, height: bottom - top };
+}
+
+// Fewer particles on small screens and low-core devices.
+function particleCount() {
+  const small = window.innerWidth < 768 || (navigator.hardwareConcurrency || 8) <= 4;
+  return small ? 6000 : 12000;
+}
+
 function HeroBackdrop() {
-  const refA = useRef(null);
-  const refB = useRef(null);
-  const active = useRef(0); // index into [refA, refB] of the clip on screen
-  const fading = useRef(false);
-  const visible = useRef(true);
-  const frame = useRef(0);
+  const wrapRef = useRef(null);
+  const stickyRef = useRef(null);
+  const canvasRef = useRef(null);
+  const scene = useRef(null);
   const [paused, setPaused] = useState(readPaused);
-  const { poster, src } = useBackdropSource();
-  // The loop's second copy only starts downloading once the first is fully
-  // buffered, so it comes from the HTTP cache instead of a second download.
-  const [srcB, setSrcB] = useState(null);
-  const shown = useRef(false);
+  const [visible, setVisible] = useState(true);
+  const [enabled] = useState(() => canAnimate() && hasWebGL2());
+  const [ready, setReady] = useState(false);
 
-  const videos = () => [refA.current, refB.current];
-
-  const tick = useCallback(() => {
-    const [a, b] = videos();
-    const cur = active.current === 0 ? a : b;
-    const next = active.current === 0 ? b : a;
-    if (cur && next && next.readyState >= 2 && !fading.current && cur.duration && cur.currentTime >= cur.duration - CROSSFADE_S - 0.25) {
-      fading.current = true;
-      next.currentTime = 0;
-      next.play().catch(() => {});
-      next.classList.add("is-active");
-      cur.classList.remove("is-active");
-      setTimeout(() => {
-        cur.pause();
-        cur.currentTime = 0; // decode the first frame now so the next swap starts instantly
-        active.current = 1 - active.current;
-        fading.current = false;
-      }, CROSSFADE_S * 1000);
-    }
-    frame.current = requestAnimationFrame(tick);
-  }, []);
-
-  const sync = useCallback(() => {
-    const [a, b] = videos();
-    if (!a || !b) return;
-    // React doesn't always write the `muted` attribute, and browsers only
-    // allow unprompted playback for muted media - set it explicitly.
-    a.muted = b.muted = true;
-    cancelAnimationFrame(frame.current);
-    if (!paused && visible.current) {
-      const cur = active.current === 0 ? a : b;
-      cur.play().catch(() => {});
-      if (fading.current) (cur === a ? b : a).play().catch(() => {});
-      frame.current = requestAnimationFrame(tick);
-    } else {
-      a.pause();
-      b.pause();
-    }
-  }, [paused, tick]);
+  // Build the scene once the page has finished loading.
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    const start = () =>
+      import("../lib/particleLens")
+        .then(({ createLens }) => {
+          if (cancelled || !canvasRef.current) return;
+          const v = createLens(canvasRef.current, { count: particleCount() });
+          const el = stickyRef.current;
+          v.resize(el.clientWidth, el.clientHeight);
+          v.setTextZone(textZone(el));
+          scene.current = v;
+          if (import.meta.env.DEV) window.__heroLens = v;
+          setReady(true);
+        })
+        .catch(() => {
+          /* three.js failed to load - keep the CSS gradient */
+        });
+    const kick = () => ("requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 1200 }) : setTimeout(start, 150));
+    if (document.readyState === "complete") kick();
+    else window.addEventListener("load", kick, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", kick);
+      scene.current?.dispose();
+      scene.current = null;
+    };
+  }, [enabled]);
 
   useEffect(() => {
-    const io = new IntersectionObserver(([entry]) => {
-      visible.current = entry.isIntersecting;
-      sync();
-    });
-    io.observe(refA.current);
-    sync();
-    return () => {
-      io.disconnect();
-      cancelAnimationFrame(frame.current);
+    const io = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting));
+    io.observe(wrapRef.current);
+    return () => io.disconnect();
+  }, []);
+
+  // Run only while on screen and not paused; paused shows a still frame.
+  useEffect(() => {
+    const v = scene.current;
+    if (!v) return;
+    if (visible && !paused) v.start();
+    else {
+      v.stop();
+      if (visible) v.renderOnce();
+    }
+  }, [ready, visible, paused]);
+
+  // Fly-through: 0 at the top of the page, 1 once the hero has scrolled away.
+  useEffect(() => {
+    if (!ready) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const v = scene.current;
+      const hero = wrapRef.current?.parentElement;
+      if (!v || !hero) return;
+      v.setScroll(window.scrollY / hero.offsetHeight);
+      // The text scrolls over the pinned canvas, so the dimmed zone follows it.
+      v.setTextZone(textZone(stickyRef.current));
+      if (paused && visible) v.renderOnce();
     };
-  }, [sync]);
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [ready, paused, visible]);
+
+  // Gentle tilt toward the cursor (mouse/trackpad only).
+  useEffect(() => {
+    if (!ready || !window.matchMedia("(pointer: fine)").matches) return;
+    const onMove = (e) => scene.current?.setPointer((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const el = stickyRef.current;
+    const ro = new ResizeObserver(() => {
+      scene.current?.resize(el.clientWidth, el.clientHeight);
+      scene.current?.setTextZone(textZone(el));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ready]);
 
   const toggle = () => {
     const next = !paused;
@@ -227,51 +233,39 @@ function HeroBackdrop() {
     }
   };
 
-  // `loop` stays on as a fallback for when requestAnimationFrame is throttled
-  // (background tab); normally the crossfade takes over before the end.
   return (
     <>
-      <div className="hero__backdrop" aria-hidden="true">
-        <img src={poster} alt="" decoding="async" fetchpriority="high" />
-        <video
-          ref={refA}
-          src={src || undefined}
-          muted
-          loop
-          playsInline
-          preload="auto"
-          onCanPlay={sync}
-          onCanPlayThrough={() => setSrcB(src)}
-          onPlaying={(e) => {
-            // Fade the video in over the poster once real frames are showing.
-            if (!shown.current && active.current === 0) e.currentTarget.classList.add("is-active");
-            shown.current = true;
-          }}
-        />
-        <video ref={refB} src={srcB || undefined} muted loop playsInline preload="auto" />
+      <div ref={wrapRef} className="hero__backdrop" aria-hidden="true">
+        {/* Pinned to the viewport while the hero scrolls, so the fly-through
+            stays in view; it leaves with the end of the hero. */}
+        <div ref={stickyRef} className="hero__sticky">
+          {enabled && <canvas ref={canvasRef} className={"hero__particles" + (ready ? " is-ready" : "")} />}
+        </div>
         <div className="hero__scrim" />
       </div>
-      <button
-        type="button"
-        className="hero__video-toggle"
-        onClick={toggle}
-        aria-label={paused ? "Play background video" : "Pause background video"}
-        aria-pressed={paused}
-        data-log="home-backdrop-toggle"
-      >
-        {paused ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor" /></svg>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
-        )}
-      </button>
+      {enabled && (
+        <button
+          type="button"
+          className="hero__bg-toggle"
+          onClick={toggle}
+          aria-label={paused ? "Play background animation" : "Pause background animation"}
+          aria-pressed={paused}
+          data-log="home-backdrop-toggle"
+        >
+          {paused ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor" /></svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z" fill="currentColor" /></svg>
+          )}
+        </button>
+      )}
     </>
   );
 }
 
 function Hero({ eventCount }) {
   return (
-    <header id="home" className="hero hero--video">
+    <header id="home" className="hero">
       <HeroBackdrop />
       <div className="hero__content">
         <div className="hero__badge">{EDITION} National Level Technical Symposium · 2026</div>

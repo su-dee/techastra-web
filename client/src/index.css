@@ -196,31 +196,31 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
     var(--bg);
 }
 .hero__orbs .orb { animation: float 9s ease-in-out infinite; }
-/* Video backdrop (landing page). The scrim darkens the footage enough for the
-   headline and countdown to stay readable, and keeps the main site's warm
-   top-left / cool bottom glow so it still reads as the same design. */
-.hero--video { background: #050507; }
+/* Particle backdrop (landing page, see HeroBackdrop in Home.jsx). The .hero
+   gradient above shows until three.js has loaded, and is all that shows
+   without WebGL2. The scrim keeps the headline and countdown readable and
+   the main site's warm top-left / cool bottom glow. */
 .hero__backdrop { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
-.hero__backdrop video, .hero__backdrop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-/* Two stacked copies crossfade at the loop point (see HeroBackdrop in
-   Home.jsx). !important keeps the fade under prefers-reduced-motion, where
-   the global rule below would otherwise turn it into a hard cut. */
-.hero__backdrop video { opacity: 0; transition: opacity 1.2s linear !important; }
-.hero__backdrop video.is-active { opacity: 1; }
-.hero__video-toggle {
+.hero__sticky { position: sticky; top: 0; width: 100%; height: 100vh; height: 100svh; }
+.hero__particles { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; }
+/* !important keeps the fade-in under prefers-reduced-motion, where the
+   global rule below would otherwise turn it into a hard cut. */
+.hero__particles.is-ready { animation: heroParticlesIn 1.2s ease-out both !important; }
+@keyframes heroParticlesIn { from { opacity: 0; } to { opacity: 1; } }
+.hero__bg-toggle {
   position: absolute; right: var(--gutter); top: calc(var(--nav-h) + 18px); z-index: 3;
   display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
   border-radius: 50%; border: 1px solid var(--line-2); background: rgba(9, 9, 12, 0.6); color: #ddd6ce;
   cursor: pointer; backdrop-filter: blur(6px); transition: border-color 0.2s, color 0.2s;
 }
-.hero__video-toggle:hover { border-color: rgba(217, 140, 70, 0.55); color: #fff; }
+.hero__bg-toggle:hover { border-color: rgba(217, 140, 70, 0.55); color: #fff; }
 .hero__scrim {
   position: absolute; inset: 0;
   background:
-    radial-gradient(60% 55% at 50% 42%, rgba(5, 5, 7, 0.55) 0%, rgba(5, 5, 7, 0.25) 100%),
+    radial-gradient(55% 40% at 50% 62%, rgba(5, 5, 7, 0.45) 0%, rgba(5, 5, 7, 0.1) 100%),
     radial-gradient(120% 90% at 8% 14%, rgba(196, 110, 40, 0.28) 0%, rgba(7, 7, 10, 0) 60%),
     radial-gradient(110% 90% at 22% 104%, rgba(46, 86, 130, 0.3) 0%, rgba(7, 7, 10, 0) 62%),
-    linear-gradient(180deg, rgba(7, 7, 10, 0.55) 0%, rgba(7, 7, 10, 0.35) 35%, rgba(7, 7, 10, 0.6) 75%, #07070a 100%);
+    linear-gradient(180deg, rgba(7, 7, 10, 0.3) 0%, rgba(7, 7, 10, 0.2) 35%, rgba(7, 7, 10, 0.6) 75%, #07070a 100%);
 }
 .hero__orbs .orb:nth-child(2n) { animation-duration: 12s; animation-delay: -3s; }
 .hero__orbs .orb:nth-child(3n) { animation-duration: 14s; animation-delay: -6s; }
@@ -511,7 +511,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
   .hero__ctas { gap: 12px; }
   .hero__ctas .btn-pill, .hero__ctas .btn-ghost { width: 100%; text-align: center; }
   .hero__depts { letter-spacing: 0.2em; font-size: 12px; }
-  .hero__video-toggle { top: calc(var(--nav-h) + 8px); width: 32px; height: 32px; }
+  .hero__bg-toggle { top: calc(var(--nav-h) + 8px); width: 32px; height: 32px; }
   .hero__badge { margin-top: 8px; }
   .btn-pill { padding: 18px 40px; }
   .countdown__units { gap: 8px; }
