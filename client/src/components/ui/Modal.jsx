@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { useFocusTrap } from "../../lib/a11y";
 
 /**
  * Centered dialog in the main site's EventModal style. Closes on Escape and
@@ -10,6 +11,8 @@ import React, { useEffect, useRef } from "react";
  */
 export default function Modal({ open, onClose, title, kicker, children, size = "md", fullScreen = false, tone, labelledBy }) {
   const closeRef = useRef(null);
+  const panelRef = useRef(null);
+  useFocusTrap(panelRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -33,6 +36,7 @@ export default function Modal({ open, onClose, title, kicker, children, size = "
   return (
     <div className="modal" onClick={onClose}>
       <div
+        ref={panelRef}
         className={"modal__panel" + sizeClass + toneClass}
         role="dialog"
         aria-modal="true"

@@ -7,7 +7,7 @@ import Card from "../../../components/ui/Card";
 import InteractiveAnalyticsChart from "../../../components/InteractiveAnalyticsChart";
 import { api } from "../../../lib/api";
 
-const COLORS = ["#e8a25c", "#7ba3cf", "#22C55E", "#F59E0B", "#EF4444", "#3d5f85"];
+const COLORS = ["#ddbb6a", "#a7afb5", "#22C55E", "#F59E0B", "#EF4444", "#5e666c"];
 
 function StatCard({ label, value }) {
   return (
@@ -35,20 +35,29 @@ export default function AnalyticsTab() {
       {/* Legacy Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="font-heading font-semibold mb-4">Per-Event Headcount</h3>
+          <h2 className="font-heading font-semibold mb-4">Per-Event Headcount</h2>
+          <p className="sr-only">
+            {data.perEventHeadcount.map((d) => `${d.eventName}: ${d.seatsTaken}`).join("; ")}
+          </p>
+          <div aria-hidden="true">
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.perEventHeadcount} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
               <XAxis type="number" stroke="rgba(255,255,255,0.5)" fontSize={12} />
               <YAxis dataKey="eventName" type="category" width={140} stroke="rgba(255,255,255,0.5)" fontSize={11} />
               <Tooltip contentStyle={{ background: "var(--color-bg-elevated)", border: "1px solid rgba(255,255,255,0.1)" }} />
-              <Bar dataKey="seatsTaken" fill="#e8a25c" radius={[0, 6, 6, 0]} />
+              <Bar dataKey="seatsTaken" fill="#ddbb6a" radius={[0, 6, 6, 0]} />
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </Card>
 
         <Card>
-          <h3 className="font-heading font-semibold mb-4">College-wise Breakdown</h3>
+          <h2 className="font-heading font-semibold mb-4">College-wise Breakdown</h2>
+          <p className="sr-only">
+            {data.perCollegeStats.map((d) => `${d.college}: ${d.count}`).join("; ")}
+          </p>
+          <div aria-hidden="true">
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
@@ -58,6 +67,7 @@ export default function AnalyticsTab() {
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
+                rootTabIndex={-1}
                 label={({ college }) => college}
               >
                 {data.perCollegeStats.map((entry, i) => (
@@ -68,6 +78,7 @@ export default function AnalyticsTab() {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
+          </div>
         </Card>
       </div>
     </div>

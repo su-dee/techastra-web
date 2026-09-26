@@ -1,10 +1,11 @@
 import React from "react";
-import { CATEGORY_LABEL, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/site";
+import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/site";
 
 export function formatDay(event) {
   const day = dayOf(event);
-  if (day) return `Day 0${day}`;
-  return new Date(event.startTime).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+  const known = DAYS.find((d) => d.id === day);
+  if (known) return known.label; // "Day 1 · October 8, 2026"
+  return new Date(event.startTime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 export function formatTimeRange(event) {
@@ -53,7 +54,6 @@ export default function EventInfo({ event }) {
     ["Venue", event.venue],
     ["Format", teamLabel(event)],
     ["Fee", `₹${event.fee}`],
-    ["Seats", seatsLabel(event)],
   ];
 
   return (

@@ -21,6 +21,8 @@ export default function Footer() {
             <li><Link to="/events">Events</Link></li>
             <li><Link to="/status" data-log="footer-status">Registration status</Link></li>
             <li><Link to="/verify-certificate" data-log="footer-verify-certificate">Verify certificate</Link></li>
+            <li><Link to="/privacy">Privacy Notice</Link></li>
+            <li><Link to="/terms">Terms &amp; fees</Link></li>
           </ul>
         </div>
         <div>

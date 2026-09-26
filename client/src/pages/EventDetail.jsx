@@ -71,8 +71,8 @@ export default function EventDetail() {
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
             {inCart ? (
               <>
-                <button className="btn-small modal__cta !mt-0 flex-1" onClick={() => navigate("/register")} data-log="event-detail-continue">
-                  Continue to registration →
+                <button className="btn-small modal__cta !mt-0 flex-1" onClick={() => navigate("/register/form")} data-log="event-detail-continue">
+                  Continue to your details →
                 </button>
                 <button className="btn-ghost-sm !py-4" onClick={() => removeItem(event.id)}>
                   Remove from cart
@@ -80,7 +80,7 @@ export default function EventDetail() {
               </>
             ) : (
               <button className="btn-small modal__cta !mt-0 flex-1 disabled:opacity-50" disabled={full} onClick={add} data-log="event-detail-add">
-                {full ? "Seats full" : `Add to cart — ₹${event.fee}`}
+                {full ? "Seats full" : "Add to cart"}
               </button>
             )}
           </div>

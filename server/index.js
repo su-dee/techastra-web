@@ -5,8 +5,14 @@ const cors = require("cors");
 const path = require("path");
 const { Server } = require("socket.io");
 
+const { checkEnv, isProd } = require("./utils/env");
+checkEnv(); // exits with a clear message if production config is unsafe
+
+const prisma = require("./db");
 const { initSocket } = require("./socket");
 const requestLogger = require("./middleware/requestLogger");
+const { globalLimiter } = require("./middleware/rateLimiter");
+const { uploadDir } = require("./middleware/upload");
 
 const authRoutes = require("./routes/auth");
 const eventRoutes = require("./routes/events");
@@ -22,58 +28,53 @@ const helpRoutes = require("./routes/help");
 const adminRoutes = require("./routes/admin");
 const volunteerRoutes = require("./routes/volunteer");
 const upiRoutes = require("./routes/upi");
-const logRoutes = require("./routes/logs");
-const paymentRoutes = require("./routes/payment");
 const comboRoutes = require("./routes/combos");
 
 const app = express();
 const server = http.createServer(app);
 
-// Security Headers Middleware (manual helmet replacement)
+app.disable("x-powered-by");
+// Behind Render's (or any) reverse proxy, trust one hop so req.ip is the
+// real client address - rate limits depend on it. Override with TRUST_PROXY.
+app.set("trust proxy", process.env.TRUST_PROXY !== undefined ? Number(process.env.TRUST_PROXY) : isProd ? 1 : false);
+// Defence in depth: password hashes never leave the server, whichever route
+// forgets to exclude them (several include the full `user` relation).
+app.set("json replacer", (key, value) => (key === "passwordHash" ? undefined : value));
+
+// Security headers (OWASP Secure Headers Project recommendations).
 app.use((req, res, next) => {
-  // Prevent clickjacking
-  res.setHeader("X-Frame-Options", "SAMEORIGIN");
-  
-  // Prevent MIME type sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
-  
-  // XSS Protection
-  res.setHeader("X-XSS-Protection", "1; mode=block");
-  
-  // Referrer Policy
+  res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  
-  // Permissions Policy
-  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-  
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  // The legacy XSS auditor is itself exploitable; OWASP now recommends "0".
+  res.setHeader("X-XSS-Protection", "0");
+  if (isProd) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  // JSON API responses never need to load anything.
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+    res.setHeader("Cache-Control", "no-store");
+  }
   next();
 });
 
-// Allowed CORS origins. In production, set CLIENT_ORIGIN to your deployed
-// frontend URL (comma-separated for multiple). In local dev, Vite starts on
-// 5173 but silently falls back to 5174/5175/... when a port is taken, which
-// used to break the API with CORS errors - so all the common local Vite
-// ports are allowed here by default. Any explicit CLIENT_ORIGIN value(s) are
-// added on top.
-const defaultDevOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:5174",
-  "http://127.0.0.1:5175",
-];
+// Allowed CORS origins: CLIENT_ORIGIN (comma-separated) in production. In
+// development the common local Vite ports are allowed too, because Vite
+// silently moves to 5174/5175 when 5173 is taken.
+const devOrigins = [5173, 5174, 5175].flatMap((p) => [`http://localhost:${p}`, `http://127.0.0.1:${p}`]);
 const envOrigins = (process.env.CLIENT_ORIGIN || "")
   .split(",")
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/$/, ""))
   .filter(Boolean);
-const allowedOrigins = [...new Set([...defaultDevOrigins, ...envOrigins])];
+const allowedOrigins = [...new Set([...(isProd ? [] : devOrigins), ...envOrigins])];
 
-// A function origin lets requests with no Origin header (curl, same-origin,
-// health checks) through, and reflects any allowed browser origin.
+// Requests with no Origin header (curl, same-origin, health checks) pass.
 const corsOrigin = (origin, callback) => {
   if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-  return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  const err = new Error("Origin not allowed");
+  err.status = 403;
+  return callback(err);
 };
 
 const io = new Server(server, {
@@ -82,11 +83,26 @@ const io = new Server(server, {
 initSocket(io);
 
 app.use(cors({ origin: corsOrigin }));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "100kb" }));
 app.use(requestLogger);
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api", globalLimiter);
 
-app.get("/api/health", (req, res) => res.json({ status: "ok", time: new Date().toISOString() }));
+// Only generated certificate PDFs are public (anyone holding a certificate
+// can share it; it is also verifiable by code). Payment screenshots stay
+// private - see GET /api/registrations/:id/proof.
+app.use(
+  "/uploads/certificates",
+  express.static(path.join(uploadDir, "certificates"), { index: false, dotfiles: "deny", maxAge: "7d" })
+);
+
+app.get("/api/health", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", db: "ok", time: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: "degraded", db: "unreachable", time: new Date().toISOString() });
+  }
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
@@ -102,20 +118,58 @@ app.use("/api/help", helpRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/volunteer", volunteerRoutes);
 app.use("/api/upi", upiRoutes);
-app.use("/api/logs", logRoutes);
-app.use("/api/payment", paymentRoutes);
 app.use("/api/combos", comboRoutes);
 
-// Centralized error handler (e.g. multer file-size/type errors)
+// Development only: the browser click logger (client/src/lib/clickLogger.js)
+// posts here. Never exposed in production - it is unauthenticated.
+if (!isProd) app.use("/api/logs", require("./routes/logs"));
+
+// Razorpay is optional (payments currently go by UPI QR). Its routes are only
+// mounted when both keys are configured.
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  app.use("/api/payment", require("./routes/payment"));
+}
+
+app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
+
+// Centralised error handler. 4xx messages are meant for the user; anything
+// else is logged and replaced with a generic message so internals don't leak.
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(err.status || 500).json({ error: err.message || "Internal server error" });
+  let status = err.status || err.statusCode || 500;
+  if (err.name === "MulterError") status = 400;
+  if (err.type === "entity.too.large") status = 413;
+  if (status >= 500) console.error("Unhandled error:", err);
+  const message =
+    err.name === "MulterError" && err.code === "LIMIT_FILE_SIZE"
+      ? "The screenshot is too large (max 5 MB)."
+      : status < 500
+        ? err.message
+        : "Something went wrong. Please try again.";
+  res.status(status).json({ error: message });
 });
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
-  console.log(`\nTechAstra API listening on port ${PORT}`);
-  console.log(
-    "Every API request AND every click on the frontend will be logged below (see server/middleware/requestLogger.js and client/src/lib/clickLogger.js).\n"
-  );
+  console.log(`\nTechastra API listening on port ${PORT} (${isProd ? "production" : "development"})`);
 });
+
+// Graceful shutdown: finish in-flight requests, then close the DB pool.
+// Render and most hosts send SIGTERM before replacing an instance.
+let shuttingDown = false;
+function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received, shutting down…`);
+  io.close();
+  server.close(async () => {
+    await prisma.$disconnect().catch(() => {});
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("unhandledRejection", (reason) => console.error("Unhandled promise rejection:", reason));
+
+module.exports = { app, server };

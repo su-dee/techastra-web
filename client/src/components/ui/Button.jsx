@@ -4,14 +4,14 @@ import React from "react";
 // action, hairline-bordered ghost buttons for everything secondary.
 const VARIANTS = {
   primary:
-    "bg-grad-btn text-white border border-white/15 shadow-amber-sm hover:brightness-110 rounded-[7px]",
+    "bg-grad-btn text-[#2c2823] font-semibold border border-white/15 shadow-amber-sm hover:brightness-110 rounded-[7px]",
   secondary:
     "bg-steel-dim/40 text-heading border border-steel/40 hover:bg-steel-dim/60 hover:border-steel/70 rounded-[7px]",
   outline:
-    "bg-transparent text-[#ddd6ce] border border-white/15 hover:border-amber/55 hover:text-white rounded-[7px]",
+    "bg-transparent text-[#e0dacd] border border-white/15 hover:border-amber/55 hover:text-white rounded-[7px]",
   danger:
     "bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 rounded-[7px]",
-  ghost: "bg-transparent text-[#ddd6ce] hover:bg-white/5 hover:text-white rounded-[7px]",
+  ghost: "bg-transparent text-[#e0dacd] hover:bg-white/5 hover:text-white rounded-[7px]",
   link: "link-cta !p-0",
 };
 
@@ -36,7 +36,7 @@ export default function Button({
     <button
       type={type}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap transition-[filter,border-color,background-color,color] duration-200
+      className={`inline-flex items-center justify-center gap-2 font-medium text-center transition-[filter,border-color,background-color,color] duration-200
         disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:brightness-100
         ${VARIANTS[variant] || VARIANTS.primary} ${isLink ? "" : SIZES[size] || SIZES.md} ${className}`}
       {...props}

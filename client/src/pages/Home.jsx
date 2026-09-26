@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Countdown from "../components/Countdown";
-import Ticker from "../components/Ticker";
 import Partners from "../components/Partners";
 import { EventCard, EventFilters, EventModal, useCartToggle, useEventModal, useEvents } from "../components/EventBrowser";
 import { formatTimeRange, teamLabel } from "../components/EventInfo";
@@ -119,7 +118,7 @@ function textZone(canvasEl) {
 // Fewer particles on small screens and low-core devices.
 function particleCount() {
   const small = window.innerWidth < 768 || (navigator.hardwareConcurrency || 8) <= 4;
-  return small ? 6000 : 12000;
+  return small ? 5000 : 10000;
 }
 
 function HeroBackdrop() {
@@ -223,6 +222,12 @@ function HeroBackdrop() {
     return () => ro.disconnect();
   }, [ready]);
 
+  // The same switch pauses the ticker and other page motion (WCAG 2.2.2).
+  useEffect(() => {
+    document.documentElement.classList.toggle("motion-paused", paused);
+    return () => document.documentElement.classList.remove("motion-paused");
+  }, [paused]);
+
   const toggle = () => {
     const next = !paused;
     setPaused(next);
@@ -243,12 +248,13 @@ function HeroBackdrop() {
         </div>
         <div className="hero__scrim" />
       </div>
-      {enabled && (
+      {(
         <button
           type="button"
           className="hero__bg-toggle"
           onClick={toggle}
-          aria-label={paused ? "Play background animation" : "Pause background animation"}
+          aria-label={paused ? "Play animations" : "Pause animations"}
+          title={paused ? "Play animations" : "Pause animations"}
           aria-pressed={paused}
           data-log="home-backdrop-toggle"
         >
@@ -288,8 +294,8 @@ function Hero({ eventCount }) {
         </div>
         <Countdown />
         <div className="hero__ctas">
-          <Link className="btn-pill" to="/events?level=senior" data-log="home-hero-senior">Senior Registration</Link>
-          <Link className="btn-ghost" to="/events?level=junior" data-log="home-hero-junior">Junior Registration</Link>
+          <Link className="btn-reg" to="/events?level=senior" data-log="home-hero-senior">Senior Registration</Link>
+          <Link className="btn-reg" to="/events?level=junior" data-log="home-hero-junior">Junior Registration</Link>
         </div>
         <a className="hero__explore" href="#events">
           Explore {eventCount ? `all ${eventCount}` : "the"} events ↓
@@ -320,7 +326,6 @@ function About() {
         </div>
         <figure className="about__photo">
           <img src={annaBlock} alt="Anna Block, Dr. M.G.R. Educational and Research Institute campus" loading="lazy" />
-          <figcaption>Anna Block · Maduravoyal campus, Chennai</figcaption>
         </figure>
       </div>
 
@@ -401,14 +406,14 @@ function AboutTechastra({ eventCount }) {
             connections. We warmly invite you to be part of this event — your presence will make it a
             grand success.
           </p>
-          <div className="tags mt-7">
-            {["Senior (college) events", "Junior (school) events", "Team & solo events", "Technical & non-technical"].map((t) => (
+          <div className="tags tags--grid mt-7">
+            {["Senior events (college students)", "Junior events (school students)", "Individual & Team participation", "Technical & non-technical"].map((t) => (
               <span key={t} className="tag">{t}</span>
             ))}
           </div>
           <div className="techastra__ctas">
-            <Link className="btn-small" to="/events?level=senior">Senior Registration</Link>
-            <Link className="btn-ghost-sm" to="/events?level=junior">Junior Registration</Link>
+            <Link className="btn-reg" to="/events?level=senior">Senior Registration</Link>
+            <Link className="btn-reg" to="/events?level=junior">Junior Registration</Link>
           </div>
         </div>
       </div>
@@ -445,7 +450,7 @@ function EventsPreview({ events, loading, items, inCart, onOpen, onToggle }) {
         {list.length > shown.length && (
           <div className="mt-10 text-center">
             <Link to={`/events?level=${level}`} className="btn-ghost" data-log="home-events-all">
-              See all {list.length} {LEVEL_LABEL[level].toLowerCase()} {cat === "all" ? "" : CATEGORY_LABEL[cat].toLowerCase() + " "}events →
+              See all {LEVEL_LABEL[level]} Events →
             </Link>
           </div>
         )}
@@ -517,8 +522,8 @@ function Contact() {
           online. Reach out to the coordinators below for any queries.
         </p>
         <div className="contact__ctas">
-          <Link className="btn-pill" to="/events?level=senior" data-log="home-contact-senior">Senior Registration</Link>
-          <Link className="btn-ghost" to="/events?level=junior" data-log="home-contact-junior">Junior Registration</Link>
+          <Link className="btn-reg" to="/events?level=senior" data-log="home-contact-senior">Senior Registration</Link>
+          <Link className="btn-reg" to="/events?level=junior" data-log="home-contact-junior">Junior Registration</Link>
         </div>
 
         <div className="overall card">
@@ -584,18 +589,26 @@ export default function Home() {
   const { events, loading } = useEvents();
   const { items, inCart, toggle } = useCartToggle();
   const modal = useEventModal(events);
+  // Prev/Next in the modal walks the events of the open event's level.
+  const modalList = modal.active ? events.filter((e) => levelOf(e) === levelOf(modal.active)) : [];
 
   return (
     <>
       <Hero eventCount={events.length} />
-      <Ticker eventCount={events.length} />
       <About />
       <AboutTechastra eventCount={events.length} />
       <EventsPreview events={events} loading={loading} items={items} inCart={inCart} onOpen={modal.open} onToggle={toggle} />
       <Schedule events={events} onOpen={modal.open} />
       <Partners />
       <Contact />
-      <EventModal event={modal.active} onClose={modal.close} inCart={modal.active && inCart(modal.active.id)} onToggle={toggle} />
+      <EventModal
+        event={modal.active}
+        onClose={modal.close}
+        inCart={modal.active && inCart(modal.active.id)}
+        onToggle={toggle}
+        list={modalList}
+        onNavigate={modal.go}
+      />
     </>
   );
 }

@@ -1,9 +1,10 @@
-import React, { Suspense, lazy, useEffect } from "react";
+import React, { Suspense, lazy, useEffect, useRef } from "react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import HelpDeskPanel from "./components/panels/HelpDeskPanel";
+import { useRouteAnnouncer } from "./lib/a11y";
 
 // The landing page ships in the main bundle; every other route is its own
 // chunk, fetched the first time it's visited, so portal-only libraries
@@ -51,6 +52,8 @@ const Status = lazyPage(() => import("./pages/Status"));
 const Login = lazyPage(loadLogin);
 const Dashboard = lazyPage(() => import("./pages/Dashboard"));
 const VerifyCertificate = lazyPage(() => import("./pages/VerifyCertificate"));
+const Privacy = lazyPage(() => import("./pages/Legal").then((m) => ({ default: m.Privacy })));
+const Terms = lazyPage(() => import("./pages/Legal").then((m) => ({ default: m.Terms })));
 
 const RegistrationTeamPortal = lazyPage(() => import("./pages/portals/RegistrationTeamPortal"));
 const CoordinatorPortal = lazyPage(() => import("./pages/portals/CoordinatorPortal"));
@@ -101,13 +104,18 @@ class PageErrorBoundary extends React.Component {
 
 export default function App() {
   const { pathname } = useLocation();
+  const mainRef = useRef(null);
+  const announceRef = useRef(null);
   usePrefetchVisitorPages();
+  useRouteAnnouncer(pathname, mainRef, announceRef);
   return (
     <div className="page-glow min-h-screen flex flex-col">
+      <a href="#main" className="skip-link">Skip to main content</a>
+      <p ref={announceRef} className="sr-only" aria-live="polite" />
       <Navbar />
       {/* The navbar is fixed; pages start below it. The landing hero pulls
           itself back up under the nav with a negative margin (.hero). */}
-      <main className="flex-1" style={{ paddingTop: "var(--nav-h)" }}>
+      <main id="main" ref={mainRef} tabIndex={-1} className="flex-1 outline-none" style={{ paddingTop: "var(--nav-h)" }}>
         <PageErrorBoundary key={pathname}>
           <Suspense fallback={<PageFallback />}>
             <Routes>
@@ -121,6 +129,8 @@ export default function App() {
               <Route path="/status" element={<Status />} />
               <Route path="/login" element={<Login />} />
               <Route path="/verify-certificate" element={<VerifyCertificate />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
   
               <Route
                 path="/dashboard"

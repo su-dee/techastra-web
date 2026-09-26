@@ -52,7 +52,7 @@ export default function AnnouncementsTab() {
         {announcements.map((a) => (
           <Card key={a.id} className="text-sm">
             <p>{a.message}</p>
-            <p className="text-white/40 text-xs mt-1">{new Date(a.createdAt).toLocaleString()}</p>
+            <p className="text-dim text-xs mt-1">{new Date(a.createdAt).toLocaleString()}</p>
           </Card>
         ))}
       </div>

@@ -10,6 +10,27 @@ export const EVENT_DATES = "8 – 9 October 2026";
 export const ADDRESS = ["Poonamallee High Rd, Vishwas Nagar, Maduravoyal,", "Chennai, Tamil Nadu 600095"];
 export const PHONE = "04423782176";
 
+// Registration fees are paid to this UPI ID. The QR image
+// (assets/upi-qr.png) is the organisers' static GPay QR for the same ID - if
+// the account changes, replace both. The QR has no amount built in, so
+// participants type the amount shown at checkout.
+export const UPI_ID = "subalakshmime-1@okaxis";
+
+// Privacy / legal contact shown on the Privacy Notice and Terms pages (DPDP
+// Act 2023 needs a named contact for data requests and grievances).
+// PLACEHOLDERS - replace with the organisers' confirmed details before launch.
+export const LEGAL = {
+  organiser: "Department of Computer Science & Engineering and Department of Cyber Security, Dr. M.G.R. Educational and Research Institute",
+  contactName: "Techastra ’26 Organising Committee",
+  contactEmail: "techastra@drmgrdu.ac.in", // PLACEHOLDER - confirm the real mailbox
+  lastUpdated: "26 September 2026",
+  // Personal data is deleted this long after the symposium (certificates
+  // and results are issued first).
+  retention: "90 days after the symposium (by 7 January 2027)",
+  // Set to true once the college has approved the fees & refunds section.
+  refundPolicyConfirmed: true,
+};
+
 export const SOCIALS = [
   { label: "X", href: "https://x.com/MGRERI_CSE" },
   { label: "Instagram", href: "https://www.instagram.com/mgreri_cse/" },
@@ -47,23 +68,23 @@ export const CATEGORY_COORDINATORS = [
   {
     role: "SENIOR · TECHNICAL",
     staff: ["Dr. T. Kumanan", "Mrs. Chinchu Nair"],
-    students: ["Tanya Mriam (IV Yr CFIS)", "Sudeep Krishna (IV Yr CSE)"],
+    students: ["Ms. Tanya Mriam", "Mr. Sudeep Krishna"],
   },
   {
     role: "SENIOR · NON-TECHNICAL",
     staff: ["Dr. S. Mohandoss", "Dr. M. Nisha"],
-    students: ["Dhevanathan R (IV Yr CSE)", "Madhumitha T S (IV Yr CFIS)"],
+    students: ["Mr. Dhevanathan R", "Ms. Madhumitha T S"],
   },
   {
     role: "JUNIOR · ALL EVENTS",
     staff: ["Dr. Syed Ali", "Mrs. Shyamala"],
-    students: ["Divya R (IV Yr CSE)", "Kalidas K (IV Yr CSE)", "Yashwanth (IV Yr CFIS)"],
+    students: ["Ms. Divya R", "Mr. Kalidas K", "Mr. Yashwanth"],
   },
 ];
 
 export const DAYS = [
-  { id: 1, date: "2026-10-08", label: "Day 01", long: "Thursday, 8 October 2026" },
-  { id: 2, date: "2026-10-09", label: "Day 02", long: "Friday, 9 October 2026" },
+  { id: 1, date: "2026-10-08", label: "October 8, 2026 (Day 1)", long: "Thursday, October 8, 2026 (Day 1)" },
+  { id: 2, date: "2026-10-09", label: "October 9, 2026 (Day 2)", long: "Friday, October 9, 2026 (Day 2)" },
 ];
 
 // Which symposium day an event falls on: the explicit `day` field if the

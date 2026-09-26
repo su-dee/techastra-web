@@ -32,6 +32,12 @@ function requestLogger(req, res, next) {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
+    // Production: one JSON line per request, path only - query strings can
+    // carry personal data (e.g. /status?email=...), so they are never logged.
+    if (process.env.NODE_ENV === "production") {
+      console.log(JSON.stringify({ t: new Date().toISOString(), method: req.method, path: req.path, status: res.statusCode, ms: duration }));
+      return;
+    }
     const color = statusColor(res.statusCode);
     console.log(
       `${colors.dim}[${timestamp}]${colors.reset} ${colors.magenta}${req.method}${colors.reset} ${req.originalUrl} ${color}${res.statusCode}${colors.reset} ${colors.dim}(${duration}ms)${colors.reset}`

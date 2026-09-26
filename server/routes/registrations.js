@@ -2,11 +2,14 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { upload } = require("../middleware/upload");
-const { registrationLimiter, exportLimiter } = require("../middleware/rateLimiter");
+const { upload, uploadDir } = require("../middleware/upload");
+const { registrationIpLimiter, registrationEmailLimiter, exportLimiter } = require("../middleware/rateLimiter");
 const { logIDORAttempt, logSuspiciousActivity } = require("../middleware/securityLogger");
 const { generateRegistrationCode } = require("../utils/codes");
 const { sendMail } = require("../utils/mailer");
+const { validateRegistration, checkTeamSizes, computeTotal } = require("../utils/validation");
+const fs = require("fs");
+const path = require("path");
 
 const router = express.Router();
 
@@ -17,119 +20,172 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
 
 /**
  * POST /api/registrations
- * Creates a new registration in "pending" status, along with the participant
- * User record (lead, for team events). Also validates:
- *  - all events are the same level (senior or junior)
- *  - no time-clash between the chosen events
- *  - seat availability
- * Rate limited: 3 registrations per hour per IP to prevent spam.
+ * Creates a registration in "pending" status (the Registration Team then
+ * checks the UPI payment) together with the participant's User record.
+ * Validates, server-side:
+ *  - every field (utils/validation.js), consent, and guardian consent for
+ *    Junior Techastra (participants are under 18 - DPDP Act 2023, s.9)
+ *  - all events are the same level (senior or junior), no time clashes
+ *  - team sizes for team events
+ *  - the UPI transaction ID hasn't been used by another registration
+ *  - the amount due, including combo pass prices (never trusted from the client)
+ *  - seats, reserved atomically so two people can't take the last seat
  */
-router.post("/", registrationLimiter, upload.single("paymentProof"), async (req, res) => {
-  try {
-    const body = req.body;
-    const eventIds = JSON.parse(body.eventIds || "[]");
-    const teamMembers = body.teamMembers ? JSON.parse(body.teamMembers) : null;
+router.post(
+  "/",
+  registrationIpLimiter,
+  upload.single("paymentProof"),
+  registrationEmailLimiter,
+  async (req, res) => {
+    const cleanupUpload = () => req.file && fs.promises.unlink(req.file.path).catch(() => {});
+    const reject = (status, error, extra) => {
+      cleanupUpload();
+      return res.status(status).json({ error, ...extra });
+    };
+    try {
+      const { errors, value } = validateRegistration(req.body);
+      if (errors.length) return reject(400, errors[0], { errors });
 
-    if (!body.name || !body.email || !body.password) {
-      return res.status(400).json({ error: "Name, email and password are required" });
-    }
-    if (!eventIds.length) {
-      return res.status(400).json({ error: "Select at least one event" });
-    }
-    if (!body.transactionId) {
-      return res.status(400).json({ error: "UPI transaction ID is required" });
-    }
+      const existingUser = await prisma.user.findUnique({ where: { email: value.email } });
+      if (existingUser) {
+        return reject(409, "An account with this email already exists. Check your status or sign in instead.");
+      }
 
-    const existingUser = await prisma.user.findUnique({ where: { email: body.email.toLowerCase().trim() } });
-    if (existingUser) {
-      return res.status(409).json({ error: "An account with this email already exists" });
-    }
+      const usedTxn = await prisma.registration.findUnique({ where: { transactionId: value.transactionId } });
+      if (usedTxn) {
+        logSuspiciousActivity(req, "Reused UPI transaction ID", { transactionId: value.transactionId });
+        return reject(409, "This UPI transaction ID has already been used for another registration.");
+      }
 
-    const events = await prisma.event.findMany({ where: { id: { in: eventIds } } });
-    if (events.length !== eventIds.length) {
-      return res.status(400).json({ error: "One or more selected events could not be found" });
-    }
+      const events = await prisma.event.findMany({ where: { id: { in: value.eventIds } } });
+      if (events.length !== value.eventIds.length) {
+        return reject(400, "One or more selected events could not be found");
+      }
 
-    // Senior events are for college students and Junior events for school
-    // students, so one registration can't mix them (UI also blocks this).
-    if (new Set(events.map((e) => e.level || "senior")).size > 1) {
-      return res.status(400).json({
-        error: "Senior (college) and Junior (school) events can't be registered together. Register for them separately.",
-      });
-    }
+      // Senior events are for college students and Junior events for school
+      // students, so one registration can't mix them (UI also blocks this).
+      const levels = new Set(events.map((e) => e.level || "senior"));
+      if (levels.size > 1) {
+        return reject(400, "Senior events (college students) and Junior events (school students) can't be registered together. Register for them separately.");
+      }
+      if (levels.has("junior") && !value.guardianConsent) {
+        return reject(400, "Junior Techastra registrations need a parent or guardian's consent.");
+      }
 
-    // Time-clash validation (server-side safety net; UI also blocks this)
-    for (let i = 0; i < events.length; i++) {
-      for (let j = i + 1; j < events.length; j++) {
-        if (rangesOverlap(events[i].startTime, events[i].endTime, events[j].startTime, events[j].endTime)) {
-          return res.status(409).json({
-            error: `"${events[i].name}" and "${events[j].name}" have overlapping timings. Remove one from your cart.`,
-          });
+      // Time-clash validation (server-side safety net; UI also blocks this)
+      for (let i = 0; i < events.length; i++) {
+        for (let j = i + 1; j < events.length; j++) {
+          if (rangesOverlap(events[i].startTime, events[i].endTime, events[j].startTime, events[j].endTime)) {
+            return reject(409, `"${events[i].name}" and "${events[j].name}" have overlapping timings. Remove one from your cart.`);
+          }
         }
       }
-    }
 
-    // Seat availability check
-    for (const ev of events) {
-      if (ev.seatsTaken >= ev.maxSeats) {
-        return res.status(409).json({ error: `"${ev.name}" has no seats remaining` });
+      const teamSize = value.teamMembers ? value.teamMembers.length : 1;
+      const teamError = checkTeamSizes(events, teamSize);
+      if (teamError) return reject(400, teamError);
+
+      const combos = value.comboIds.length
+        ? await prisma.comboPass.findMany({ where: { id: { in: value.comboIds }, isActive: true } })
+        : [];
+      if (combos.length !== value.comboIds.length) {
+        return reject(400, "A selected combo pass is no longer available.");
       }
-    }
+      const totalAmount = computeTotal(events, combos);
 
-    const totalAmount = events.reduce((sum, e) => sum + e.fee, 0);
-    const passwordHash = await bcrypt.hash(body.password, 10);
-    const registrationCode = await generateRegistrationCode(prisma);
+      const passwordHash = await bcrypt.hash(value.password, 10);
+      const registrationCode = await generateRegistrationCode(prisma);
+      // Payment screenshots are personal data: kept out of the public static
+      // folder and served only to staff (GET /api/registrations/:id/proof).
+      const paymentProofUrl = req.file ? req.file.filename : null;
 
-    const paymentProofUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      const result = await prisma.$transaction(async (tx) => {
+        // Reserve seats atomically: the conditional UPDATE only succeeds while
+        // a seat is left, so concurrent registrations can't oversell.
+        for (const ev of events) {
+          const updated = await tx.$executeRaw`UPDATE "Event" SET "seatsTaken" = "seatsTaken" + 1, "updatedAt" = NOW() WHERE "id" = ${ev.id} AND "seatsTaken" < "maxSeats"`;
+          if (updated !== 1) {
+            const err = new Error(`"${ev.name}" has no seats remaining`);
+            err.status = 409;
+            throw err;
+          }
+        }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          name: body.name,
-          email: body.email.toLowerCase().trim(),
-          phone: body.phone || null,
-          passwordHash,
-          role: "participant",
-          collegeName: body.collegeName || null,
-          registerNo: body.registerNo || null,
-        },
-      });
-
-      const registration = await tx.registration.create({
-        data: {
-          registrationCode,
-          userId: user.id,
-          eventIds,
-          teamName: body.teamName || null,
-          teamMembers: teamMembers || undefined,
-          collegeName: body.collegeName || null,
-          totalAmount,
-          transactionId: body.transactionId,
-          paymentProofUrl,
-          status: "pending",
-        },
-      });
-
-      for (const ev of events) {
-        await tx.event.update({
-          where: { id: ev.id },
-          data: { seatsTaken: { increment: 1 } },
+        const user = await tx.user.create({
+          data: {
+            name: value.name,
+            email: value.email,
+            phone: value.phone,
+            passwordHash,
+            role: "participant",
+            collegeName: value.collegeName,
+            registerNo: value.registerNo,
+          },
         });
+
+        return tx.registration.create({
+          data: {
+            registrationCode,
+            userId: user.id,
+            eventIds: value.eventIds,
+            teamName: value.teamName,
+            teamMembers: value.teamMembers || undefined,
+            collegeName: value.collegeName,
+            totalAmount,
+            transactionId: value.transactionId,
+            paymentProofUrl,
+            paymentMethod: "upi",
+            status: "pending",
+            consentAt: new Date(),
+            guardianConsent: value.guardianConsent,
+          },
+        });
+      });
+
+      await sendMail({
+        to: value.email,
+        subject: `Techastra '26 registration received - ${registrationCode}`,
+        text: `Hi ${value.name},\n\nWe received your registration (${registrationCode}) for ${events.length} event(s), totalling Rs. ${totalAmount}, with UPI transaction ID ${value.transactionId}. Our Registration Team will verify your payment shortly. You can track your status anytime on the Status page using your email or registration code.\n\n- Techastra '26 Team`,
+      });
+
+      res.status(201).json({
+        registration: {
+          id: result.id,
+          registrationCode: result.registrationCode,
+          status: result.status,
+          totalAmount: result.totalAmount,
+        },
+      });
+    } catch (err) {
+      cleanupUpload();
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      if (err.code === "P2002") {
+        return res.status(409).json({ error: "This email or UPI transaction ID is already registered." });
       }
+      console.error("Create registration error:", err);
+      res.status(500).json({ error: "Failed to submit registration" });
+    }
+  }
+);
 
-      return registration;
+/**
+ * GET /api/registrations/:id/proof
+ * Streams the payment screenshot to Registration Team / admins only. Older
+ * rows stored "/uploads/<file>"; only the bare file name is ever used, so a
+ * crafted value can't escape the uploads folder.
+ */
+router.get("/:id/proof", requireAuth, requireRole("registration_team", "master_admin"), async (req, res) => {
+  try {
+    const reg = await prisma.registration.findUnique({ where: { id: req.params.id }, select: { paymentProofUrl: true } });
+    if (!reg || !reg.paymentProofUrl) return res.status(404).json({ error: "No payment screenshot for this registration" });
+    const file = path.basename(reg.paymentProofUrl);
+    res.set("Cache-Control", "private, no-store");
+    res.sendFile(path.join(uploadDir, file), (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: "Payment screenshot not found" });
     });
-
-    await sendMail({
-      to: body.email,
-      subject: `TechAstra Registration Received - ${registrationCode}`,
-      text: `Hi ${body.name},\n\nWe received your registration (${registrationCode}) for ${events.length} event(s), totalling ₹${totalAmount}. Our Registration Team will verify your payment shortly. You can track your status anytime on the Status page using your email or registration code.\n\n- TechAstra Team`,
-    });
-
-    res.status(201).json({ registration: result });
   } catch (err) {
-    console.error("Create registration error:", err);
-    res.status(500).json({ error: "Failed to submit registration" });
+    console.error("Payment proof error:", err);
+    res.status(500).json({ error: "Failed to load payment screenshot" });
   }
 });
 

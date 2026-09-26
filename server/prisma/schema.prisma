@@ -86,6 +86,11 @@ model Registration {
   razorpayPaymentId String?  // Razorpay payment ID after successful payment
   status            String   @default("pending") // pending | approved | rejected
   rejectionReason   String?
+  // DPDP Act 2023: when the participant accepted the Terms and Privacy
+  // Notice, and (Junior Techastra, participants under 18) that a parent or
+  // guardian consented.
+  consentAt         DateTime?
+  guardianConsent   Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

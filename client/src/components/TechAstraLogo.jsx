@@ -14,7 +14,7 @@ export default function TechAstraLogo({ size = "md", showGlow = true, className 
       alt="Techastra ’26"
       width={width}
       className={`block h-auto select-none ${className}`}
-      style={{ width, filter: showGlow ? "drop-shadow(0 12px 30px rgba(214, 140, 50, 0.25))" : undefined }}
+      style={{ width, filter: showGlow ? "drop-shadow(0 12px 30px rgba(204, 164, 72, 0.25))" : undefined }}
       draggable={false}
     />
   );

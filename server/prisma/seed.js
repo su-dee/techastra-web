@@ -22,7 +22,19 @@ const prisma = require("../db");
 const { generateCertificatePdf } = require("../utils/certificatePdf");
 const { buildEvents } = require("./eventData");
 
+const IS_PROD = process.env.NODE_ENV === "production";
+// Demo participants, results and certificates: on by default locally, off in
+// production unless SEED_DEMO=true is set explicitly.
+const SEED_DEMO = process.env.SEED_DEMO ? process.env.SEED_DEMO === "true" : !IS_PROD;
+// Demo participants always use this; staff use STAFF_PASSWORD when set, which
+// is required in production so the public demo password never guards a live
+// staff account.
 const DEMO_PASSWORD = "TechAstra@2026";
+const STAFF_PASSWORD = process.env.STAFF_PASSWORD || (IS_PROD ? "" : DEMO_PASSWORD);
+if (IS_PROD && STAFF_PASSWORD.length < 12) {
+  console.error("Set STAFF_PASSWORD (at least 12 characters) to seed staff accounts in production.");
+  process.exit(1);
+}
 
 const COLLEGES = [
   "Sri Venkateswara College of Engineering",
@@ -35,7 +47,7 @@ const COLLEGES = [
 // see the header there for which fields are still unconfirmed.
 
 async function upsertStaff({ name, email, role, assignedEventId, dutyDesk, dutyTiming, dutyRole }) {
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  const passwordHash = await bcrypt.hash(STAFF_PASSWORD, 10);
   return prisma.user.upsert({
     where: { email },
     update: {},
@@ -153,6 +165,11 @@ async function main() {
   // announcements, combo pass). They're created together, so if the first
   // demo participant exists they all do - skip them rather than crash on
   // duplicate emails / registration codes.
+  if (!SEED_DEMO) {
+    console.log("\nSkipping demo registrations, results and certificates (production). Set SEED_DEMO=true to include them.");
+    console.log("\nSeeding complete. Staff accounts use STAFF_PASSWORD - have each person change it after first sign-in.\n");
+    return;
+  }
   if (await prisma.user.findUnique({ where: { email: "arun.kumar@example.com" } })) {
     console.log("\nDemo registrations already exist - skipping demo data.");
     console.log("\nSeeding complete.\n");
@@ -322,7 +339,7 @@ async function main() {
   console.log(`Created combo pass: Tech & Culture Combo (₹${comboPrice}, saves ₹${savings})`);
 
   console.log("\nSeeding complete.\n");
-  console.log("All staff/demo accounts use the password:", DEMO_PASSWORD);
+  if (!IS_PROD) console.log("All staff/demo accounts use the password:", DEMO_PASSWORD);
   console.log("See SEED_CREDENTIALS.md at the repo root for the full list of logins.");
 }
 

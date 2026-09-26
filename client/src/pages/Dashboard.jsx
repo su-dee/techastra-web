@@ -80,7 +80,7 @@ export default function Dashboard() {
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
     const canvas = await html2canvas(cardRef.current, {
-      backgroundColor: "#07070A",
+      backgroundColor: "#2c2823",
       scale: 3,
       useCORS: true,
       logging: false,
@@ -172,7 +172,7 @@ export default function Dashboard() {
             events={registeredEvents}
           />
           <Button className="w-full mt-4" onClick={downloadIdCard}>Download as PDF</Button>
-          <p className="text-xs text-offwhite/40 mt-3 text-center">
+          <p className="text-xs text-dim mt-3 text-center">
             Show this QR at event check-in and food counters.
           </p>
         </div>
@@ -181,7 +181,7 @@ export default function Dashboard() {
           <div>
             <h2 className="font-heading text-sm uppercase tracking-wider text-offwhite/70 mb-4">Your Certificates</h2>
             {certificates.length === 0 ? (
-              <p className="text-offwhite/45 text-sm">No certificates issued yet. Check back after your events conclude.</p>
+              <p className="text-dim text-sm">No certificates issued yet. Check back after your events conclude.</p>
             ) : (
               <ul className="divide-y divide-crimson/10 border-t border-b border-crimson/10">
                 {certificates.map((c) => (
@@ -201,18 +201,18 @@ export default function Dashboard() {
           <div>
             <h2 className="font-heading text-sm uppercase tracking-wider text-offwhite/70 mb-4">Event Feedback</h2>
             <form onSubmit={submitFeedback} className="space-y-3">
-              <Select value={feedbackEventId} onChange={(e) => setFeedbackEventId(e.target.value)}>
+              <Select aria-label="Event to give feedback on" value={feedbackEventId} onChange={(e) => setFeedbackEventId(e.target.value)}>
                 <option value="">Select an event</option>
                 {events.map((e) => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
               </Select>
-              <Select value={rating} onChange={(e) => setRating(e.target.value)}>
+              <Select aria-label="Rating" value={rating} onChange={(e) => setRating(e.target.value)}>
                 {[5, 4, 3, 2, 1].map((n) => (
                   <option key={n} value={n}>{n} Star{n > 1 ? "s" : ""}</option>
                 ))}
               </Select>
-              <Textarea rows={3} placeholder="Comments (optional)" value={comments} onChange={(e) => setComments(e.target.value)} />
+              <Textarea aria-label="Comments (optional)" rows={3} placeholder="Comments (optional)" value={comments} onChange={(e) => setComments(e.target.value)} />
               <Button type="submit" className="w-full">Submit Feedback</Button>
             </form>
           </div>

@@ -8,10 +8,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
-
-const prisma = new PrismaClient();
+const prisma = require('../db');
 
 // Razorpay SDK
 const Razorpay = require('razorpay');
@@ -36,14 +34,15 @@ router.get('/config', (req, res) => {
  * POST /api/payment/create-order
  * Create a Razorpay order for checkout
  * 
- * Body: { amount: number (in rupees), registrationId: string }
+ * Body: { registrationId: string }. The amount is the registration's
+ * server-computed totalAmount - a client-supplied amount is ignored.
  */
 router.post('/create-order', async (req, res) => {
   try {
-    const { amount, registrationId } = req.body;
+    const { registrationId } = req.body;
 
-    if (!amount || !registrationId) {
-      return res.status(400).json({ error: 'Amount and registrationId are required' });
+    if (!registrationId || typeof registrationId !== 'string') {
+      return res.status(400).json({ error: 'registrationId is required' });
     }
 
     // Verify registration exists and is pending
@@ -69,7 +68,7 @@ router.post('/create-order', async (req, res) => {
     });
 
     const order = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // Amount in paise (1 rupee = 100 paise)
+      amount: Math.round(registration.totalAmount * 100), // paise
       currency: 'INR',
       receipt: registrationId,
       notes: {
@@ -94,10 +93,7 @@ router.post('/create-order', async (req, res) => {
 
   } catch (error) {
     console.error('Create order error:', error);
-    res.status(500).json({ 
-      error: 'Failed to create payment order',
-      details: error.message 
-    });
+    res.status(500).json({ error: 'Failed to create payment order' });
   }
 });
 
@@ -139,7 +135,9 @@ router.post('/verify', async (req, res) => {
       .update(body)
       .digest('hex');
 
-    const isSignatureValid = expectedSignature === razorpaySignature;
+    const a = Buffer.from(expectedSignature, 'hex');
+    const b = Buffer.from(String(razorpaySignature), 'hex');
+    const isSignatureValid = a.length === b.length && crypto.timingSafeEqual(a, b);
 
     if (!isSignatureValid) {
       // Log suspicious activity
@@ -153,6 +151,16 @@ router.post('/verify', async (req, res) => {
         error: 'Payment verification failed. Invalid signature.',
         verified: false
       });
+    }
+
+    // Signature verified - but a valid signature for a *different* order
+    // (e.g. a cheaper one) must not approve this registration.
+    const existing = await prisma.registration.findUnique({ where: { id: registrationId } });
+    if (!existing || existing.razorpayOrderId !== razorpayOrderId) {
+      return res.status(400).json({ error: 'Payment does not match this registration.', verified: false });
+    }
+    if (existing.status === 'approved') {
+      return res.json({ success: true, verified: true, registration: { id: existing.id, registrationCode: existing.registrationCode, status: existing.status } });
     }
 
     // Signature verified - payment is genuine
@@ -197,8 +205,7 @@ router.post('/verify', async (req, res) => {
   } catch (error) {
     console.error('Payment verification error:', error);
     res.status(500).json({ 
-      error: 'Payment verification failed',
-      details: error.message 
+      error: 'Payment verification failed'
     });
   }
 });

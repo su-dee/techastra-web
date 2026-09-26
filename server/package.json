@@ -9,7 +9,10 @@
     "start": "node index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "test": "node --test test/*.test.js",
+    "migrate:deploy": "prisma migrate deploy",
+    "purge:personal-data": "node scripts/purge-personal-data.js"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",

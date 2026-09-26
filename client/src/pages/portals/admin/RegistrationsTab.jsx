@@ -108,7 +108,7 @@ export default function RegistrationsTab() {
           {registrations.map((r) => (
             <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="font-semibold">{r.user.name} <span className="text-white/40 text-sm">({r.registrationCode})</span></p>
+                <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
                 <p className="text-sm text-white/60">{r.user.email} · {r.collegeName} · ₹{r.totalAmount}</p>
               </div>
               <div className="flex items-center gap-2">

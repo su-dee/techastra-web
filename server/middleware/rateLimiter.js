@@ -13,7 +13,7 @@ setInterval(() => {
       rateStore.delete(key);
     }
   }
-}, 15 * 60 * 1000);
+}, 15 * 60 * 1000).unref(); // don't keep the process alive (tests, shutdown)
 
 /**
  * Creates a rate limiter middleware.
@@ -110,15 +110,21 @@ const loginLimiter = createRateLimiter({
   },
 });
 
-// Rate limiter for registration (prevents spam registrations)
-const registrationLimiter = createRateLimiter({
+// Registration spam protection, in two layers. Whole college labs and
+// hostels register from behind one shared IP (NAT), so the per-IP cap is
+// generous; the per-email cap is the tight one. The email limiter runs after
+// multer has parsed the multipart body, so req.body.email is available.
+const registrationIpLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 registrations per hour per IP
-  message: "Too many registration attempts. Please try again in an hour.",
-  keyGenerator: (req) => {
-    const ip = req.ip || req.connection.remoteAddress;
-    return `registration:${ip}`;
-  },
+  max: 60,
+  message: "Too many registrations from this network. Please try again later.",
+  keyGenerator: (req) => `registration-ip:${req.ip || req.connection.remoteAddress}`,
+});
+const registrationEmailLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: "Too many registration attempts for this email. Please try again in an hour.",
+  keyGenerator: (req) => `registration-email:${String(req.body?.email || "").toLowerCase().trim()}`,
 });
 
 // Rate limiter for QR scanning (prevents abuse)
@@ -149,10 +155,21 @@ const exportLimiter = createRateLimiter({
   },
 });
 
+// Coarse flood protection for the whole API. Deliberately loose: on event
+// day hundreds of phones share the venue Wi-Fi's single public IP.
+const globalLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 3000,
+  message: "Too many requests from this network. Please slow down.",
+  keyGenerator: (req) => `global:${req.ip || req.connection.remoteAddress}`,
+});
+
 module.exports = {
   createRateLimiter,
   loginLimiter,
-  registrationLimiter,
+  registrationIpLimiter,
+  registrationEmailLimiter,
+  globalLimiter,
   scanLimiter,
   apiLimiter,
   exportLimiter,

@@ -32,12 +32,12 @@ import {
 // Site palette (client/src/index.css :root), as 0-1 sRGB. The shaders write
 // these straight to the canvas, so no colour-space conversion is wanted.
 const hex = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
-const GOLD_LIGHT = hex(0xf6c392); // --amber-3
-const GOLD = hex(0xe8a25c); // --amber-2
-const AMBER = hex(0xd98c46); // --amber
-const STEEL = hex(0x7ba3cf); // --steel
-const STEEL_DEEP = hex(0x3d5f85); // --steel-2
-const STEEL_PALE = hex(0xa9c6e6);
+const GOLD_LIGHT = hex(0xeed49c); // --amber-3
+const GOLD = hex(0xddbb6a); // --amber-2
+const AMBER = hex(0xc9a24a); // --amber
+const STEEL = hex(0xa7afb5); // --steel
+const STEEL_DEEP = hex(0x5e666c); // --steel-2
+const STEEL_PALE = hex(0xc9ced2);
 const SPARK = hex(0xfff4e2);
 
 // Lens geometry, in lens-local units (before LENS_SCALE).
@@ -52,6 +52,10 @@ const FOCUS_TICKS = 72;
 const SCALE_TICKS = 180;
 
 const FOV = 50;
+// Upper bound on canvas pixels (about a 2560x1600 buffer) and frame rate:
+// high-refresh screens don't need more than 60 fps for this backdrop.
+const MAX_PIXELS = 2880 * 1800;
+const FRAME_MS = 1000 / 60;
 const CAMERA_Z = 11;
 // Where the lens centre sits on the (viewport-sized) canvas, as a fraction of
 // its height from the top - behind the hero logo.
@@ -216,6 +220,7 @@ const pointsMaterial = () =>
       uTime: { value: 0 },
       uFade: { value: 1 },
       uScale: { value: 1 },
+      uMinSize: { value: 1.6 },
       uAperture: { value: APERTURE },
       uRot: { value: 0 },
       ...zoneUniforms(),
@@ -225,9 +230,10 @@ const pointsMaterial = () =>
       ${apertureGlsl}
       attribute float aKind, aA, aB, aC, aSize, aPhase;
       attribute vec3 aColor;
-      uniform float uTime, uFade, uScale;
+      uniform float uTime, uFade, uScale, uMinSize;
       varying vec3 vColor;
       varying float vAlpha;
+      varying float vSize;
       const float BARREL = ${BARREL.toFixed(3)};
       void main() {
         int k = int(aKind + 0.5);
@@ -251,8 +257,16 @@ const pointsMaterial = () =>
         vec4 mv = modelViewMatrix * vec4(p, 0.0, 1.0);
         gl_Position = projectionMatrix * mv;
         float twinkle = 0.75 + 0.25 * sin(uTime * 1.5 + aPhase);
-        gl_PointSize = aSize * twinkle * uScale * (7.0 / -mv.z);
-        vColor = aColor * gain;
+        // Points smaller than ~1.6 device pixels rasterise unevenly (they
+        // flicker or vanish). Draw them at the minimum size and dim them
+        // instead, which keeps their brightness but not the sparkle-noise.
+        // 0.72: a solid disc covers more area than the old soft blob, so it
+        // is drawn smaller to keep the same fine-dust look and brightness.
+        float size = aSize * twinkle * uScale * (5.04 / -mv.z);
+        float drawn = max(size, uMinSize);
+        gl_PointSize = drawn;
+        vSize = drawn;
+        vColor = aColor * gain * (size / drawn);
         vec2 ndc = gl_Position.xy / gl_Position.w;
         vec2 px = vec2((ndc.x * 0.5 + 0.5) * uViewport.x, (0.5 - ndc.y * 0.5) * uViewport.y);
         vAlpha = uFade * (0.8 + 0.2 * twinkle) * vis * zoneMask(px);
@@ -261,11 +275,15 @@ const pointsMaterial = () =>
     fragmentShader: /* glsl */ `
       varying vec3 vColor;
       varying float vAlpha;
+      varying float vSize;
       void main() {
-        float d = length(gl_PointCoord - 0.5);
-        float a = smoothstep(0.5, 0.0, d);
-        a = a * (0.35 + 0.65 * a) * vAlpha;
-        if (a < 0.003) discard;
+        // Crisp disc with a one-pixel anti-aliased rim and a brighter core,
+        // instead of a wide soft falloff that read as blur.
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        float rim = 2.0 / vSize;
+        float disc = 1.0 - smoothstep(1.0 - rim, 1.0, d);
+        float a = disc * (1.0 - 0.55 * d * d) * vAlpha;
+        if (a < 0.004) discard;
         gl_FragColor = vec4(vColor, a);
       }
     `,
@@ -298,7 +316,7 @@ const bodyMaterial = () =>
         float r = length(vPos);
         float a = (1.0 - smoothstep(${(OUTER - 0.2).toFixed(2)}, ${(SCALE_RING + 0.5).toFixed(2)}, r)) * 0.82;
         a *= uFade;
-        gl_FragColor = vec4(vec3(0.02, 0.018, 0.024) * a, a);
+        gl_FragColor = vec4(vec3(0.024, 0.02, 0.016) * a, a);
       }
     `,
   });
@@ -338,12 +356,12 @@ const glassMaterial = () =>
         float inside = 1.0 - smoothstep(-0.06, 0.06, r - openingRadius(a));
         // Light coming through the opening, brightest at the centre.
         float light = inside * (0.18 + 0.4 * exp(-r * r / (uAperture * uAperture * 0.5)));
-        vec3 col = vec3(0.98, 0.72, 0.4) * light * (0.94 + 0.06 * sin(uTime * 0.8));
+        vec3 col = vec3(0.96, 0.8, 0.46) * light * (0.94 + 0.06 * sin(uTime * 0.8));
         // Coating reflections on the front element.
         vec2 q = vPos - uLook * 1.2;
-        col += vec3(0.95, 0.6, 0.28) * arc(q, 3.1, 0.14, 2.35, 0.9) * 0.45;
-        col += vec3(0.48, 0.64, 0.82) * arc(q, 2.2, 0.1, -0.8, 0.75) * 0.4;
-        col += vec3(0.62, 0.5, 0.75) * arc(q, 3.6, 0.08, -0.4, 0.5) * 0.18;
+        col += vec3(0.92, 0.74, 0.36) * arc(q, 3.1, 0.14, 2.35, 0.9) * 0.45;
+        col += vec3(0.66, 0.69, 0.72) * arc(q, 2.2, 0.1, -0.8, 0.75) * 0.4;
+        col += vec3(0.78, 0.8, 0.82) * arc(q, 3.6, 0.08, -0.4, 0.5) * 0.18;
         // Small specular highlight.
         vec2 h = vPos - vec2(-1.7, 1.9) - uLook * 1.6;
         col += vec3(1.0, 0.97, 0.9) * smoothstep(0.35, 0.0, length(h)) * 0.6;
@@ -359,7 +377,14 @@ const glassMaterial = () =>
 export function createLens(canvas, { count = 12000 } = {}) {
   const renderer = new WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: "high-performance" });
   renderer.setClearColor(0x000000, 0);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  // Render at the screen's real density (sharp on HiDPI) but never more than
+  // MAX_PIXELS in total; `quality` drops if the device can't keep up.
+  const deviceRatio = Math.min(window.devicePixelRatio || 1, 2);
+  let quality = 1;
+  let cssSize = [0, 0];
+  function pixelRatioFor(w, h) {
+    return Math.max(0.75, Math.min(deviceRatio, Math.sqrt(MAX_PIXELS / (w * h))) * quality);
+  }
 
   const scene = new Scene();
   const camera = new PerspectiveCamera(FOV, 1, 0.1, 100);
@@ -412,6 +437,27 @@ export function createLens(canvas, { count = 12000 } = {}) {
     }
   }
 
+  function resizeTo(width, height) {
+    cssSize = [width, height];
+    renderer.setPixelRatio(pixelRatioFor(width, height));
+    renderer.setSize(width, height, false);
+    viewport = [width * renderer.getPixelRatio(), height * renderer.getPixelRatio()];
+    applyZone();
+    const aspect = width / height;
+    camera.aspect = aspect;
+    // Narrow screens: step back until the whole lens fits the width.
+    const halfTan = Math.tan(((FOV / 2) * Math.PI) / 180);
+    baseZ = Math.max(CAMERA_Z, (SCALE_RING * LENS_SCALE * 1.06) / (halfTan * aspect));
+    // The centre sits behind the logo, which is higher on tall screens.
+    const coreY = aspect < 1 ? CORE_Y - 0.08 : CORE_Y;
+    camera.setViewOffset(width, height, 0, (0.5 - coreY) * height, width, height);
+    camera.updateProjectionMatrix();
+    // Keep particles the same on-screen size when the camera steps back.
+    material.uniforms.uScale.value = (height / 800) * renderer.getPixelRatio() * 3.6 * Math.sqrt(baseZ / CAMERA_Z);
+    // Smallest point drawn, in device pixels (see the vertex shader).
+    material.uniforms.uMinSize.value = 1.6 * Math.max(1, renderer.getPixelRatio() * 0.75);
+  }
+
   function apply() {
     const s = eased.scroll;
     // Stopping down and opening up; the blades turn as they move.
@@ -433,7 +479,19 @@ export function createLens(canvas, { count = 12000 } = {}) {
     bodyMat.uniforms.uFade.value = fade;
   }
 
+  let slow = 0;
   function tick(now) {
+    frame = requestAnimationFrame(tick);
+    // 120/144 Hz screens: skip alternate callbacks so it stays at ~60 fps.
+    if (now - last < FRAME_MS - 2) return;
+    // A device that can't hold ~40 fps for a couple of seconds gets a lower
+    // resolution (once or twice), rather than stuttering.
+    slow = now - last > 25 ? slow + 1 : Math.max(0, slow - 1);
+    if (slow > 90 && quality > 0.6) {
+      quality -= 0.2;
+      slow = 0;
+      resizeTo(cssSize[0], cssSize[1]);
+    }
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     const k = 1 - Math.pow(0.001, dt); // frame-rate independent easing
@@ -444,7 +502,6 @@ export function createLens(canvas, { count = 12000 } = {}) {
     apply();
     renderer.render(scene, camera);
     frames++;
-    frame = requestAnimationFrame(tick);
   }
 
   return {
@@ -479,20 +536,7 @@ export function createLens(canvas, { count = 12000 } = {}) {
     },
     resize(width, height) {
       if (!width || !height) return;
-      renderer.setSize(width, height, false);
-      viewport = [width * renderer.getPixelRatio(), height * renderer.getPixelRatio()];
-      applyZone();
-      const aspect = width / height;
-      camera.aspect = aspect;
-      // Narrow screens: step back until the whole lens fits the width.
-      const halfTan = Math.tan(((FOV / 2) * Math.PI) / 180);
-      baseZ = Math.max(CAMERA_Z, (SCALE_RING * LENS_SCALE * 1.06) / (halfTan * aspect));
-      // The centre sits behind the logo, which is higher on tall screens.
-      const coreY = aspect < 1 ? CORE_Y - 0.08 : CORE_Y;
-      camera.setViewOffset(width, height, 0, (0.5 - coreY) * height, width, height);
-      camera.updateProjectionMatrix();
-      // Keep particles the same on-screen size when the camera steps back.
-      material.uniforms.uScale.value = (height / 800) * renderer.getPixelRatio() * 3.6 * Math.sqrt(baseZ / CAMERA_Z);
+      resizeTo(width, height);
       if (!running) this.renderOnce();
     },
     get frames() {

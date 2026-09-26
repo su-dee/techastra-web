@@ -48,7 +48,7 @@ function FieldIcon({ children }) {
   return (
     <span
       className="flex items-center justify-center rounded-md"
-      style={{ width: 22, height: 22, backgroundColor: "rgba(217,168,64,0.15)", flexShrink: 0 }}
+      style={{ width: 22, height: 22, backgroundColor: "rgba(221,187,106,0.15)", flexShrink: 0 }}
     >
       {children}
     </span>
@@ -57,34 +57,34 @@ function FieldIcon({ children }) {
 
 const ICONS = {
   person: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D9A840" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ddbb6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-4 3.5-6 8-6s8 2 8 6" />
     </svg>
   ),
   institution: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D9A840" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ddbb6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 21h18" />
       <path d="M5 21V9l7-5 7 5v12" />
       <path d="M9 21v-6h6v6" />
     </svg>
   ),
   idCard: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D9A840" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ddbb6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2.5" y="5.5" width="19" height="13" rx="2" />
       <circle cx="8" cy="12" r="1.8" />
       <path d="M13 10h6M13 14h4" />
     </svg>
   ),
   badge: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D9A840" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ddbb6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="6" y="2.5" width="12" height="19" rx="2" />
       <circle cx="12" cy="9" r="2.4" />
       <path d="M8.5 17h7" />
     </svg>
   ),
   team: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D9A840" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ddbb6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="9" cy="9" r="3" />
       <path d="M2.5 20c0-3.3 2.9-5 6.5-5s6.5 1.7 6.5 5" />
       <circle cx="17.5" cy="8" r="2.3" />
@@ -92,12 +92,12 @@ const ICONS = {
     </svg>
   ),
   star: (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="#D9A840" stroke="#D9A840" strokeWidth="1">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="#ddbb6a" stroke="#ddbb6a" strokeWidth="1">
       <path d="M12 2.5l2.9 6 6.6.7-4.9 4.5 1.3 6.5L12 16.9l-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.7z" />
     </svg>
   ),
   silhouette: (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(217,168,64,0.5)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(221,187,106,0.5)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-4.4 3.5-7 8-7s8 2.6 8 7" />
     </svg>
@@ -111,7 +111,7 @@ function Field({ icon, label, value }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <p
           className="uppercase font-semibold"
-          style={{ fontSize: 9.5, letterSpacing: "0.08em", color: "#D9A840", margin: 0, lineHeight: "13px" }}
+          style={{ fontSize: 9.5, letterSpacing: "0.08em", color: "#ddbb6a", margin: 0, lineHeight: "13px" }}
         >
           {label}
         </p>
@@ -147,13 +147,13 @@ const IdCard = forwardRef(function IdCard({ registration, user, events }, ref) {
     }}>
       <div
         ref={ref}
-        style={{ width: CARD_WIDTH, backgroundColor: "#07070A" }}
+        style={{ width: CARD_WIDTH, backgroundColor: "#221f1b" }}
         className="mx-auto rounded-2xl overflow-hidden border-2 border-gold/60"
       >
       {/* Header: logo + official id label, solid gold gradient (no blur/backdrop-filter) */}
       <div
         style={{
-          background: "linear-gradient(135deg, #F7E3AC 0%, #D9A840 50%, #8A6A24 100%)",
+          background: "linear-gradient(135deg, #f2e2b4 0%, #ddbb6a 50%, #866c2a 100%)",
         }}
         className="px-5 py-4 flex flex-col items-center gap-1"
       >
@@ -181,13 +181,13 @@ const IdCard = forwardRef(function IdCard({ registration, user, events }, ref) {
         instead, so long text wraps to a second line rather than relying
         on ellipsis truncation.
       */}
-      <div className="p-5" style={{ backgroundColor: "#0B0A08", display: "flex", gap: 14 }}>
+      <div className="p-5" style={{ backgroundColor: "#1e1b17", display: "flex", gap: 14 }}>
         {/* Photo, left - silhouette placeholder matches the mockup's
             "YOUR PHOTO HERE" box exactly when user.photoUrl is empty,
             instead of the previous emoji fallback. */}
         <div
           className="rounded-xl overflow-hidden flex flex-col items-center justify-center border-2 border-gold/50"
-          style={{ width: 92, height: 108, backgroundColor: "#181611", flexShrink: 0, gap: 6 }}
+          style={{ width: 92, height: 108, backgroundColor: "#2f2a24", flexShrink: 0, gap: 6 }}
         >
           {user?.photoUrl ? (
             <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover" crossOrigin="anonymous" />
@@ -196,7 +196,7 @@ const IdCard = forwardRef(function IdCard({ registration, user, events }, ref) {
               {ICONS.silhouette}
               <span
                 className="uppercase text-center"
-                style={{ fontSize: 8, letterSpacing: "0.05em", color: "rgba(217,168,64,0.55)", lineHeight: "10px", padding: "0 6px" }}
+                style={{ fontSize: 8, letterSpacing: "0.05em", color: "#ddbb6a", lineHeight: "10px", padding: "0 6px" }}
               >
                 Your Photo Here
               </span>
@@ -226,8 +226,8 @@ const IdCard = forwardRef(function IdCard({ registration, user, events }, ref) {
           field, since this is one card per REGISTRATION not per
           event). Bordered box matches the mockup's outlined
           rounded-rect group for these three rows. */}
-      <div className="px-5 pb-4" style={{ backgroundColor: "#0B0A08" }}>
-        <div className="rounded-xl border border-gold/30 px-4 py-3" style={{ backgroundColor: "rgba(217,168,64,0.04)" }}>
+      <div className="px-5 pb-4" style={{ backgroundColor: "#1e1b17" }}>
+        <div className="rounded-xl border border-gold/30 px-4 py-3" style={{ backgroundColor: "rgba(221,187,106,0.04)" }}>
           {isTeamRegistration && (
             <>
               <Field icon={ICONS.team} label="Team Name" value={registration.teamName} />
@@ -241,13 +241,13 @@ const IdCard = forwardRef(function IdCard({ registration, user, events }, ref) {
       </div>
 
       {/* QR code + "SCAN FOR VERIFICATION" label, per the mockup. */}
-      <div className="flex flex-col items-center gap-3 px-5 pb-3" style={{ backgroundColor: "#0B0A08" }}>
+      <div className="flex flex-col items-center gap-3 px-5 pb-3" style={{ backgroundColor: "#1e1b17" }}>
         <div className="bg-white rounded-lg p-3">
           <QRCodeCanvas value={registration?.registrationCode || ""} size={130} />
         </div>
         <span
           className="uppercase font-semibold"
-          style={{ fontSize: 10.5, letterSpacing: "0.14em", color: "#D9A840" }}
+          style={{ fontSize: 10.5, letterSpacing: "0.14em", color: "#ddbb6a" }}
         >
           Scan for Verification
         </span>
@@ -256,11 +256,11 @@ const IdCard = forwardRef(function IdCard({ registration, user, events }, ref) {
       {/* Footer tagline, per the mockup. */}
       <div
         className="text-center py-3"
-        style={{ backgroundColor: "#0B0A08", borderTop: "1px solid rgba(217,168,64,0.25)" }}
+        style={{ backgroundColor: "#1e1b17", borderTop: "1px solid rgba(221,187,106,0.25)" }}
       >
         <span
           className="uppercase font-semibold"
-          style={{ fontSize: 9.5, letterSpacing: "0.18em", color: "rgba(217,168,64,0.7)" }}
+          style={{ fontSize: 9.5, letterSpacing: "0.18em", color: "rgba(221,187,106,0.7)" }}
         >
           Innovate &nbsp;/&nbsp; Collaborate &nbsp;/&nbsp; Build Tomorrow
         </span>

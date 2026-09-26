@@ -10,12 +10,10 @@ import { PanelProvider } from "./context/PanelContext.jsx";
 import { initClickLogger } from "./lib/clickLogger.js";
 import "./index.css";
 
-// Starts the global click/error logger described in
-// client/src/lib/clickLogger.js - every click on the app (and any
-// uncaught JS error) gets POSTed to the backend and printed in the
-// terminal running `npm run dev`, since browser console.log() never
-// reaches that terminal on its own.
-initClickLogger();
+// Development only: the click/error logger (client/src/lib/clickLogger.js)
+// POSTs every click to the backend terminal. Production builds never load
+// it - the endpoint isn't mounted there, and visitor clicks aren't tracked.
+if (import.meta.env.DEV) initClickLogger();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

@@ -13,7 +13,7 @@ const metrics = [
   {
     key: "totalRegistrations",
     label: "Total Registrations",
-    color: "#e8a25c",
+    color: "#ddbb6a",
     format: (val) => val.toLocaleString(),
   },
   {
@@ -31,17 +31,17 @@ const metrics = [
   {
     key: "revenue",
     label: "Revenue Collected",
-    color: "#7ba3cf",
+    color: "#a7afb5",
     format: (val) => `₹${val.toLocaleString()}`,
   },
 ];
 
 // Chart config for our metrics
 const chartConfig = {
-  totalRegistrations: { label: "Total Registrations", color: "#e8a25c" },
+  totalRegistrations: { label: "Total Registrations", color: "#ddbb6a" },
   approved: { label: "Approved", color: "#22C55E" },
   pending: { label: "Pending", color: "#F59E0B" },
-  revenue: { label: "Revenue Collected", color: "#7ba3cf" },
+  revenue: { label: "Revenue Collected", color: "#a7afb5" },
 };
 
 // Custom Tooltip
@@ -259,7 +259,7 @@ export default function InteractiveAnalyticsChart() {
               
               <Tooltip
                 content={<CustomTooltip selectedMetric={selectedMetric} />}
-                cursor={{ strokeDasharray: "3 3", stroke: "#666" }}
+                cursor={{ strokeDasharray: "3 3", stroke: "#6d665a" }}
               />
               
               <Line

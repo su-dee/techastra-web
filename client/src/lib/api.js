@@ -43,6 +43,21 @@ export const api = {
   patch: (path, body) => request(path, { method: "PATCH", body }),
   delete: (path) => request(path, { method: "DELETE" }),
   baseUrl: API_URL,
+  /** Fetches an authenticated file (e.g. a payment screenshot) as a Blob. */
+  blob: async (path) => {
+    const token = getToken();
+    const res = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) {
+      let message = `Request failed with status ${res.status}`;
+      try {
+        message = (await res.json()).error || message;
+      } catch {
+        /* not JSON */
+      }
+      throw new Error(message);
+    }
+    return res.blob();
+  },
 };
 
 export function setToken(token) {

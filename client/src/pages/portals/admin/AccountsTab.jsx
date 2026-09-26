@@ -62,7 +62,7 @@ export default function AccountsTab() {
         {users.map((u) => (
           <Card key={u.id} className="flex items-center justify-between">
             <div>
-              <p className="font-semibold">{u.name} <span className="text-white/40 text-sm capitalize">({u.role.replace("_", " ")})</span></p>
+              <p className="font-semibold">{u.name} <span className="text-dim text-sm capitalize">({u.role.replace("_", " ")})</span></p>
               <p className="text-sm text-white/60">{u.email}</p>
             </div>
             <Button size="sm" variant="danger" onClick={() => deleteAccount(u.id)}>Delete</Button>

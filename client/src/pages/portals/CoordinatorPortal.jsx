@@ -115,7 +115,7 @@ export default function CoordinatorPortal() {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? "bg-[linear-gradient(100deg,#c8762f,#8f5b30)] text-white" : "bg-white/5 text-[#a9a29a] hover:text-white"}`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-white/5 text-[#b4ab9b] hover:text-white"}`}
               >
                 {t}
               </button>

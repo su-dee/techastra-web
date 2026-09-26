@@ -56,7 +56,7 @@ export default function CertificatePortal() {
       <h1 className="font-heading text-3xl font-bold mb-6">Certificate Portal</h1>
 
       <div className="flex flex-wrap gap-4 mb-6">
-        <Select value={eventFilter} onChange={(e) => setEventFilter(e.target.value)} className="max-w-xs">
+        <Select aria-label="Filter by event" value={eventFilter} onChange={(e) => setEventFilter(e.target.value)} className="max-w-xs">
           <option value="">All Events</option>
           {events.map((e) => (
             <option key={e.id} value={e.id}>{e.name}</option>
@@ -70,9 +70,9 @@ export default function CertificatePortal() {
           href={`${api.baseUrl}/api/admin/export/registrations.csv`}
           target="_blank"
           rel="noreferrer"
-          className="ml-auto"
+          className="ml-auto btn-ghost-sm"
         >
-          <Button variant="outline" size="sm">Bulk Export CSV</Button>
+          Bulk export CSV
         </a>
       </div>
 
@@ -83,7 +83,7 @@ export default function CertificatePortal() {
           {rows.map((row) => (
             <Card key={`${row.registrationId}-${row.eventId}`} className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="font-semibold">{row.participantName} <span className="text-white/40 text-sm">({row.registrationCode})</span></p>
+                <p className="font-semibold">{row.participantName} <span className="text-dim text-sm">({row.registrationCode})</span></p>
                 <p className="text-sm text-white/60">{eventName(row.eventId)} · {row.college}</p>
                 {row.isWinner && <Badge status="approved" className="mt-1">Winner — #{row.position}</Badge>}
               </div>

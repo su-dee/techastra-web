@@ -36,7 +36,7 @@ export default function HospitalityPortal() {
 
       <Card className="mb-6">
         <label className="block text-sm text-white/70 mb-2">Meal Session</label>
-        <Select value={mealSession} onChange={(e) => setMealSession(e.target.value)} className="max-w-xs mb-4">
+        <Select aria-label="Meal session" value={mealSession} onChange={(e) => setMealSession(e.target.value)} className="max-w-xs mb-4">
           {SESSIONS.map((s) => (
             <option key={s} value={s} className="capitalize">{s}</option>
           ))}
@@ -45,7 +45,7 @@ export default function HospitalityPortal() {
       </Card>
 
       <Card>
-        <h3 className="font-semibold mb-3 capitalize">{mealSession} — Collected ({logs.length})</h3>
+        <h2 className="font-semibold mb-3 capitalize">{mealSession} — Collected ({logs.length})</h2>
         {logs.length === 0 ? (
           <p className="text-white/50 text-sm">No collections logged yet for this session.</p>
         ) : (

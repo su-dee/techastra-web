@@ -8,8 +8,7 @@ import logo from "../assets/logo-sm.webp";
 
 const LINKS = [
   ["/", "Home"],
-  ["/events", "Events"],
-  ["/register", "Register"],
+  ["/events", "Events & Register"],
   ["/status", "Status"],
   ["/verify-certificate", "Verify Certificate"],
 ];

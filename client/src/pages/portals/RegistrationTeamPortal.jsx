@@ -8,6 +8,23 @@ import { Input, Textarea, Select, Label } from "../../components/ui/Input";
 import { api } from "../../lib/api";
 import IdCard from "../../components/IdCard";
 
+// Payment screenshots are private: fetched with the staff token and shown
+// from a blob URL. The tab is opened synchronously (inside the click) so
+// pop-up blockers allow it, then pointed at the image once it arrives.
+async function openProof(registrationId) {
+  const win = window.open("", "_blank");
+  try {
+    const blob = await api.blob(`/api/registrations/${registrationId}/proof`);
+    const url = URL.createObjectURL(blob);
+    if (win) win.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    win?.close();
+    toast.error(err.message || "Couldn't load the payment screenshot");
+  }
+}
+
 export default function RegistrationTeamPortal() {
   const [registrations, setRegistrations] = useState([]);
   const [filter, setFilter] = useState("pending");
@@ -523,6 +540,7 @@ export default function RegistrationTeamPortal() {
         </p>
         <div className="flex gap-3">
           <Select
+            aria-label="Event to export"
             value={selectedEvent}
             onChange={(e) => setSelectedEvent(e.target.value)}
             className="flex-1"
@@ -548,7 +566,7 @@ export default function RegistrationTeamPortal() {
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === s ? "bg-[linear-gradient(100deg,#c8762f,#8f5b30)] text-white" : "bg-white/5 text-[#a9a29a] hover:text-white"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === s ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-white/5 text-[#b4ab9b] hover:text-white"}`}
           >
             {s}
           </button>
@@ -564,13 +582,13 @@ export default function RegistrationTeamPortal() {
           {registrations.map((r) => (
             <Card key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <p className="font-semibold">{r.user.name} <span className="text-white/40 text-sm">({r.registrationCode})</span></p>
+                <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
                 <p className="text-sm text-white/60">{r.user.email} · {r.collegeName}</p>
                 <p className="text-sm text-white/60">Txn ID: {r.transactionId} · ₹{r.totalAmount}</p>
                 {r.paymentProofUrl && (
-                  <a href={`${api.baseUrl}${r.paymentProofUrl}`} target="_blank" rel="noreferrer" className="text-cyan text-sm underline">
+                  <button type="button" onClick={() => openProof(r.id)} className="text-cyan text-sm underline">
                     View payment screenshot
-                  </a>
+                  </button>
                 )}
                 {r.rejectionReason && <p className="text-sm text-danger mt-1">Reason: {r.rejectionReason}</p>}
               </div>
