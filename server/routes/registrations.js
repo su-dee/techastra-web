@@ -2,14 +2,26 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { upload, uploadDir } = require("../middleware/upload");
-const { registrationIpLimiter, registrationEmailLimiter, exportLimiter, statusLimiter } = require("../middleware/rateLimiter");
+const { upload, uploadDir, isImageFile, IMAGE_EXTS } = require("../middleware/upload");
+const { registrationIpLimiter, registrationEmailLimiter, resubmitLimiter, statusLimiter } = require("../middleware/rateLimiter");
 const { logIDORAttempt, logSuspiciousActivity } = require("../middleware/securityLogger");
 const { generateRegistrationCode } = require("../utils/codes");
 const { sendMail } = require("../utils/mailer");
-const { validateRegistration, checkTeamSizes, computeTotal } = require("../utils/validation");
+const {
+  validateRegistration,
+  checkTeamSizes,
+  checkComboRules,
+  checkParticipation,
+  checkRegistrationOpen,
+  computeTotal,
+  normalizeEmail,
+  normalizeTxn,
+  isUpiTxn,
+} = require("../utils/validation");
+const { reserveSeats, reserveForRegistration, applySeatChange } = require("../utils/seats");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const router = express.Router();
 
@@ -62,6 +74,13 @@ async function sendApprovalEmail(registration) {
   });
 }
 
+// Registrations that can share one mobile number (a teacher or parent may
+// register several school students) - beyond that it's treated as spam.
+const MAX_PER_PHONE = 10;
+
+/** Removes an uploaded screenshot from disk (by bare file name only). */
+const removeProof = (name) => name && fs.promises.unlink(path.join(uploadDir, path.basename(name))).catch(() => {});
+
 /** Returns true if two [start,end) time ranges overlap. */
 function rangesOverlap(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && bStart < aEnd;
@@ -80,12 +99,10 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
  *  - the amount due, including combo pass prices (never trusted from the client)
  *  - seats, reserved atomically so two people can't take the last seat
  */
-router.post(
-  "/",
-  registrationIpLimiter,
-  upload.single("paymentProof"),
-  registrationEmailLimiter,
-  async (req, res) => {
+async function createRegistration(req, res) {
+    // Walk-up cash registrations come from the desk (POST /cash below): paid
+    // in person, so no UTR or screenshot, and approved on the spot.
+    const cash = !!req.cashDesk;
     const cleanupUpload = () => req.file && fs.promises.unlink(req.file.path).catch(() => {});
     const reject = (status, error, extra) => {
       cleanupUpload();
@@ -104,6 +121,12 @@ router.post(
       if (events.length !== value.eventIds.length) {
         return reject(400, "One or more selected events could not be found");
       }
+      // Events with their own registration website (Hack Nexus) are never
+      // registered here.
+      const external = events.find((e) => e.externalRegistration);
+      if (external) {
+        return reject(400, `${external.name} has its own registration website - register for it there.`);
+      }
 
       // Senior events are for college students and Junior events for school
       // students, so one registration can't mix them (UI also blocks this).
@@ -114,6 +137,39 @@ router.post(
       if (levels.has("junior") && !value.guardianConsent) {
         return reject(400, "Junior Techastra registrations need a parent or guardian's consent.");
       }
+      // Junior Techastra: each school student registers alone and teams are
+      // formed at the venue, so a team list is never taken (it would only
+      // take extra seats).
+      if (levels.has("junior")) {
+        value.teamMembers = null;
+        value.teamName = null;
+      }
+
+      // Online registration for an event closes once it has started (the
+      // desk can still add a walk-up on the day).
+      const closedError = checkRegistrationOpen(events);
+      if (closedError && !cash) return reject(400, closedError);
+
+      if (value.phone) {
+        const samePhone = await prisma.registration.count({
+          where: { status: { not: "rejected" }, user: { phone: value.phone } },
+        });
+        if (samePhone >= MAX_PER_PHONE) {
+          logSuspiciousActivity(req, "Many registrations with one phone number", { count: samePhone });
+          return reject(429, "Too many registrations use this mobile number. Contact the Help Desk if this is a mistake.");
+        }
+      }
+
+      const combos = value.comboIds.length
+        ? await prisma.comboPass.findMany({ where: { id: { in: value.comboIds }, isActive: true } })
+        : [];
+      if (combos.length !== value.comboIds.length) {
+        return reject(400, "A selected combo pass is no longer available.");
+      }
+      // One combo per registration, registered on its own (checked before the
+      // time clashes, so the message names the real problem).
+      const comboError = checkComboRules(value.eventIds, combos);
+      if (comboError) return reject(400, comboError);
 
       // Time-clash validation (server-side safety net; UI also blocks this)
       for (let i = 0; i < events.length; i++) {
@@ -124,25 +180,22 @@ router.post(
         }
       }
 
-      const combos = value.comboIds.length
-        ? await prisma.comboPass.findMany({ where: { id: { in: value.comboIds }, isActive: true } })
-        : [];
-      if (combos.length !== value.comboIds.length) {
-        return reject(400, "A selected combo pass is no longer available.");
-      }
-      // Also checks each combo's events are all in the registration.
-      const totalAmount = computeTotal(events, combos);
-
       const teamSize = value.teamMembers ? value.teamMembers.length : 1;
-      const teamError = checkTeamSizes(events, teamSize, combos);
+      // Fees are per person, so the amount depends on the team size.
+      const totalAmount = computeTotal(events, combos, teamSize);
+      const teamError = checkTeamSizes(events, teamSize, combos) || checkParticipation(events, teamSize);
       if (teamError) return reject(400, teamError);
 
       // Free registrations (Junior Techastra) only collect the student's
       // details: no payment to verify, so they're approved straight away.
       const free = totalAmount === 0;
-      if (free) {
+      if (free || cash) {
         value.transactionId = null;
         cleanupUpload();
+        // The desk must have collected exactly what the server charges.
+        if (cash && !free && Number(req.body.amountCollected) !== totalAmount) {
+          return reject(400, `Collect ₹${totalAmount} for this registration (entered: ₹${Number(req.body.amountCollected) || 0}).`);
+        }
       } else {
         if (!value.transactionId) {
           return reject(400, "Enter the UPI transaction ID (UTR) from your payment app - the 12-digit reference number.");
@@ -150,6 +203,10 @@ router.post(
         // The registration desk checks every payment against this screenshot.
         if (!req.file) {
           return reject(400, "Upload a screenshot of your UPI payment's success screen.");
+        }
+        if (!(await isImageFile(req.file.path))) {
+          logSuspiciousActivity(req, "Payment screenshot is not a real image", { name: req.file.originalname });
+          return reject(400, "The payment screenshot must be a PNG, JPEG or WebP image.");
         }
         const usedTxn = await prisma.registration.findUnique({ where: { transactionId: value.transactionId } });
         if (usedTxn) {
@@ -162,19 +219,13 @@ router.post(
       const registrationCode = await generateRegistrationCode(prisma);
       // Payment screenshots are personal data: kept out of the public static
       // folder and served only to staff (GET /api/registrations/:id/proof).
-      const paymentProofUrl = !free && req.file ? req.file.filename : null;
+      const paymentProofUrl = !free && !cash && req.file ? req.file.filename : null;
+      const approvedNow = free || cash;
 
       const result = await prisma.$transaction(async (tx) => {
-        // Reserve seats atomically: the conditional UPDATE only succeeds while
-        // a seat is left, so concurrent registrations can't oversell.
-        for (const ev of events) {
-          const updated = await tx.$executeRaw`UPDATE "Event" SET "seatsTaken" = "seatsTaken" + 1, "updatedAt" = NOW() WHERE "id" = ${ev.id} AND "seatsTaken" < "maxSeats"`;
-          if (updated !== 1) {
-            const err = new Error(`"${ev.name}" has no seats remaining`);
-            err.status = 409;
-            throw err;
-          }
-        }
+        // A team takes one seat in a team event; in an individual event every
+        // member is a separate participant (utils/seats.js).
+        await reserveSeats(tx, events, teamSize);
 
         const user = await tx.user.create({
           data: {
@@ -199,10 +250,12 @@ router.post(
             totalAmount,
             transactionId: value.transactionId,
             paymentProofUrl,
-            paymentMethod: free ? "free" : "upi",
-            status: free ? "approved" : "pending",
-            // Free registrations have no payment to check, so they are approved automatically.
+            paymentMethod: free ? "free" : cash ? "cash" : "upi",
+            status: approvedNow ? "approved" : "pending",
+            // Free registrations have no payment to check, so they are approved
+            // automatically; cash ones are approved by the desk member who took it.
             ...(free ? { reviewedByName: "Automatic (free registration)", reviewedAt: new Date() } : {}),
+            ...(cash && !free ? reviewedBy(req) : {}),
             consentAt: new Date(),
             guardianConsent: value.guardianConsent,
           },
@@ -216,11 +269,13 @@ router.post(
           status: result.status,
           totalAmount: result.totalAmount,
         },
+        // Cash: the desk tells the participant this one-time password.
+        ...(cash ? { temporaryPassword: req.generatedPassword } : {}),
       });
 
-      // Free registrations are approved on the spot, so they get the approval
-      // email now (paid ones get it when the desk approves the payment).
-      if (free) {
+      // Free and cash registrations are approved on the spot, so they get the
+      // approval email now (UPI ones get it when the desk approves the payment).
+      if (approvedNow) {
         sendApprovalEmail({ ...result, user: { name: value.name, email: value.email } }).catch((err) =>
           console.warn("Approval email error:", err.message)
         );
@@ -234,7 +289,28 @@ router.post(
       console.error("Create registration error:", err);
       res.status(500).json({ error: "Failed to submit registration" });
     }
-  }
+}
+
+router.post("/", registrationIpLimiter, upload.single("paymentProof"), registrationEmailLimiter, createRegistration);
+
+/**
+ * POST /api/registrations/cash - registration desk only: a walk-up who paid
+ * cash in person. Same checks and server-computed amount as online
+ * registration (the desk confirms the amount collected), approved at once.
+ * The participant's password is generated here and returned once.
+ */
+router.post(
+  "/cash",
+  requireAuth,
+  requireRole("registration_team", "master_admin"),
+  upload.none(),
+  (req, res, next) => {
+    req.cashDesk = true;
+    req.generatedPassword = crypto.randomBytes(6).toString("base64url"); // 8 characters
+    req.body.password = req.generatedPassword;
+    next();
+  },
+  createRegistration
 );
 
 /**
@@ -248,7 +324,16 @@ router.get("/:id/proof", requireAuth, requireRole("registration_team", "master_a
     const reg = await prisma.registration.findUnique({ where: { id: req.params.id }, select: { paymentProofUrl: true } });
     if (!reg || !reg.paymentProofUrl) return res.status(404).json({ error: "No payment screenshot for this registration" });
     const file = path.basename(reg.paymentProofUrl);
-    res.set("Cache-Control", "private, no-store");
+    // Only ever served as an image - never as a page that could run script.
+    const ext = path.extname(file).toLowerCase();
+    if (!IMAGE_EXTS.has(ext)) return res.status(415).json({ error: "This payment screenshot isn't an image file" });
+    res.set({
+      "Cache-Control": "private, no-store",
+      "Content-Type": ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; sandbox",
+      "Content-Disposition": `inline; filename="payment-${req.params.id}${ext}"`,
+    });
     res.sendFile(path.join(uploadDir, file), (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: "Payment screenshot not found" });
     });
@@ -293,6 +378,73 @@ router.get("/status", statusLimiter, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/registrations/resubmit - a rejected participant sends a new UPI
+ * transaction ID and screenshot (multipart: code, email, password,
+ * transactionId, paymentProof). Proves ownership with the code, email and
+ * password; the registration goes back to "pending" for the desk and takes
+ * its seats again.
+ */
+router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (req, res) => {
+  const reject = (status, error) => {
+    if (req.file) fs.promises.unlink(req.file.path).catch(() => {});
+    return res.status(status).json({ error });
+  };
+  try {
+    const code = String(req.body?.code || "").trim().toUpperCase();
+    const email = normalizeEmail(req.body?.email);
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const transactionId = normalizeTxn(req.body?.transactionId);
+    if (!code || !email || !password) return reject(400, "Enter your registration code, email and password.");
+
+    const registration = await prisma.registration.findFirst({ where: { registrationCode: code, user: { email } }, include: { user: true } });
+    // One message for every mismatch, so this can't be used to probe accounts.
+    const ok = registration && (await bcrypt.compare(password, registration.user.passwordHash || ""));
+    if (!ok) return reject(401, "The code, email or password doesn't match a registration.");
+    if (registration.status !== "rejected") return reject(409, "Only a rejected registration can be resubmitted.");
+
+    if (!isUpiTxn(transactionId)) return reject(400, "Enter the UPI transaction ID (UTR) from your payment app - the 12-digit reference number.");
+    if (!req.file) return reject(400, "Upload a screenshot of your UPI payment's success screen.");
+    if (!(await isImageFile(req.file.path))) {
+      logSuspiciousActivity(req, "Payment screenshot is not a real image", { name: req.file.originalname });
+      return reject(400, "The payment screenshot must be a PNG, JPEG or WebP image.");
+    }
+    const usedTxn = await prisma.registration.findUnique({ where: { transactionId } });
+    if (usedTxn && usedTxn.id !== registration.id) {
+      logSuspiciousActivity(req, "Reused UPI transaction ID", { transactionId });
+      return reject(409, "This UPI transaction ID has already been used for another registration.");
+    }
+    const events = await prisma.event.findMany({ where: { id: { in: registration.eventIds } } });
+    const closedError = checkRegistrationOpen(events);
+    if (closedError) return reject(400, closedError);
+
+    const oldProof = registration.paymentProofUrl;
+    const updated = await prisma.$transaction(async (tx) => {
+      await reserveForRegistration(tx, registration);
+      return tx.registration.update({
+        where: { id: registration.id },
+        data: {
+          status: "pending",
+          transactionId,
+          paymentProofUrl: req.file.filename,
+          rejectionReason: null,
+          reviewedById: null,
+          reviewedByName: null,
+          reviewedAt: null,
+        },
+      });
+    });
+    removeProof(oldProof);
+    res.json({ registration: { registrationCode: updated.registrationCode, status: updated.status, totalAmount: updated.totalAmount } });
+  } catch (err) {
+    if (req.file) fs.promises.unlink(req.file.path).catch(() => {});
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    if (err.code === "P2002") return res.status(409).json({ error: "This UPI transaction ID has already been used for another registration." });
+    console.error("Resubmit error:", err);
+    res.status(500).json({ error: "Failed to resubmit the registration" });
+  }
+});
+
 /** GET /api/registrations - registration_team/master_admin: list all, filterable by status. */
 router.get("/", requireAuth, requireRole("registration_team", "master_admin"), async (req, res) => {
   try {
@@ -302,7 +454,29 @@ router.get("/", requireAuth, requireRole("registration_team", "master_admin"), a
       include: { user: true },
       orderBy: { createdAt: "desc" },
     });
-    res.json({ registrations });
+    // Flag possible duplicates for the desk: the same register number (as a
+    // registrant or a team member) or mobile number in another live
+    // registration. Only flagged, never blocked - the desk decides.
+    const live = await prisma.registration.findMany({
+      where: { status: { not: "rejected" } },
+      select: { id: true, registrationCode: true, teamMembers: true, user: { select: { registerNo: true, phone: true } } },
+    });
+    const owners = new Map(); // key -> Set of registration codes
+    const keysOf = (r) => {
+      const keys = new Set();
+      const regNo = (v) => String(v || "").trim().toUpperCase();
+      if (regNo(r.user?.registerNo)) keys.add(`reg:${regNo(r.user.registerNo)}`);
+      if (Array.isArray(r.teamMembers)) r.teamMembers.forEach((m) => regNo(m.regNo) && keys.add(`reg:${regNo(m.regNo)}`));
+      if (r.user?.phone) keys.add(`phone:${r.user.phone}`);
+      return keys;
+    };
+    for (const r of live) for (const k of keysOf(r)) (owners.get(k) || owners.set(k, new Set()).get(k)).add(r.registrationCode);
+    const withFlags = registrations.map((r) => {
+      const others = new Set();
+      for (const k of keysOf(r)) for (const code of owners.get(k) || []) if (code !== r.registrationCode) others.add(code);
+      return { ...r, possibleDuplicates: [...others] };
+    });
+    res.json({ registrations: withFlags });
   } catch (err) {
     console.error("List registrations error:", err);
     res.status(500).json({ error: "Failed to load registrations" });
@@ -386,10 +560,19 @@ router.patch(
   requireRole("registration_team", "master_admin"),
   async (req, res) => {
     try {
-      const registration = await prisma.registration.update({
-        where: { id: req.params.id },
-        data: { status: "approved", rejectionReason: null, ...reviewedBy(req) },
-        include: { user: true },
+      const current = await prisma.registration.findUnique({ where: { id: req.params.id }, include: { user: true } });
+      if (!current) return res.status(404).json({ error: "Registration not found" });
+      // Already approved: nothing to change, and no second email.
+      if (current.status === "approved") return res.json({ registration: current, alreadyApproved: true });
+
+      const registration = await prisma.$transaction(async (tx) => {
+        // Approving a rejected registration takes its seats back first.
+        await applySeatChange(tx, current, current.status, "approved");
+        return tx.registration.update({
+          where: { id: current.id },
+          data: { status: "approved", rejectionReason: null, ...reviewedBy(req) },
+          include: { user: true },
+        });
       });
 
       res.json({ registration });
@@ -398,6 +581,7 @@ router.patch(
       // waits on (or fails because of) mail. sendMail never throws.
       sendApprovalEmail(registration).catch((err) => console.warn("Approval email error:", err.message));
     } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message });
       console.error("Approve error:", err);
       res.status(500).json({ error: "Failed to approve registration" });
     }
@@ -411,11 +595,17 @@ router.patch(
   requireRole("registration_team", "master_admin"),
   async (req, res) => {
     try {
-      const { reason } = req.body;
-      const registration = await prisma.registration.update({
-        where: { id: req.params.id },
-        data: { status: "rejected", rejectionReason: reason || "Payment could not be verified", ...reviewedBy(req) },
-        include: { user: true },
+      const reason = typeof req.body?.reason === "string" ? req.body.reason.trim().slice(0, 300) : "";
+      const current = await prisma.registration.findUnique({ where: { id: req.params.id } });
+      if (!current) return res.status(404).json({ error: "Registration not found" });
+      const registration = await prisma.$transaction(async (tx) => {
+        // A rejected registration gives its seats back to other participants.
+        await applySeatChange(tx, current, current.status, "rejected");
+        return tx.registration.update({
+          where: { id: current.id },
+          data: { status: "rejected", rejectionReason: reason || "Payment could not be verified", ...reviewedBy(req) },
+          include: { user: true },
+        });
       });
 
       res.json({ registration });
@@ -449,9 +639,16 @@ router.patch("/:id/override", requireAuth, requireRole("master_admin"), async (r
     if (typeof teamName === "string") data.teamName = teamName.trim().slice(0, 80) || null;
     if (typeof collegeName === "string") data.collegeName = collegeName.trim().slice(0, 150) || null;
     if (!Object.keys(data).length) return res.status(400).json({ error: "Nothing to update" });
-    const registration = await prisma.registration.update({ where: { id: req.params.id }, data });
+    const current = await prisma.registration.findUnique({ where: { id: req.params.id } });
+    if (!current) return res.status(404).json({ error: "Registration not found" });
+    const registration = await prisma.$transaction(async (tx) => {
+      // Moving in or out of "rejected" releases or re-takes the seats.
+      if (data.status) await applySeatChange(tx, current, current.status, data.status);
+      return tx.registration.update({ where: { id: current.id }, data });
+    });
     res.json({ registration });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error("Override error:", err);
     res.status(500).json({ error: "Failed to override registration" });
   }

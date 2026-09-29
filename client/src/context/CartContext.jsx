@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { LEVEL_LABEL, LEVEL_AUDIENCE, levelOf } from "../lib/site";
+import { LEVEL_LABEL, LEVEL_AUDIENCE, levelOf, registrationClosed } from "../lib/site";
+import { computeTotal, dependsOnTeamSize, smallestTeam } from "../lib/pricing";
 
 const CartContext = createContext(null);
 const STORAGE_KEY = "techastra_cart";
@@ -39,8 +40,24 @@ export function CartProvider({ children }) {
     return `Your cart has ${LEVEL_LABEL[cur]} events (for ${LEVEL_AUDIENCE[cur]}). ${LEVEL_LABEL[levelOf(event)]} events need a separate registration.`;
   };
 
+  // Combo rules (the server enforces them too): a combo pass is registered on
+  // its own - one combo per registration, nothing else alongside it - and its
+  // events can only be removed together, as the whole combo.
+  const activeCombo = (() => {
+    const c = items.find((i) => i.isComboItem && i.comboId);
+    return c ? { id: c.comboId, name: c.comboName } : null;
+  })();
+
   const addItem = (event) => {
+    if (event.externalRegistration) return { ok: false, reason: `${event.name} has its own registration website.` };
+    if (registrationClosed(event)) return { ok: false, reason: `Registration for ${event.name} has closed - it has already started.` };
     if (items.some((i) => i.id === event.id)) return { ok: false, reason: "Already in cart" };
+    if (activeCombo) {
+      return {
+        ok: false,
+        reason: `Your cart has the ${activeCombo.name} pass, which is registered on its own. Remove the combo to choose events individually.`,
+      };
+    }
     const mismatch = levelMismatch(event);
     if (mismatch) return { ok: false, reason: mismatch };
     const clash = findClash(event);
@@ -55,8 +72,25 @@ export function CartProvider({ children }) {
    * If any event clashes, the entire combo is blocked (no partial add).
    */
   const addCombo = (comboPass, comboEvents) => {
+    if (activeCombo) {
+      return {
+        ok: false,
+        reason:
+          activeCombo.id === comboPass.id
+            ? `${comboPass.name} is already in your cart`
+            : `Only one combo pass per registration. Remove ${activeCombo.name} from your cart first.`,
+      };
+    }
+    if (items.length) {
+      return {
+        ok: false,
+        reason: `A combo pass is registered on its own. Remove the ${items.length === 1 ? "event" : `${items.length} events`} in your cart first.`,
+      };
+    }
     const mismatch = comboEvents.map(levelMismatch).find(Boolean);
     if (mismatch) return { ok: false, reason: mismatch };
+    const closed = comboEvents.find(registrationClosed);
+    if (closed) return { ok: false, reason: `${comboPass.name} has closed - ${closed.name} has already started.` };
     // Check if any combo event is already in cart
     const alreadyInCart = comboEvents.find((e) => items.some((i) => i.id === e.id));
     if (alreadyInCart) {
@@ -84,8 +118,14 @@ export function CartProvider({ children }) {
     return { ok: true };
   };
 
+  /** Removes a single event. Events of a combo pass can't be removed on their own. */
   const removeItem = (eventId) => {
+    const item = items.find((i) => i.id === eventId);
+    if (item?.isComboItem) {
+      return { ok: false, reason: `${item.name} is part of ${item.comboName}. Remove the whole combo instead.` };
+    }
     setItems((prev) => prev.filter((i) => i.id !== eventId));
+    return { ok: true };
   };
 
   /**
@@ -97,24 +137,16 @@ export function CartProvider({ children }) {
 
   const clearCart = () => setItems([]);
 
-  /**
-   * Calculate total with combo pricing.
-   * Events marked as combo items use the combo price divided by the number of events.
-   * Regular events use their individual fee.
-   */
-  const total = items.reduce((sum, i) => {
-    if (i.isComboItem) {
-      // For combo items, we've already distributed the combo price
-      // Count each combo only once by checking if this is the first item of that combo
-      const comboItems = items.filter((item) => item.comboId === i.comboId);
-      const isFirstComboItem = comboItems[0]?.id === i.id;
-      return isFirstComboItem ? sum + i.comboPrice : sum;
-    }
-    return sum + i.fee;
-  }, 0);
+  // Fees are per person, so the exact amount needs the team size (known on the
+  // details form - see lib/pricing.js). Until then `total` is the amount for
+  // the smallest team the cart allows, and `totalIsEstimate` says so.
+  const total = computeTotal(items, smallestTeam(items));
+  const totalIsEstimate = dependsOnTeamSize(items);
 
   return (
-    <CartContext.Provider value={{ items, addItem, addCombo, removeItem, removeCombo, clearCart, total, findClash }}>
+    <CartContext.Provider
+      value={{ items, addItem, addCombo, removeItem, removeCombo, clearCart, total, totalIsEstimate, findClash, activeCombo }}
+    >
       {children}
     </CartContext.Provider>
   );

@@ -8,6 +8,74 @@ import { Label, Input } from "../components/ui/Input";
 import { api } from "../lib/api";
 import { fadeUp, staggerContainer, EASE_CINEMATIC } from "../lib/motion";
 import { usePanels } from "../context/PanelContext";
+import { UPI_ID, upiPayLink } from "../lib/site";
+
+/**
+ * A rejected registration can be resubmitted with a corrected payment (new
+ * UTR and screenshot). The password proves it's the participant's own.
+ */
+function Resubmit({ code, email, amount, onDone }) {
+  const [password, setPassword] = useState("");
+  const [txn, setTxn] = useState("");
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!password || !txn.trim() || !file) return setError("Enter your password and the new UTR, and choose the payment screenshot.");
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("code", code);
+      fd.append("email", email);
+      fd.append("password", password);
+      fd.append("transactionId", txn.trim());
+      fd.append("paymentProof", file);
+      const data = await api.post("/api/registrations/resubmit", fd, { isFormData: true });
+      toast.success("Resubmitted - the registration desk will check your payment again.");
+      onDone(data.registration);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
+      <p className="text-sm text-soft">
+        Fix it and resubmit: pay ₹{amount} to <span className="text-heading">{UPI_ID}</span> if you haven’t paid the
+        right amount (
+        <a className="link-cta" href={upiPayLink(amount)}>
+          pay with a UPI app
+        </a>
+        ), then enter the new transaction ID and screenshot.
+      </p>
+      <div>
+        <Label htmlFor="rs-password" required>Your password</Label>
+        <Input id="rs-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </div>
+      <div>
+        <Label htmlFor="rs-txn" required>UPI transaction ID (UTR)</Label>
+        <Input id="rs-txn" inputMode="numeric" autoComplete="off" value={txn} onChange={(e) => setTxn(e.target.value)} />
+      </div>
+      <div>
+        <Label htmlFor="rs-proof" required>Payment screenshot</Label>
+        <Input id="rs-proof" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+      </div>
+      {error && (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
+      <Button type="submit" className="w-full" disabled={busy}>
+        {busy ? "Resubmitting…" : "Resubmit payment"}
+      </Button>
+    </form>
+  );
+}
 
 /**
  * Minimal, borderless cinematic layout replacing the old boxed-Card
@@ -107,8 +175,27 @@ export default function Status() {
               <Badge status={result.status}>{result.status}</Badge>
             </div>
             <p className="text-sm text-soft">Total paid: ₹{result.totalAmount}</p>
-            {result.status === "rejected" && result.rejectionReason && (
-              <p className="text-sm text-danger mt-3">Reason: {result.rejectionReason}</p>
+            {result.status === "rejected" && (
+              <>
+                {result.rejectionReason && <p className="text-sm text-danger mt-3">Reason: {result.rejectionReason}</p>}
+                <p className="text-sm text-soft mt-3">
+                  Think this is a mistake?{" "}
+                  <button type="button" className="link-cta" onClick={() => openPanel("help")}>
+                    Ask the Help Desk
+                  </button>
+                </p>
+                {result.totalAmount > 0 && (
+                  <Resubmit
+                    code={result.registrationCode}
+                    email={email.trim()}
+                    amount={result.totalAmount}
+                    onDone={(r) => setResult((prev) => ({ ...prev, ...r, rejectionReason: null }))}
+                  />
+                )}
+              </>
+            )}
+            {result.status === "pending" && (
+              <p className="text-sm text-soft mt-3">The registration desk is checking your payment. You’ll get an email once it’s approved.</p>
             )}
             {result.status === "approved" && (
               <div className="mt-6">

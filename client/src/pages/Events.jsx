@@ -30,7 +30,7 @@ export default function Events() {
   const navigate = useNavigate();
   const { events, loading } = useEvents();
   const { items, inCart, toggle } = useCartToggle();
-  const { total, addCombo } = useCart();
+  const { total, totalIsEstimate, addCombo } = useCart();
   const modal = useEventModal(events);
   const [level, setLevel] = useLevelFilter(items);
   const [category, setCategory] = useState("all");
@@ -145,10 +145,16 @@ export default function Events() {
         <div className="reg-bar__inner">
           <div>
             <div className="text-heading">
-              {items.length ? `${plural(items.length, "event")} in your cart · ${formatFee(total)}` : "Your cart is empty"}
+              {items.length
+                ? `${plural(items.length, "event")} in your cart · ${totalIsEstimate && total > 0 ? "from " : ""}${formatFee(total)}`
+                : "Your cart is empty"}
             </div>
             <div className="text-sm text-soft">
-              {items.length ? "Next: your details, then payment" : "Add an event above to start registering"}
+              {items.length
+                ? totalIsEstimate
+                  ? "Fees are per person - the exact amount depends on your team size"
+                  : "Next: your details, then payment"
+                : "Add an event above to start registering"}
             </div>
           </div>
           <div className="flex flex-wrap gap-3">

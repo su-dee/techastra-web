@@ -6,7 +6,8 @@ import EventArt from "./EventArt";
 import EventInfo, { formatDay, formatFee, formatTimeRange, kickerFor, teamLabel } from "./EventInfo";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
-import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, levelOf } from "../lib/site";
+import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, levelOf, registrationClosed } from "../lib/site";
+import { priceLabel } from "../lib/pricing";
 
 // Shared pieces for pages that list events (Home, Events): data loading,
 // cart toggling, the event card and the details modal.
@@ -29,8 +30,9 @@ export function useCartToggle() {
   const inCart = useCallback((id) => items.some((i) => i.id === id), [items]);
   const toggle = (event) => {
     if (inCart(event.id)) {
-      removeItem(event.id);
-      toast.success(`${event.name} removed from cart`);
+      const removed = removeItem(event.id);
+      if (!removed.ok) toast.error(removed.reason);
+      else toast.success(`${event.name} removed from cart`);
       return;
     }
     const result = addItem(event);
@@ -154,9 +156,41 @@ export function EventFilters({ level, onLevel, category, onCategory, days = [], 
   );
 }
 
+/**
+ * For events registered on their own website (Hack Nexus): a link out in
+ * place of "Add to cart", or a disabled "coming soon" until the URL is set.
+ */
+export function ExternalRegisterButton({ event, className = "btn-small", short = false }) {
+  if (!event.registrationUrl) {
+    return (
+      <button type="button" className={`${className} disabled:opacity-50 disabled:cursor-not-allowed`} disabled>
+        {short ? "Link soon" : "Registration link coming soon"}
+      </button>
+    );
+  }
+  return (
+    <a
+      href={event.registrationUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      aria-label={`Register for ${event.name} on its own website (opens in a new tab)`}
+      data-log={`events-external-${event.id}`}
+    >
+      {short ? "Register ↗" : `Register on the ${event.name} website ↗`}
+    </a>
+  );
+}
+
 export function EventCard({ event, inCart, onOpen, onToggle }) {
   const cat = categoryOf(event);
   const full = event.seatsAvailable <= 0;
+  const closed = registrationClosed(event);
+  // A combo pass stands alone: its events show as part of the combo, and
+  // nothing else can be added while it's in the cart.
+  const { items, activeCombo } = useCart();
+  const comboName = items.find((i) => i.id === event.id && i.isComboItem)?.comboName;
+  const lockedByCombo = !inCart && !!activeCombo;
   return (
     <article className={"card ev" + (inCart ? " is-selected" : "")}>
       <button className="ev__open" onClick={() => onOpen(event)} aria-label={`${event.name} — view details`} data-log={`events-card-open-${event.id}`} />
@@ -174,7 +208,7 @@ export function EventCard({ event, inCart, onOpen, onToggle }) {
       <div className="ev__stats">
         <div>
           <span className="mono-label">Fee</span>
-          <div>{formatFee(event.fee)}</div>
+          <div>{priceLabel(event)}</div>
         </div>
         <div>
           <span className="mono-label">Participation</span>
@@ -186,15 +220,31 @@ export function EventCard({ event, inCart, onOpen, onToggle }) {
           {formatTimeRange(event)}
           {event.venue ? ` · ${event.venue}` : ""}
         </span>
-        <button
-          className={"ev__action " + (inCart ? "btn-ghost-sm" : "btn-small")}
-          onClick={() => onToggle(event)}
-          disabled={!inCart && full}
-          aria-label={inCart ? `Added - remove ${event.name} from cart` : full ? `${event.name} is full` : `Add to cart: ${event.name}`}
-          data-log={`events-card-${inCart ? "remove" : "add"}-${event.id}`}
-        >
-          {inCart ? "✓ Added" : full ? "Full" : "Add to cart"}
-        </button>
+        {event.externalRegistration ? (
+          <ExternalRegisterButton event={event} className="ev__action btn-small" short />
+        ) : (
+          <button
+            className={"ev__action " + (inCart ? "btn-ghost-sm" : "btn-small")}
+            onClick={() => onToggle(event)}
+            disabled={(!inCart && (full || closed)) || !!comboName || lockedByCombo}
+            aria-label={
+              comboName
+                ? `${event.name} is part of ${comboName} in your cart`
+                : lockedByCombo
+                  ? `${event.name} can't be added: your cart has the ${activeCombo.name} pass`
+                  : inCart
+                    ? `Added - remove ${event.name} from cart`
+                    : closed
+                      ? `Registration for ${event.name} has closed`
+                      : full
+                        ? `${event.name} is full`
+                        : `Add to cart: ${event.name}`
+            }
+            data-log={`events-card-${inCart ? "remove" : "add"}-${event.id}`}
+          >
+            {comboName ? `✓ In ${comboName}` : lockedByCombo ? "Combo selected" : inCart ? "✓ Added" : closed ? "Closed" : full ? "Full" : "Add to cart"}
+          </button>
+        )}
       </div>
     </article>
   );
@@ -206,8 +256,10 @@ export function EventCard({ event, inCart, onOpen, onToggle }) {
  */
 export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavigate }) {
   const navigate = useNavigate();
-  const { findClash } = useCart();
+  const { findClash, items, activeCombo, removeCombo } = useCart();
   const topRef = useRef(null);
+  const comboItem = event ? items.find((i) => i.id === event.id && i.isComboItem) : null;
+  const lockedByCombo = !!event && !inCart && !!activeCombo && !event.externalRegistration;
 
   const index = event ? list.findIndex((e) => e.id === event.id) : -1;
   const prev = index > 0 ? list[index - 1] : null;
@@ -234,8 +286,9 @@ export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavi
     if (panel) panel.scrollTop = 0;
   }, [event?.id]);
 
-  const clash = event && !inCart ? findClash(event) : null;
+  const clash = event && !inCart && !event.externalRegistration ? findClash(event) : null;
   const full = event && event.seatsAvailable <= 0;
+  const closed = event && registrationClosed(event);
 
   return (
     <Modal open={!!event} onClose={onClose} tone={event && categoryOf(event)} kicker={event && kickerFor(event)} title={event?.name}>
@@ -263,7 +316,23 @@ export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavi
 
           {/* Always in view: what it costs and the one action to take. */}
           <div className="modal__bar">
-            {clash && (
+            {event.externalRegistration && (
+              <p className="text-[13px] text-soft mb-3">
+                {event.name} has its own registration website - it isn’t registered through this portal or the cart.
+              </p>
+            )}
+            {comboItem && (
+              <p className="text-[13px] text-soft mb-3">
+                Part of <b className="text-heading">{comboItem.comboName}</b> - combo events can only be removed together.
+              </p>
+            )}
+            {lockedByCombo && (
+              <p className="modal__clash" role="status">
+                <span aria-hidden="true">ⓘ</span> Your cart has the <b>{activeCombo.name}</b> pass, which is registered on
+                its own. Remove the combo to choose events individually.
+              </p>
+            )}
+            {clash && !lockedByCombo && (
               <p className="modal__clash" role="status">
                 <span aria-hidden="true">⚠</span> Clashes with <b>{clash}</b> in your cart (same time). Remove it to add
                 this event.
@@ -271,13 +340,29 @@ export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavi
             )}
             <div className="modal__bar-row">
               <div className="modal__bar-info">
-                <span className="text-amber-light tabular-nums">{formatFee(event.fee)}</span> · {teamLabel(event)}
+                <span className="text-amber-light tabular-nums">{priceLabel(event)}</span> · {teamLabel(event)}
               </div>
-              {inCart ? (
+              {event.externalRegistration ? (
                 <div className="modal__bar-actions">
-                  <button className="btn-ghost-sm" onClick={() => onToggle(event)}>
-                    Remove from cart
-                  </button>
+                  <ExternalRegisterButton event={event} />
+                </div>
+              ) : inCart ? (
+                <div className="modal__bar-actions">
+                  {comboItem ? (
+                    <button
+                      className="btn-ghost-sm"
+                      onClick={() => {
+                        removeCombo(comboItem.comboId);
+                        toast.success(`${comboItem.comboName} removed from cart`);
+                      }}
+                    >
+                      Remove {comboItem.comboName}
+                    </button>
+                  ) : (
+                    <button className="btn-ghost-sm" onClick={() => onToggle(event)}>
+                      Remove from cart
+                    </button>
+                  )}
                   <button className="btn-small" onClick={() => navigate("/register/form")}>
                     Continue to your details →
                   </button>
@@ -286,11 +371,11 @@ export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavi
                 <div className="modal__bar-actions">
                   <button
                     className="btn-small disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={full || !!clash}
+                    disabled={closed || full || !!clash || lockedByCombo}
                     onClick={() => onToggle(event)}
                     data-log={`events-modal-add-${event.id}`}
                   >
-                    {full ? "Seats full" : clash ? "Time clash" : "Add to cart"}
+                    {closed ? "Registration closed" : full ? "Seats full" : lockedByCombo ? "Combo selected" : clash ? "Time clash" : "Add to cart"}
                   </button>
                 </div>
               )}

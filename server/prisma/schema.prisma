@@ -44,6 +44,12 @@ model Event {
   startTime     DateTime
   endTime       DateTime
   fee           Float
+  // false: fee is per person (x team size); true: a flat fee per team (Hack Nexus)
+  feePerTeam    Boolean  @default(false)
+  // true: registration happens on a separate website (Hack Nexus) - the
+  // portal links out to registrationUrl and never takes it in the cart.
+  externalRegistration Boolean @default(false)
+  registrationUrl      String?
   maxSeats      Int
   seatsTaken    Int      @default(0)
   isTeamEvent   Boolean  @default(false)

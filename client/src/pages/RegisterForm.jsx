@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Button from "../components/ui/Button";
 import Stepper from "../components/ui/Stepper";
@@ -6,6 +6,7 @@ import { Label, Input, FieldError, FieldHint } from "../components/ui/Input";
 import { useCart } from "../context/CartContext";
 import { levelOf } from "../lib/site";
 import { plural } from "../lib/a11y";
+import { computeTotal, registrationKind, teamSizeRange } from "../lib/pricing";
 import { REGISTRATION_DRAFT_KEY, loadDraft, saveDraft } from "../lib/registrationDraft";
 
 export { REGISTRATION_DRAFT_KEY };
@@ -25,12 +26,12 @@ const MIN_PASSWORD = 8;
  * first invalid field.
  */
 export default function RegisterForm() {
-  const { items, total } = useCart();
+  const { items } = useCart();
   const navigate = useNavigate();
   const formRef = useRef(null);
 
   const saved = loadDraft();
-  const [mode, setMode] = useState(saved?.mode || "individual");
+  const [chosenMode, setMode] = useState(saved?.mode || "individual");
   const [form, setForm] = useState(
     saved?.form || { name: "", email: "", phone: "", password: "", collegeName: "", registerNo: "" }
   );
@@ -41,10 +42,34 @@ export default function RegisterForm() {
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
-  const anyTeamEvent = items.some((i) => i.isTeamEvent);
   // Junior events are for school students, so ask for school and class
   // instead of college and register number (stored in the same fields).
   const junior = items.length > 0 && levelOf(items[0]) === "junior";
+  // The cart decides the form: team events that need 2+ people -> team form
+  // (required); only individual events -> individual form; team events that
+  // also allow one person -> the student chooses. Juniors always register
+  // individually (teams are formed at the venue).
+  const kind = junior ? "individual" : registrationKind(items);
+  const mode = kind === "team" ? "team" : kind === "individual" ? "individual" : chosenMode;
+  // In a team registration every member also takes part in the individual events.
+  const individualEvents = items.filter((i) => !i.isTeamEvent);
+  // The member list follows the team size: a fixed size (team of 3) gets
+  // exactly that many slots; a range (1-4) can add/remove within it.
+  const [minPeople, maxPeople] = teamSizeRange(items);
+  const minMembers = minPeople - 1;
+  const maxMembers = maxPeople - 1;
+  const fixedSize = minPeople === maxPeople;
+  useEffect(() => {
+    setMembers((prev) => {
+      if (prev.length >= minMembers && prev.length <= maxMembers) return prev;
+      const next = prev.slice(0, maxMembers);
+      while (next.length < minMembers) next.push({ name: "", regNo: "", role: "member" });
+      return next;
+    });
+  }, [minMembers, maxMembers]);
+  // Fees are per person: the exact amount follows the team being entered here.
+  const teamSize = !junior && mode === "team" ? 1 + members.length : 1;
+  const total = computeTotal(items, teamSize);
   const orgLabel = junior ? "School name" : "College name";
   const idLabel = junior ? "Class / grade" : "Register number";
 
@@ -110,7 +135,8 @@ export default function RegisterForm() {
     setMembers(m);
     revalidate({ members: m });
   };
-  const addMember = () => setMembers((prev) => [...prev, { name: "", regNo: "", role: "member" }]);
+  const addMember = () =>
+    setMembers((prev) => (prev.length >= maxMembers ? prev : [...prev, { name: "", regNo: "", role: "member" }]));
   const removeMember = (idx) => {
     const m = members.filter((_, i) => i !== idx);
     setMembers(m);
@@ -147,7 +173,16 @@ export default function RegisterForm() {
         <h1 className="h2">Register for Techastra ’26</h1>
         {items.length > 0 && (
           <p className="lead">
-            {plural(items.length, "event")} selected · {total > 0 ? `Total ₹${total}` : "Free registration"} ·{" "}
+            {plural(items.length, "event")} selected ·{" "}
+            {total > 0 ? (
+              <>
+                Total <span className="text-heading tabular-nums">₹{total}</span>
+                {teamSize > 1 ? ` for a team of ${teamSize}` : ""}
+              </>
+            ) : (
+              "Free registration"
+            )}{" "}
+            ·{" "}
             <Link to="/cart" className="link-cta">Edit</Link>
           </p>
         )}
@@ -175,13 +210,39 @@ export default function RegisterForm() {
               Register just yourself — for team events, <span className="text-heading">teams are formed at the venue</span> on
               the day.
             </p>
+          ) : kind !== "either" ? (
+            <div>
+              <p className="mono-label mb-2">{kind === "team" ? "Team registration" : "Individual registration"}</p>
+              <p className="rounded-[10px] border border-line bg-shade/5 px-4 py-3 text-[14px] text-soft">
+                {kind === "team" ? (
+                  <>
+                    Your cart has team events, so you register <span className="text-heading">as a team</span> - add your
+                    team members below.
+                    {individualEvents.length > 0 && (
+                      <>
+                        {" "}Every team member also takes part <span className="text-heading">individually</span> in{" "}
+                        {individualEvents.map((i) => i.name).join(", ")}.
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    These are <span className="text-heading">individual events</span> - register just yourself. Friends
+                    taking part register separately.
+                  </>
+                )}
+              </p>
+              {errors.teamSize && (
+                <p id="reg-team-size-error" className="mt-2 text-[13px] text-danger" role="alert">{errors.teamSize}</p>
+              )}
+            </div>
           ) : (
           <fieldset>
             <legend className="mono-label mb-2">Registering as</legend>
             <div className="seg" role="radiogroup" aria-label="Registering as">
               {[
                 ["individual", "Individual"],
-                ["team", anyTeamEvent ? "Team" : "Team (optional)"],
+                ["team", "Team"],
               ].map(([k, label]) => (
                 <button
                   key={k}
@@ -258,13 +319,18 @@ export default function RegisterForm() {
                 <FieldError id="reg-team-name">{errors.teamName}</FieldError>
               </div>
               <div>
-                <p className="mono-label mb-2">Team members (besides you)</p>
+                <p className="mono-label mb-1">Team members (besides you)</p>
+                <p className="text-[13px] text-soft mb-3" id="reg-team-size-hint">
+                  {fixedSize
+                    ? `Team of ${minPeople}: you plus ${plural(minMembers, "member")}.`
+                    : `Team of ${minPeople}–${maxPeople} people: you plus ${minMembers}–${maxMembers} members.`}
+                </p>
                 <ul className="space-y-4">
                   {members.map((m, idx) => (
                     <li key={idx} className="card p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-[14px] text-heading">Member {idx + 2}</span>
-                        {members.length > 1 && (
+                        {members.length > minMembers && (
                           <button type="button" className="link-cta !text-danger text-[13px] tap-24" onClick={() => removeMember(idx)} aria-label={`Remove member ${idx + 2}`}>
                             Remove
                           </button>
@@ -285,9 +351,11 @@ export default function RegisterForm() {
                     </li>
                   ))}
                 </ul>
-                <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addMember}>
-                  + Add member
-                </Button>
+                {members.length < maxMembers && (
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addMember}>
+                    + Add member
+                  </Button>
+                )}
               </div>
             </fieldset>
           )}

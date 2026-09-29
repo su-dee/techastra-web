@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import EventInfo, { kickerFor, teamLabel } from "../components/EventInfo";
+import { ExternalRegisterButton } from "../components/EventBrowser";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
-import { categoryOf } from "../lib/site";
+import { categoryOf, registrationClosed } from "../lib/site";
 
 // Stand-alone page for a single event (shared links / bookmarks). Same
 // content as the modal on /events, laid out as the main site's modal panel.
@@ -13,7 +14,7 @@ export default function EventDetail() {
   const [event, setEvent] = useState(null);
   const [others, setOthers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { items, addItem, removeItem } = useCart();
+  const { items, addItem, removeItem, removeCombo } = useCart();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function EventDetail() {
   const cat = categoryOf(event);
   const inCart = items.some((i) => i.id === event.id);
   const full = event.seatsAvailable <= 0;
+  const closed = registrationClosed(event);
   const related = others.filter((e) => categoryOf(e) === cat).slice(0, 3);
 
   const add = () => {
@@ -69,18 +71,34 @@ export default function EventDetail() {
           <EventInfo event={event} />
 
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            {inCart ? (
+            {event.externalRegistration ? (
+              <ExternalRegisterButton event={event} className="btn-small modal__cta !mt-0 flex-1 text-center" />
+            ) : inCart ? (
               <>
                 <button className="btn-small modal__cta !mt-0 flex-1" onClick={() => navigate("/register/form")} data-log="event-detail-continue">
                   Continue to your details →
                 </button>
-                <button className="btn-ghost-sm !py-4" onClick={() => removeItem(event.id)}>
-                  Remove from cart
+                <button
+                  className="btn-ghost-sm !py-4"
+                  onClick={() => {
+                    // Combo events can only be removed together, as the whole combo.
+                    const item = items.find((i) => i.id === event.id);
+                    if (item?.isComboItem) {
+                      removeCombo(item.comboId);
+                      toast.success(`${item.comboName} removed from cart`);
+                    } else if (removeItem(event.id).ok) {
+                      toast.success(`${event.name} removed from cart`);
+                    }
+                  }}
+                >
+                  {items.find((i) => i.id === event.id)?.isComboItem
+                    ? `Remove ${items.find((i) => i.id === event.id).comboName}`
+                    : "Remove from cart"}
                 </button>
               </>
             ) : (
-              <button className="btn-small modal__cta !mt-0 flex-1 disabled:opacity-50" disabled={full} onClick={add} data-log="event-detail-add">
-                {full ? "Seats full" : "Add to cart"}
+              <button className="btn-small modal__cta !mt-0 flex-1 disabled:opacity-50" disabled={full || closed} onClick={add} data-log="event-detail-add">
+                {closed ? "Registration closed" : full ? "Seats full" : "Add to cart"}
               </button>
             )}
           </div>

@@ -61,7 +61,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
     const eventMap = new Map(events.map((e) => [e.id, e.name]));
 
     // Prepare data rows for Excel
-    const rows = registrations.map((reg) => {
+    let rows = registrations.map((reg) => {
       // Format team members if it's a team event
       let teamMembersStr = "";
       if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
@@ -80,7 +80,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
         Email: reg.user.email || "",
         Phone: reg.user.phone || "",
         College: reg.collegeName || "",
-        "Register No": reg.registerNo || "",
+        "Register No": reg.user.registerNo || "",
         "Team Name": reg.teamName || "",
         "Team Members": teamMembersStr,
         Events: eventsStr,
@@ -96,6 +96,28 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
         "Registration Code": reg.registrationCode || "",
       };
     });
+
+    // Individual event: every member of a team registration takes part on
+    // their own, so list one row per participant (the team's details stay
+    // with the lead; members show which registration they came with).
+    if (!event.isTeamEvent) {
+      rows = registrations.flatMap((reg) => {
+        const members = Array.isArray(reg.teamMembers) && reg.teamMembers.length ? reg.teamMembers : null;
+        const people = members
+          ? members.map((m, i) => ({ name: m.name, regNo: m.regNo, lead: m.role === "lead" || (i === 0 && !members.some((x) => x.role === "lead")) }))
+          : [{ name: reg.user.name, regNo: reg.user.registerNo, lead: true }];
+        return people.map((p) => ({
+          Name: p.name || "",
+          "Register No": p.regNo || (p.lead ? reg.user.registerNo || "" : ""),
+          College: reg.collegeName || "",
+          "Registered With": members ? `${reg.teamName || "Team"} (lead: ${reg.user.name})` : "Self",
+          Email: p.lead ? reg.user.email || "" : "",
+          Phone: p.lead ? reg.user.phone || "" : "",
+          Status: reg.status || "",
+          "Registration Code": reg.registrationCode || "",
+        }));
+      });
+    }
 
     // Create workbook and worksheet, with column widths for readability
     const workbook = new ExcelJS.Workbook();
@@ -114,6 +136,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
       "Total Amount": 12,
       "Registration Date": 20,
       "Registration Code": 20,
+      "Registered With": 36,
     };
     const headers = rows.length ? Object.keys(rows[0]) : Object.keys(widths);
     worksheet.columns = headers.map((key) => ({ header: key, key, width: widths[key] || 20 }));

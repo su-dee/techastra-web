@@ -12,6 +12,7 @@ const LINKS = [
   ["/events", "Events & Register"],
   ["/status", "Status"],
   ["/verify-certificate", "Verify Certificate"],
+  ["/committee", "Committee"],
 ];
 
 function CartIcon() {

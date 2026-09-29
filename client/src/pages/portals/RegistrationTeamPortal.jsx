@@ -15,6 +15,8 @@ async function openProof(registrationId) {
   const win = window.open("", "_blank");
   try {
     const blob = await api.blob(`/api/registrations/${registrationId}/proof`);
+    // Only ever opened as an image (a blob opens under this portal's origin).
+    if (!/^image\/(png|jpeg|webp)$/.test(blob.type)) throw new Error("This payment screenshot isn't an image file");
     const url = URL.createObjectURL(blob);
     if (win) win.location.href = url;
     else window.location.href = url;
@@ -48,7 +50,7 @@ export default function RegistrationTeamPortal() {
     phone: "",
     collegeName: "",
     registerNo: "",
-    password: "TechAstra@2026", // Default password for walk-up registrations
+    consent: false, // the participant agrees to the Terms and Privacy Notice
     eventIds: [],
     isTeam: false,
     teamName: "",
@@ -80,8 +82,8 @@ export default function RegistrationTeamPortal() {
 
   const approve = async (id) => {
     try {
-      await api.patch(`/api/registrations/${id}/approve`);
-      toast.success("Registration approved");
+      const data = await api.patch(`/api/registrations/${id}/approve`);
+      toast.success(data.alreadyApproved ? "Already approved" : "Registration approved");
       load();
     } catch (err) {
       toast.error(err.message);
@@ -181,6 +183,11 @@ export default function RegistrationTeamPortal() {
       return;
     }
 
+    if (!cashRegistration.consent) {
+      toast.error("Confirm the participant agrees to the Terms and Privacy Notice");
+      return;
+    }
+
     setCreatingCash(true);
 
     try {
@@ -188,31 +195,24 @@ export default function RegistrationTeamPortal() {
       formData.append("name", cashRegistration.name);
       formData.append("email", cashRegistration.email);
       formData.append("phone", cashRegistration.phone);
-      formData.append("password", cashRegistration.password);
       formData.append("collegeName", cashRegistration.collegeName || "");
       formData.append("registerNo", cashRegistration.registerNo || "");
       formData.append("eventIds", JSON.stringify(cashRegistration.eventIds));
-      formData.append("paymentMethod", "cash");
-      formData.append("transactionId", `CASH-${Date.now()}`); // Unique cash transaction ID
-      
+      formData.append("amountCollected", String(cashRegistration.amountCollected));
+      formData.append("consent", "true");
+
       if (cashRegistration.isTeam) {
         formData.append("teamName", cashRegistration.teamName);
-        const teamMembersWithLead = [
-          { name: cashRegistration.name, regNo: cashRegistration.registerNo, role: "lead" },
-          ...cashRegistration.teamMembers
-        ];
-        formData.append("teamMembers", JSON.stringify(teamMembersWithLead));
+        // The server adds the participant as team lead.
+        formData.append("teamMembers", JSON.stringify(cashRegistration.teamMembers));
       }
 
-      const data = await api.post("/api/registrations", formData, { isFormData: true });
-
-      // Auto-approve the registration since cash was collected
-      await api.patch(`/api/registrations/${data.registration.id}/approve`);
-
-      // Fetch the approved registration with user details
+      // Created, approved and emailed in one step; the server computes the
+      // amount and generates the participant's password.
+      const data = await api.post("/api/registrations/cash", formData, { isFormData: true });
       const approvedReg = await api.get(`/api/registrations/${data.registration.id}`);
-      
-      setCreatedRegistration(approvedReg.registration);
+
+      setCreatedRegistration({ ...approvedReg.registration, temporaryPassword: data.temporaryPassword });
       toast.success(`Cash registration created! Code: ${data.registration.registrationCode}`);
       
       // Reset form
@@ -222,7 +222,7 @@ export default function RegistrationTeamPortal() {
         phone: "",
         collegeName: "",
         registerNo: "",
-        password: "TechAstra@2026",
+        consent: false,
         eventIds: [],
         isTeam: false,
         teamName: "",
@@ -459,6 +459,16 @@ export default function RegistrationTeamPortal() {
               )}
             </div>
 
+            <label className="flex items-start gap-3 cursor-pointer text-sm">
+              <input
+                type="checkbox"
+                checked={!!cashRegistration.consent}
+                onChange={(e) => setCashRegistration({ ...cashRegistration, consent: e.target.checked })}
+                className="w-4 h-4 mt-0.5"
+              />
+              <span>The participant agrees to the Terms of Participation and the Privacy Notice.</span>
+            </label>
+
             {/* Submit Button */}
             <div className="flex gap-3 pt-4 border-t border-shade/10">
               <Button type="submit" disabled={creatingCash} className="flex-1">
@@ -475,7 +485,7 @@ export default function RegistrationTeamPortal() {
                     phone: "",
                     collegeName: "",
                     registerNo: "",
-                    password: "TechAstra@2026",
+                    consent: false,
                     eventIds: [],
                     isTeam: false,
                     teamName: "",
@@ -494,6 +504,12 @@ export default function RegistrationTeamPortal() {
         {createdRegistration && (
           <div className="mt-6 p-6 bg-shade/5 rounded-lg">
             <h3 className="font-semibold text-lg mb-4 text-center">✓ Registration Created Successfully!</h3>
+            {createdRegistration.temporaryPassword && (
+              <p className="text-center text-sm mb-4">
+                Tell the participant their sign-in password (shown only once):{" "}
+                <code className="font-mono text-base text-heading bg-shade/10 rounded px-2 py-1">{createdRegistration.temporaryPassword}</code>
+              </p>
+            )}
             <div className="max-w-md mx-auto">
               <IdCard registration={createdRegistration} />
             </div>
@@ -584,7 +600,14 @@ export default function RegistrationTeamPortal() {
               <div>
                 <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
                 <p className="text-sm text-shade/60">{r.user.email} · {r.collegeName}</p>
-                <p className="text-sm text-shade/60">Txn ID: {r.transactionId} · ₹{r.totalAmount}</p>
+                <p className="text-sm text-shade/60">
+                  {r.paymentMethod === "cash" ? "Paid in cash" : r.paymentMethod === "free" ? "Free" : `Txn ID: ${r.transactionId}`} · ₹{r.totalAmount}
+                </p>
+                {r.possibleDuplicates?.length > 0 && (
+                  <p className="text-sm text-amber-light mt-1" role="note">
+                    ⚠ Possible duplicate: same register or mobile number as {r.possibleDuplicates.join(", ")}
+                  </p>
+                )}
                 {r.paymentProofUrl && (
                   <button type="button" onClick={() => openProof(r.id)} className="text-cyan text-sm underline">
                     View payment screenshot
@@ -613,8 +636,13 @@ export default function RegistrationTeamPortal() {
       )}
 
       <Modal open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="Reject Registration">
+        <p className="text-sm text-shade/60 mb-3">
+          The participant sees this reason on the status page and can resubmit a corrected payment there. The
+          registration’s seats are released.
+        </p>
         <Textarea
           rows={3}
+          aria-label="Reason for rejection"
           placeholder="Reason for rejection"
           value={reason}
           onChange={(e) => setReason(e.target.value)}

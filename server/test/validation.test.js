@@ -1,7 +1,19 @@
 // Unit tests for utils/validation.js. Run: npm test (node's built-in runner).
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateRegistration, checkTeamSizes, computeTotal, isPhone, isUpiTxn, parseJsonField } = require("../utils/validation");
+const {
+  validateRegistration,
+  checkTeamSizes,
+  checkComboRules,
+  checkParticipation,
+  checkRegistrationOpen,
+  registrationTeamSize,
+  seatsNeeded,
+  computeTotal,
+  isPhone,
+  isUpiTxn,
+  parseJsonField,
+} = require("../utils/validation");
 
 const valid = {
   name: "Arun Kumar",
@@ -80,7 +92,39 @@ test("team members are capped and trimmed", () => {
   const many = JSON.stringify(Array.from({ length: 11 }, () => ({ name: "A B" })));
   assert.ok(validateRegistration({ ...valid, teamMembers: many }).errors.length);
   const { value } = validateRegistration({ ...valid, teamMembers: JSON.stringify([{ name: " Lead ", role: "lead" }, { name: "Mem", role: "admin" }]) });
-  assert.deepEqual(value.teamMembers.map((m) => [m.name, m.role]), [["Lead", "lead"], ["Mem", "member"]]);
+  // The registrant is always the lead - a client-sent "lead" is replaced.
+  assert.deepEqual(value.teamMembers.map((m) => [m.name, m.role]), [["Arun Kumar", "lead"], ["Mem", "member"]]);
+});
+
+test("the registrant is always counted in the team", () => {
+  // Members sent without the lead: the lead is added, so 3 listed = team of 4.
+  const three = JSON.stringify([{ name: "Bala" }, { name: "Chitra" }, { name: "Divya" }]);
+  const { value } = validateRegistration({ ...valid, teamMembers: three });
+  assert.equal(value.teamMembers.length, 4);
+  assert.equal(value.teamMembers[0].role, "lead");
+  // Only a lead and no members: an individual registration.
+  const onlyLead = validateRegistration({ ...valid, teamMembers: JSON.stringify([{ name: "Arun Kumar", role: "lead" }]) });
+  assert.equal(onlyLead.value.teamMembers, null);
+});
+
+test("the same person can't be listed twice in a team", () => {
+  const dup = JSON.stringify([{ name: "Bala", regNo: "21cs001" }, { name: "Bala K", regNo: "21CS001" }]);
+  assert.ok(validateRegistration({ ...valid, teamMembers: dup }).errors.some((e) => /different person/.test(e)));
+  const leadTwice = JSON.stringify([{ name: "Me Again", regNo: "21CS009" }]);
+  assert.ok(validateRegistration({ ...valid, registerNo: "21cs009", teamMembers: leadTwice }).errors.some((e) => /different person/.test(e)));
+});
+
+test("registration closes when an event starts", () => {
+  const now = new Date("2026-10-08T05:00:00Z");
+  const later = { name: "Later", startTime: "2026-10-08T06:00:00Z" };
+  const started = { name: "Started", startTime: "2026-10-08T04:00:00Z" };
+  assert.equal(checkRegistrationOpen([later], now), null);
+  assert.match(checkRegistrationOpen([later, started], now), /Started.*closed/);
+});
+
+test("team size of a saved registration", () => {
+  assert.equal(registrationTeamSize({ teamMembers: null }), 1);
+  assert.equal(registrationTeamSize({ teamMembers: [{}, {}, {}] }), 3);
 });
 
 test("Indian mobile numbers", () => {
@@ -119,4 +163,41 @@ test("total uses combo prices and never double-counts", () => {
     { name: "X", eventIds: ["a"], comboPrice: 1 },
     { name: "Y", eventIds: ["a"], comboPrice: 1 },
   ]));
+});
+
+test("a combo pass is registered alone, and only one per registration", () => {
+  const combo1 = { name: "Combo 1", eventIds: ["a", "b", "c"] };
+  const combo2 = { name: "Combo 2", eventIds: ["d", "e"] };
+  assert.equal(checkComboRules(["a", "b", "c"], [combo1]), null); // exactly the combo
+  assert.equal(checkComboRules(["c", "a", "b"], [combo1]), null); // order doesn't matter
+  assert.equal(checkComboRules(["x", "y"], []), null); // no combo: any events
+  assert.match(checkComboRules(["a", "b", "c", "x"], [combo1]), /on its own/); // combo + extra event
+  assert.match(checkComboRules(["a", "b"], [combo1]), /on its own/); // part of a combo
+  assert.match(checkComboRules(["a", "b", "c", "d", "e"], [combo1, combo2]), /one combo/); // two combos
+});
+
+test("fees are per person: team = members x fee; Hack Nexus flat per team; combo per person", () => {
+  const solo = { id: "s", fee: 100, isTeamEvent: false };
+  const team = { id: "t", fee: 100, isTeamEvent: true };
+  const hack = { id: "h", fee: 1000, isTeamEvent: true, feePerTeam: true };
+  assert.equal(computeTotal([solo], [], 1), 100);
+  assert.equal(computeTotal([team], [], 3), 300); // team of 3 x Rs 100
+  assert.equal(computeTotal([solo, team], [], 3), 600); // every member also plays the individual event
+  assert.equal(computeTotal([hack], [], 4), 1000); // flat per team
+  const combo = { name: "Combo 1", eventIds: ["s", "t"], comboPrice: 200 };
+  assert.equal(computeTotal([solo, team], [combo], 3), 600); // Rs 200 per person
+  assert.equal(computeTotal([solo, team], [combo], 1), 200);
+  const junior = { id: "j", fee: 0, isTeamEvent: true };
+  assert.equal(computeTotal([junior], [], 1), 0);
+});
+
+test("individual events: every team member takes part (fee and seats per member); no team for individual-only carts", () => {
+  const solo = { id: "s", fee: 100, isTeamEvent: false };
+  const team = { id: "t", fee: 100, isTeamEvent: true };
+  assert.equal(seatsNeeded(solo, 3), 3); // three separate participants
+  assert.equal(seatsNeeded(team, 3), 1); // one team entry
+  assert.equal(seatsNeeded(solo, 1), 1);
+  assert.match(checkParticipation([solo], 3), /individual events/);
+  assert.equal(checkParticipation([solo], 1), null);
+  assert.equal(checkParticipation([solo, team], 3), null);
 });

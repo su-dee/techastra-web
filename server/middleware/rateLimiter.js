@@ -64,6 +64,8 @@ function createRateLimiter({
       res.set("X-RateLimit-Limit", String(max));
       res.set("X-RateLimit-Remaining", "0");
       res.set("X-RateLimit-Reset", String(data.resetTime));
+      // A limiter that runs after an upload (multer) must not leave the file behind.
+      if (req.file?.path) require("fs").promises.unlink(req.file.path).catch(() => {});
 
       if (handler) {
         return handler(req, res);
@@ -127,6 +129,18 @@ const registrationEmailLimiter = createRateLimiter({
   keyGenerator: (req) => `registration-email:${String(req.body?.email || "").toLowerCase().trim()}`,
 });
 
+// Resubmitting a rejected registration checks a password, so attempts are
+// limited per registration code (brute-force protection) - keyed with the
+// network too, so a shared college IP doesn't lock out classmates. Runs
+// after multer has parsed the multipart body (req.body.code).
+const resubmitLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  message: "Too many resubmission attempts. Please try again in an hour, or contact the Help Desk.",
+  keyGenerator: (req) =>
+    `resubmit:${req.ip || req.connection.remoteAddress}:${String(req.body?.code || "").trim().toUpperCase()}`,
+});
+
 // Rate limiter for QR scanning (prevents abuse)
 const scanLimiter = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
@@ -178,6 +192,7 @@ module.exports = {
   loginLimiter,
   registrationIpLimiter,
   registrationEmailLimiter,
+  resubmitLimiter,
   globalLimiter,
   scanLimiter,
   apiLimiter,

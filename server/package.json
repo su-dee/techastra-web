@@ -12,7 +12,8 @@
     "seed": "node prisma/seed.js",
     "test": "node --test test/*.test.js",
     "migrate:deploy": "prisma migrate deploy",
-    "purge:personal-data": "node scripts/purge-personal-data.js"
+    "purge:personal-data": "node scripts/purge-personal-data.js",
+    "recount:seats": "node scripts/recount-seats.js"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",

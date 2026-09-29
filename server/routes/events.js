@@ -31,37 +31,60 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+/**
+ * The editable event fields from a create/edit body, normalised. Anything
+ * else (id, seatsTaken, computed seatsAvailable, timestamps...) is dropped,
+ * so the admin form can send the event back as it received it.
+ * Returns { data } or { error }.
+ */
+function eventFields(body) {
+  const data = {};
+  for (const k of ["name", "description", "track", "rulebook", "venue"]) {
+    if (body[k] !== undefined) data[k] = body[k] === null ? null : String(body[k]);
+  }
+  if (body.category !== undefined) data.category = body.category === "non_technical" ? "non_technical" : "technical";
+  if (body.level !== undefined) data.level = body.level === "junior" ? "junior" : "senior";
+  if (body.day !== undefined) data.day = body.day === null || body.day === "" ? null : Number(body.day);
+  if (body.startTime) data.startTime = new Date(body.startTime);
+  if (body.endTime) data.endTime = new Date(body.endTime);
+  for (const k of ["fee", "maxSeats", "minTeamSize", "maxTeamSize"]) {
+    if (body[k] !== undefined && body[k] !== "") data[k] = Number(body[k]);
+  }
+  for (const k of ["feePerTeam", "isTeamEvent", "externalRegistration"]) {
+    if (body[k] !== undefined) data[k] = Boolean(body[k]);
+  }
+  if (body.registrationUrl !== undefined) {
+    const url = String(body.registrationUrl || "").trim();
+    if (url && !/^https?:\/\/[^\s]+$/i.test(url)) return { error: "Registration link must be a full web address starting with https://" };
+    data.registrationUrl = url || null;
+  }
+  for (const k of ["startTime", "endTime"]) {
+    if (data[k] && Number.isNaN(data[k].getTime())) return { error: `Invalid ${k}` };
+  }
+  for (const k of ["fee", "maxSeats", "minTeamSize", "maxTeamSize", "day"]) {
+    if (data[k] !== undefined && data[k] !== null && !Number.isFinite(data[k])) return { error: `Invalid ${k}` };
+  }
+  return { data };
+}
+
 /** POST /api/events - master_admin only: create an event. */
 router.post("/", requireAuth, requireRole("master_admin"), async (req, res) => {
   try {
-    const {
-      name, description, track, category, level, startTime, endTime, fee, maxSeats,
-      isTeamEvent, minTeamSize, maxTeamSize, rulebook, venue,
-    } = req.body;
-
+    const { name, startTime, endTime, fee, maxSeats } = req.body;
     if (!name || !startTime || !endTime || fee === undefined || !maxSeats) {
       return res.status(400).json({ error: "name, startTime, endTime, fee and maxSeats are required" });
     }
-
-    // Normalize category to the two allowed values; default to technical.
-    const normalizedCategory = category === "non_technical" ? "non_technical" : "technical";
+    const { data, error } = eventFields(req.body);
+    if (error) return res.status(400).json({ error });
 
     const event = await prisma.event.create({
       data: {
-        name,
-        description: description || "",
-        track,
-        category: normalizedCategory,
-        level: level === "junior" ? "junior" : "senior",
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        fee: Number(fee),
-        maxSeats: Number(maxSeats),
-        isTeamEvent: Boolean(isTeamEvent),
-        minTeamSize: minTeamSize ? Number(minTeamSize) : 1,
-        maxTeamSize: maxTeamSize ? Number(maxTeamSize) : 1,
-        rulebook,
-        venue,
+        description: "",
+        category: "technical",
+        level: "senior",
+        minTeamSize: 1,
+        maxTeamSize: 1,
+        ...data,
       },
     });
     res.status(201).json({ event });
@@ -74,18 +97,8 @@ router.post("/", requireAuth, requireRole("master_admin"), async (req, res) => {
 /** PUT /api/events/:id - master_admin only: edit an event. */
 router.put("/:id", requireAuth, requireRole("master_admin"), async (req, res) => {
   try {
-    const data = { ...req.body };
-    if (data.startTime) data.startTime = new Date(data.startTime);
-    if (data.endTime) data.endTime = new Date(data.endTime);
-    if (data.fee !== undefined) data.fee = Number(data.fee);
-    if (data.maxSeats !== undefined) data.maxSeats = Number(data.maxSeats);
-    // Only ever allow the two valid category values through an edit.
-    if (data.category !== undefined) {
-      data.category = data.category === "non_technical" ? "non_technical" : "technical";
-    }
-    if (data.level !== undefined) data.level = data.level === "junior" ? "junior" : "senior";
-    delete data.id;
-    delete data.seatsTaken;
+    const { data, error } = eventFields(req.body);
+    if (error) return res.status(400).json({ error });
 
     const event = await prisma.event.update({ where: { id: req.params.id }, data });
     res.json({ event });

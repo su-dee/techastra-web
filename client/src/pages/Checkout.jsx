@@ -8,8 +8,9 @@ import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import { loadDraft, clearDraft } from "../lib/registrationDraft";
 import { QRCodeCanvas } from "qrcode.react";
-import { UPI_ID, upiPayLink } from "../lib/site";
+import { UPI_ID, upiPayLink, registrationClosed } from "../lib/site";
 import { formatFee } from "../components/EventInfo";
+import { computeTotal } from "../lib/pricing";
 
 // Same rules as the server (server/utils/validation.js).
 const UPI_TXN = /^[A-Z0-9]{10,35}$/;
@@ -31,7 +32,7 @@ const UPI_OPENED = "techastra_upi_app_opened";
  * directly, or a new tab) it sends the user back to the details form.
  */
 export default function Checkout() {
-  const { items, total, clearCart } = useCart();
+  const { items, clearCart } = useCart();
   const navigate = useNavigate();
   const formRef = useRef(null);
   const redirected = useRef(false);
@@ -97,9 +98,25 @@ export default function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!draft) return null; // redirecting, see effect above
+  // The cart keeps copies of the events from when they were added, so check
+  // the current start times before showing the QR: an event that has started
+  // since can't be registered (the server refuses it too).
+  const [startedIds, setStartedIds] = useState(null);
+  useEffect(() => {
+    api
+      .get("/api/events")
+      .then((data) => setStartedIds(new Set((data.events || []).filter(registrationClosed).map((e) => e.id))))
+      .catch(() => setStartedIds(new Set()));
+  }, []);
+
+  if (!draft || !startedIds) return null; // redirecting / checking, see effects above
 
   const needsPassword = !draft.form.password;
+  // Fees are per person: the exact amount uses the team from the details
+  // form (the server recalculates it the same way).
+  const teamSize = draft.mode === "team" ? 1 + (draft.members?.length || 0) : 1;
+  const total = computeTotal(items, teamSize);
+  const times = (unit, n) => (n > 1 ? `₹${unit} × ${n} = ₹${unit * n}` : `₹${unit}`);
   // Junior events are free: no payment step, the registration just collects
   // the student's details and is confirmed straight away.
   const free = total === 0;
@@ -236,6 +253,23 @@ export default function Checkout() {
     "aria-describedby": errors[key] ? `${id}-error` : `${id}-hint`,
   });
 
+  // An event in the saved cart may have started since it was added: stop here,
+  // before the QR, so nobody pays for a registration the server would refuse.
+  const closedItem = items.find((i) => registrationClosed(i) || startedIds.has(i.id));
+  if (closedItem) {
+    return (
+      <div className="max-w-lg mx-auto px-6 py-14 text-center">
+        <div className="kicker">Registration closed</div>
+        <h1 className="h2">{closedItem.name} has already started</h1>
+        <p className="lead mt-3">
+          Online registration for an event closes when it starts. Remove it from your cart{closedItem.isComboItem ? ` (with ${closedItem.comboName})` : ""} to
+          continue - please don’t pay for it.
+        </p>
+        <Link to="/cart" className="btn-small inline-block mt-6">Go to your cart</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-lg mx-auto px-6 py-14">
       <div className="page-head animate-cinematic-fade">
@@ -254,13 +288,20 @@ export default function Checkout() {
                 <p className="text-[15px] text-amber-pale">{combo.name}</p>
                 <p className="text-[13px] text-dim mt-1">Includes {combo.events.join(", ")}</p>
               </div>
-              <p className="text-[15px] text-heading tabular-nums">₹{combo.price}</p>
+              <p className="text-[15px] text-heading tabular-nums text-right">{times(combo.price, teamSize)}</p>
             </li>
           ))}
           {singles.map((item) => (
             <li key={item.id} className="flex justify-between gap-4">
-              <p className="text-[15px] text-text">{item.name}</p>
-              <p className="text-[15px] text-heading tabular-nums">{formatFee(item.fee)}</p>
+              <div>
+                <p className="text-[15px] text-text">{item.name}</p>
+                {!item.isTeamEvent && teamSize > 1 && (
+                  <p className="text-[13px] text-dim mt-0.5">Individual event - each of the {teamSize} members takes part</p>
+                )}
+              </div>
+              <p className="text-[15px] text-heading tabular-nums text-right">
+                {!item.fee ? "Free" : item.feePerTeam ? `₹${item.fee} per team` : times(item.fee, teamSize)}
+              </p>
             </li>
           ))}
         </ul>

@@ -86,16 +86,23 @@ function validateRegistration(body = {}) {
   if (!Array.isArray(comboIds) || comboIds.some((id) => typeof id !== "string" || id.length > 64))
     errors.push("Invalid combo pass selection.");
 
+  // The team is always the registrant (lead) plus the listed members. Any
+  // "lead" the client sends is replaced by the registrant, so the team - and
+  // the per-person amount - can't leave out the person registering.
   if (teamMembers !== null) {
     if (!Array.isArray(teamMembers) || teamMembers.length > MAX_TEAM) {
       errors.push(`A team can have at most ${MAX_TEAM} members.`);
     } else {
-      value.teamMembers = teamMembers.map((m) => ({
-        name: str(m?.name).slice(0, 100),
-        regNo: str(m?.regNo).slice(0, 50),
-        role: m?.role === "lead" ? "lead" : "member",
-      }));
-      if (value.teamMembers.some((m) => m.name.length < 2)) errors.push("Enter a name for every team member.");
+      const members = teamMembers
+        .filter((m) => m?.role !== "lead")
+        .map((m) => ({ name: str(m?.name).slice(0, 100), regNo: str(m?.regNo).slice(0, 50), role: "member" }));
+      if (members.some((m) => m.name.length < 2)) errors.push("Enter a name for every team member.");
+      // The same person can't be listed twice (checked by register number).
+      const regNos = [value.registerNo, ...members.map((m) => m.regNo)].filter(Boolean).map((r) => r.toUpperCase());
+      if (new Set(regNos).size !== regNos.length) errors.push("Each team member must be a different person - two have the same register number.");
+      if (members.length) {
+        value.teamMembers = [{ name: value.name, regNo: value.registerNo || "", role: "lead" }, ...members];
+      }
     }
   }
 
@@ -136,11 +143,29 @@ function checkTeamSizes(events, teamSize, combos = []) {
 }
 
 /**
- * Amount due for a registration: each selected combo pass at its combo
- * price, plus the fee of every event not covered by a combo. Throws if a
- * combo's events aren't all selected.
+ * Combo pass rules: at most one combo per registration, and a combo is
+ * registered on its own - the registration's events must be exactly the
+ * combo's events. Returns an error message or null.
  */
-function computeTotal(events, combos) {
+function checkComboRules(eventIds, combos) {
+  if (combos.length > 1) return "Only one combo pass can be registered at a time.";
+  if (combos.length === 1) {
+    const combo = combos[0];
+    const inCombo = new Set(combo.eventIds);
+    if (eventIds.length !== inCombo.size || !eventIds.every((id) => inCombo.has(id))) {
+      return `The "${combo.name}" pass is registered on its own - it can't be combined with other events.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Amount due for a registration: each selected combo pass at its combo
+ * price per person (× team size), plus every other event's charge (see
+ * eventCharge). Throws if a combo's events aren't all selected.
+ */
+function computeTotal(events, combos, teamSize = 1) {
+  const people = Math.max(1, teamSize);
   const covered = new Set();
   let total = 0;
   const selected = new Set(events.map((e) => e.id));
@@ -151,10 +176,55 @@ function computeTotal(events, combos) {
       throw err;
     }
     combo.eventIds.forEach((id) => covered.add(id));
-    total += combo.comboPrice;
+    total += combo.comboPrice * people; // combo price is per person
   }
-  for (const ev of events) if (!covered.has(ev.id)) total += ev.fee;
+  for (const ev of events) if (!covered.has(ev.id)) total += eventCharge(ev, people);
   return Math.round(total * 100) / 100;
+}
+
+/**
+ * What one event costs for a registration. Fees are per person and every
+ * member of a registration takes part in every event - in a team event as
+ * the team, in an individual event each on their own - so the charge is
+ * fee × people. A flat per-team fee (feePerTeam, e.g. Hack Nexus) is
+ * charged once.
+ */
+function eventCharge(ev, teamSize = 1) {
+  if (ev.feePerTeam) return ev.fee;
+  return ev.fee * Math.max(1, teamSize);
+}
+
+/**
+ * Seats one registration takes in an event: a team event seats the team as
+ * one entry; in an individual event every member is a separate participant.
+ */
+function seatsNeeded(ev, teamSize = 1) {
+  return ev.isTeamEvent ? 1 : Math.max(1, teamSize);
+}
+
+/** People in a saved registration: its team list, or just the registrant. */
+function registrationTeamSize(registration) {
+  return Array.isArray(registration.teamMembers) && registration.teamMembers.length ? registration.teamMembers.length : 1;
+}
+
+/**
+ * Registration closes for an event once it has started. Returns an error
+ * message for the first closed event, or null.
+ */
+function checkRegistrationOpen(events, now = new Date()) {
+  const closed = events.find((e) => new Date(e.startTime) <= now);
+  return closed ? `Registration for "${closed.name}" has closed - the event has already started.` : null;
+}
+
+/**
+ * Individual-only registrations have no team: team details only make sense
+ * when at least one event is a team event. Returns an error message or null.
+ */
+function checkParticipation(events, teamSize) {
+  if (teamSize > 1 && !events.some((e) => e.isTeamEvent)) {
+    return "These are individual events - register without team members (each person registers separately).";
+  }
+  return null;
 }
 
 module.exports = {
@@ -167,5 +237,11 @@ module.exports = {
   isUpiTxn,
   validateRegistration,
   checkTeamSizes,
+  checkComboRules,
   computeTotal,
+  eventCharge,
+  seatsNeeded,
+  registrationTeamSize,
+  checkRegistrationOpen,
+  checkParticipation,
 };

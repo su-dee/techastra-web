@@ -1,5 +1,6 @@
 import React from "react";
 import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/site";
+import { priceLabel } from "../lib/pricing";
 
 // Symposium day the event ends on (Hack Nexus runs from Day 1 into Day 2).
 function endDayOf(event) {
@@ -71,7 +72,7 @@ export default function EventInfo({ event }) {
     ["Time", formatTimeRange(event)],
     ["Venue", event.venue],
     ["Format", teamLabel(event)],
-    ["Fee", formatFee(event.fee)],
+    ["Fee", priceLabel(event)],
   ];
 
   return (
@@ -94,7 +95,17 @@ export default function EventInfo({ event }) {
       {event.rulebook && (
         <div className="modal__block">
           <h4 className="mono-label">Rules</h4>
-          <p className="prose-muted !text-[14px]">{event.rulebook}</p>
+          {/* Paragraphs; one whose first line ends in ":" gets that line as a subheading. */}
+          {event.rulebook.split(/\n\s*\n/).map((para, i) => {
+            const [first, ...rest] = para.split("\n");
+            const heading = /:\s*$/.test(first) && rest.length ? first.replace(/:\s*$/, "") : null;
+            return (
+              <div key={i} className={i ? "mt-4" : ""}>
+                {heading && <h5 className="rulebook__sub">{heading}</h5>}
+                <p className="prose-muted !text-[14px]">{heading ? rest.join("\n") : para}</p>
+              </div>
+            );
+          })}
         </div>
       )}
 

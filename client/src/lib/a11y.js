@@ -45,6 +45,7 @@ const TITLES = [
   ["/status", "Registration status"],
   ["/login", "Sign in"],
   ["/verify-certificate", "Verify a certificate"],
+  ["/committee", "Committee"],
   ["/privacy", "Privacy Notice"],
   ["/terms", "Terms of Participation"],
   ["/dashboard", "My dashboard"],

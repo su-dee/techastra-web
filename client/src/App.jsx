@@ -52,6 +52,7 @@ const Status = lazyPage(() => import("./pages/Status"));
 const Login = lazyPage(loadLogin);
 const Dashboard = lazyPage(() => import("./pages/Dashboard"));
 const VerifyCertificate = lazyPage(() => import("./pages/VerifyCertificate"));
+const Committee = lazyPage(() => import("./pages/Committee"));
 const Privacy = lazyPage(() => import("./pages/Legal").then((m) => ({ default: m.Privacy })));
 const Terms = lazyPage(() => import("./pages/Legal").then((m) => ({ default: m.Terms })));
 
@@ -128,6 +129,7 @@ export default function App() {
               <Route path="/status" element={<Status />} />
               <Route path="/login" element={<Login />} />
               <Route path="/verify-certificate" element={<VerifyCertificate />} />
+              <Route path="/committee" element={<Committee />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
   

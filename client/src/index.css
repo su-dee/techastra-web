@@ -389,7 +389,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
 .nav__left { display: flex; align-items: center; gap: 34px; }
 .nav__brand { display: flex; align-items: center; }
 .nav__brand img { height: 34px; width: auto; }
-.nav__links { display: flex; gap: 26px; font-size: 13.5px; }
+.nav__links { display: flex; gap: 26px; font-size: 13.5px; white-space: nowrap; }
 .nav__links a { color: var(--c-beb7aa); transition: color 0.2s; }
 .nav__links a:hover, .nav__links a.is-active { color: var(--text); }
 .nav__right { display: flex; align-items: center; gap: 12px; }
@@ -572,6 +572,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
 .modal__block { margin-top: 26px; }
 .modal__block h4 { margin: 0 0 12px; }
 .prose-muted { font-size: 15px; line-height: 1.7; color: var(--c-b8b1a4); white-space: pre-line; }
+.rulebook__sub { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--c-e6dfd2); }
 .bullets { margin: 0; padding-left: 18px; color: var(--c-b4ab9b); font-size: 14px; line-height: 1.7; list-style: disc; }
 .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
 .people ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; color: var(--c-f0e9dc); }
@@ -674,6 +675,15 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
 .mono-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; color: var(--dim); text-transform: uppercase; }
 .dept h3 { margin: 14px 0 0; font-size: 21px; font-weight: 500; color: var(--c-f1eadd); line-height: 1.3; }
 .dept p { margin: 10px 0 0; font-size: 14.5px; line-height: 1.65; color: var(--c-afa697); }
+/* ---------- committee page ---------- */
+/* One card style for every group; cards in a row share the row's height. */
+.committee__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 300px)); justify-content: center; gap: 20px; }
+.committee__card { padding: 22px 24px; }
+.committee__card-title { margin: 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); font-size: 17px; font-weight: 500; color: var(--c-f1eadd); }
+.committee__card-list { list-style: none; margin: 12px 0 0; padding: 0; font-size: 14.5px; line-height: 1.5; color: var(--c-d3cdc2); }
+.committee__card-list li { padding: 3px 0; }
+.committee__dept { color: var(--dim); font-size: 13px; }
+.committee__teams { margin-top: 72px; }
 /* ---------- schedule ---------- */
 .schedule { background: radial-gradient(80% 70% at 12% 100%, rgba(94, 102, 108, 0.22) 0%, rgba(var(--bg-rgb), 0) 66%), var(--bg); }
 .schedule .wrap { max-width: 960px; }
@@ -790,7 +800,8 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
 }
 
 /* ---------- responsive ---------- */
-@media (max-width: 900px) {
+/* Burger menu below 1180px - the links plus the logged-in buttons need that width. */
+@media (max-width: 1180px) {
   .nav__links { display: none; }
   .nav__burger { display: block; }
   .nav__desktop-only { display: none; }
@@ -801,6 +812,8 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
   }
   .nav__mobile:not(.is-open) { opacity: 0; transform: scaleY(0.9); pointer-events: none; visibility: hidden; }
   .nav__mobile a, .nav__mobile button { padding: 12px 0; color: var(--c-d3cdc2); border: 0; border-bottom: 1px solid rgba(var(--shade), 0.05); font-size: 15px; background: transparent; text-align: left; cursor: pointer; }
+}
+@media (max-width: 900px) {
   .events__filters { align-items: flex-start; }
 }
 @media (max-width: 640px) {

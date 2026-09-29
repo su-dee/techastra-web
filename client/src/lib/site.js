@@ -35,6 +35,58 @@ export function upiPayLink(amount, note = "Techastra 26 registration") {
   );
 }
 
+// Organising committee (Committee page) - "Techastra 26 Event coordinator
+// List.pdf", Committee Information.
+export const COMMITTEE = {
+  staff: ["Dr. V. Saishanmugaraja", "Mrs. C. Subalakshmi", "Mr. Syed Ali D"],
+  students: [
+    { name: "Mr. Thiruvenkatam V", dept: "CSE" },
+    { name: "Mr. Shaik Abdulla", dept: "CSE" },
+    { name: "Ms. Mrinalini P G", dept: "CFIS" },
+  ],
+  // Working teams, in the list's order. `lead` = in charge (I/C).
+  teams: [
+    { name: "Event Management", members: ["Dr. S. Geetha", "Dr. P. Dinesh Kumar", "Dr. G. Victo Sudha George"] },
+    { name: "Design & Website", lead: ["Mr. Saravanan Elumalai"], members: ["Mr. P. Jayakrishnan"] },
+    { name: "Video & Photography", lead: ["Dr. V. Vidhya"], members: ["Mrs. Chinchu Nair"] },
+    { name: "Purchase", lead: ["Dr. G. Senthilvelan"], members: ["Mr. P. Jayakrishnan"] },
+    {
+      name: "Decoration",
+      lead: ["Dr. F. Antony Xavier Bronson"],
+      members: ["Mrs. Chinchu Nair", "Mr. M. Arun", "Mr. P. Sudharsan", "Mrs. K. C. Anu", "Mrs. K. Menaka", "Mrs. S. Divya", "Mr. R. Muthukrishnan", "Mr. S. Suresh Kumar", "Ms. D. Sangeetha"],
+    },
+    { name: "Sponsor", lead: ["Dr. S. Mohandoss"], members: ["Dr. M. Manikandan", "Dr. J. Jayaprakash"] },
+    {
+      name: "Digital Bridge",
+      lead: ["Mr. M. Arun"],
+      members: ["Mrs. E. Nalini", "Dr. M. Nisha", "Dr. S. Mohandoss", "Dr. M. Sujitha", "Dr. T. Kumanan", "Mr. Saravanan Elumalai", "Mrs. Chinchu Nair", "Mrs. M. Kanagapriya"],
+    },
+    {
+      name: "Hospitality",
+      lead: ["Dr. B. Raja"],
+      members: ["Dr. M. Anand", "Dr. S. Mohandoss", "Mr. M. Arun", "Dr. K. K. Rekha", "Mr. P. Sudharsan", "Mr. L. Magnus Jesrus", "Mrs. D. Vidhyalakshmi", "Mrs. S. Divya", "Mr. P. Rahul", "Mr. P. S. Deepak", "Mr. M. R. Mohanakrishnan"],
+    },
+    { name: "Invitation", lead: ["Mrs. M. Kanagapriya"], members: ["Mrs. E. Nalini", "Ms. G. Priyanka", "Mrs. K. C. Anu"] },
+    { name: "Certificate", lead: ["Dr. M. Sujitha"], members: ["Mrs. M. Kanagapriya", "Dr. M. Nisha", "Mrs. E. Nalini", "Mr. S. Dhanush"] },
+    { name: "Registration", lead: ["Mrs. E. Nalini"], members: ["Dr. S. Akhila", "Dr. M. Sujitha", "Dr. M. Nisha", "Mr. M. Manikandan", "Mr. P. Kamalanand"] },
+    { name: "Transport", lead: ["Mr. S. Mohan"], members: ["Mr. E. Murali", "Mr. L. Magnus Jesrus", "Mr. S. Sivasankar"] },
+    { name: "Reception", lead: ["Ms. G. Priyanka"], members: ["Mrs. K. Menaka", "Mrs. D. Vidhyalakshmi", "Mr. K. Jagan"] },
+    { name: "Advertisement", members: ["Mrs. S. Amudha", "Dr. P. S. Rajakumar"] },
+    { name: "Souvenir", lead: ["Dr. K. K. Rekha"], members: ["Mrs. P. Shyamala", "Mr. M. Uma Mahesh", "Mrs. Ruth Rubavathy", "Mr. S. Paramasivam"] },
+    { name: "Technical", lead: ["Dr. T. Kumanan", "Mrs. Chinchu Nair"], members: ["Mrs. Ruth Rubavathy", "Mr. P. Rajesh"] },
+    { name: "Non-Technical", lead: ["Dr. S. Mohandoss"], members: ["Dr. M. Sujitha", "Dr. M. Nisha", "Mr. S. Paramasivam"] },
+    { name: "Junior Techastra", lead: ["Mrs. P. Shyamala"], members: ["Mr. S. Mohan", "Mrs. D. Vidhyalakshmi", "Mrs. K. C. Anu", "Mr. S. Suresh Kumar"] },
+    { name: "Backup", members: ["Mrs. K. Kanchana", "Mrs. H. Aarthi", "Mr. T. Dhandapani"] },
+    { name: "Finance", members: ["Dr. P. Dinesh Kumar", "Mr. S. Mohan"] },
+    {
+      name: "Discipline",
+      lead: ["Dr. M. Anand"],
+      members: ["Dr. J. Jayaprakash", "Mr. P. Sudharsan", "Dr. B. Raja", "Mr. E. Murali", "Mr. M. Uma Mahesh", "Mr. J. R. Jayavelu", "Mr. P. S. Deepak", "Mr. S. Dhanush", "Mr. K. Jagan", "Mr. S. Sivasankar", "Mr. P. Kamalanand"],
+    },
+    { name: "Compering", members: ["Dr. G. Victo Sudha George", "Dr. K. K. Rekha"] },
+  ],
+};
+
 // Privacy / legal contact shown on the Privacy Notice and Terms pages (DPDP
 // Act 2023 needs a named contact for data requests and grievances).
 // PLACEHOLDERS - replace with the organisers' confirmed details before launch.
@@ -77,15 +129,15 @@ export const MAP_LINK = "https://maps.google.com/?q=Dr.+M.G.R.+Educational+And+R
 
 // Symposium-wide coordinators - same lists as techastra-web/src/data/events.js.
 export const TECHASTRA_COORDINATORS = {
-  staff: ["Dr. S. Sai Shanmugaraja", "Dr. Syed Ali", "Mrs. C. Subalakshmi"],
-  students: ["Ms. Mrinalini P G", "Mr. Thiruvenkatam V", "Mr. Shaik Abdulla M"],
+  staff: ["Dr. V. Saishanmugaraja", "Mr. Syed Ali D", "Mrs. C. Subalakshmi"],
+  students: ["Ms. Mrinalini P G", "Mr. Thiruvenkatam V", "Mr. Shaik Abdulla"],
 };
 
 export const CATEGORY_COORDINATORS = [
   {
     role: "SENIOR · TECHNICAL",
     staff: ["Dr. T. Kumanan", "Mrs. Chinchu Nair"],
-    students: ["Ms. Tanya Mriam", "Mr. Sudeep Krishna"],
+    students: ["Ms. Tanya Miriam", "Mr. Sudeep Krishna"],
   },
   {
     role: "SENIOR · NON-TECHNICAL",
@@ -94,7 +146,7 @@ export const CATEGORY_COORDINATORS = [
   },
   {
     role: "JUNIOR · ALL EVENTS",
-    staff: ["Dr. Syed Ali", "Mrs. Shyamala"],
+    staff: ["Mr. Syed Ali D", "Mrs. Shyamala"],
     students: ["Ms. Divya R", "Mr. Kalidas K", "Mr. Yashwanth"],
   },
 ];
@@ -118,4 +170,9 @@ export const LEVEL_AUDIENCE = { senior: "college students", junior: "school stud
 
 export function levelOf(event) {
   return event.level === "junior" ? "junior" : "senior";
+}
+
+/** Online registration for an event closes once it has started (the server checks this too). */
+export function registrationClosed(event) {
+  return !!event?.startTime && new Date(event.startTime) <= new Date();
 }

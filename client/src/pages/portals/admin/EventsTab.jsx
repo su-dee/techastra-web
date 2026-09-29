@@ -9,7 +9,7 @@ import { api } from "../../../lib/api";
 const EMPTY_FORM = {
   name: "", description: "", track: "", level: "senior", category: "technical", startTime: "", endTime: "",
   fee: "", maxSeats: "", isTeamEvent: false, minTeamSize: 1, maxTeamSize: 1,
-  venue: "", rulebook: "",
+  venue: "", rulebook: "", externalRegistration: false, registrationUrl: "",
 };
 
 function toLocalInput(iso) {
@@ -90,6 +90,7 @@ export default function EventsTab() {
               <p className="font-semibold">{ev.name}</p>
               <p className="text-sm text-shade/60">
                 {ev.level === "junior" ? "Junior" : "Senior"} · {ev.category === "non_technical" ? "Non-Technical" : "Technical"} · ₹{ev.fee} · {ev.seatsTaken}/{ev.maxSeats} seats · {new Date(ev.startTime).toLocaleString()}
+                {ev.externalRegistration && ` · Own website${ev.registrationUrl ? "" : " (link not set)"}`}
               </p>
             </div>
             <div className="flex gap-2">
@@ -170,6 +171,23 @@ export default function EventsTab() {
                 <Label htmlFor="maxTeamSize">Max Team Size</Label>
                 <Input id="maxTeamSize" type="number" value={form.maxTeamSize} onChange={(e) => update("maxTeamSize", e.target.value)} />
               </div>
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-sm text-shade/70">
+            <input type="checkbox" checked={!!form.externalRegistration} onChange={(e) => update("externalRegistration", e.target.checked)} />
+            Registers on its own website (not through this portal's cart)
+          </label>
+          {form.externalRegistration && (
+            <div>
+              <Label htmlFor="registrationUrl">Registration link</Label>
+              <Input
+                id="registrationUrl"
+                type="url"
+                placeholder="https://"
+                value={form.registrationUrl || ""}
+                onChange={(e) => update("registrationUrl", e.target.value)}
+              />
+              <p className="text-xs text-shade/60 mt-1">Leave empty to show “Registration link coming soon”.</p>
             </div>
           )}
           <div>
