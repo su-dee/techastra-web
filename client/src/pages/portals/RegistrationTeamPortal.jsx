@@ -268,7 +268,7 @@ export default function RegistrationTeamPortal() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="font-heading font-semibold text-xl mb-1">Walk-up Cash Registration</h2>
-            <p className="text-sm text-white/60">Register participants who pay cash in person</p>
+            <p className="text-sm text-shade/60">Register participants who pay cash in person</p>
           </div>
           <Button onClick={() => setShowCashForm(!showCashForm)}>
             {showCashForm ? "Cancel" : "New Cash Registration"}
@@ -279,7 +279,7 @@ export default function RegistrationTeamPortal() {
           <form onSubmit={submitCashRegistration} className="mt-6 space-y-6">
             {/* Personal Information */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b border-white/10 pb-2">Personal Information</h3>
+              <h3 className="font-semibold text-lg border-b border-shade/10 pb-2">Personal Information</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -354,7 +354,7 @@ export default function RegistrationTeamPortal() {
 
             {/* Event Selection */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg border-b border-white/10 pb-2">Event Selection *</h3>
+              <h3 className="font-semibold text-lg border-b border-shade/10 pb-2">Event Selection *</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {events.map((event) => (
                   <label
@@ -362,7 +362,7 @@ export default function RegistrationTeamPortal() {
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                       cashRegistration.eventIds.includes(event.id)
                         ? "border-amber/55 bg-amber/10"
-                        : "border-white/10 bg-white/5 hover:border-white/20"
+                        : "border-shade/10 bg-shade/5 hover:border-shade/20"
                     }`}
                   >
                     <input
@@ -429,7 +429,7 @@ export default function RegistrationTeamPortal() {
                     {cashRegistration.teamMembers.map((member, index) => (
                       <div
                         key={index}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white/5 rounded-lg"
+                        className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-shade/5 rounded-lg"
                       >
                         <Input
                           placeholder="Member name"
@@ -460,7 +460,7 @@ export default function RegistrationTeamPortal() {
             </div>
 
             {/* Submit Button */}
-            <div className="flex gap-3 pt-4 border-t border-white/10">
+            <div className="flex gap-3 pt-4 border-t border-shade/10">
               <Button type="submit" disabled={creatingCash} className="flex-1">
                 {creatingCash ? "Creating Registration..." : "Create & Approve Registration"}
               </Button>
@@ -492,13 +492,13 @@ export default function RegistrationTeamPortal() {
 
         {/* Display created registration with ID card */}
         {createdRegistration && (
-          <div className="mt-6 p-6 bg-white/5 rounded-lg">
+          <div className="mt-6 p-6 bg-shade/5 rounded-lg">
             <h3 className="font-semibold text-lg mb-4 text-center">✓ Registration Created Successfully!</h3>
             <div className="max-w-md mx-auto">
               <IdCard registration={createdRegistration} />
             </div>
             <div className="mt-4 text-center">
-              <p className="text-sm text-white/60 mb-2">Participant can take a photo of this QR code</p>
+              <p className="text-sm text-shade/60 mb-2">Participant can take a photo of this QR code</p>
               <Button
                 onClick={() => setCreatedRegistration(null)}
                 variant="secondary"
@@ -524,7 +524,7 @@ export default function RegistrationTeamPortal() {
         {lookupResults.length > 0 && (
           <div className="mt-4 space-y-2">
             {lookupResults.map((r) => (
-              <div key={r.id} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-2 text-sm">
+              <div key={r.id} className="flex items-center justify-between bg-shade/5 rounded-lg px-4 py-2 text-sm">
                 <span>{r.user.name} · {r.registrationCode} · {r.user.email}</span>
                 <Badge status={r.status} />
               </div>
@@ -535,7 +535,7 @@ export default function RegistrationTeamPortal() {
 
       <Card className="mb-8">
         <h2 className="font-heading font-semibold mb-3">Export Event Participants</h2>
-        <p className="text-sm text-white/60 mb-4">
+        <p className="text-sm text-shade/60 mb-4">
           Download Excel file with all participants for a specific event (name, email, phone, college, team details, status, transaction info)
         </p>
         <div className="flex gap-3">
@@ -566,7 +566,7 @@ export default function RegistrationTeamPortal() {
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === s ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-white/5 text-[#b4ab9b] hover:text-white"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === s ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-shade/5 text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
           >
             {s}
           </button>
@@ -574,23 +574,29 @@ export default function RegistrationTeamPortal() {
       </div>
 
       {loading ? (
-        <p className="text-white/50">Loading...</p>
+        <p className="text-shade/50">Loading...</p>
       ) : registrations.length === 0 ? (
-        <p className="text-white/50">No {filter} registrations.</p>
+        <p className="text-shade/50">No {filter} registrations.</p>
       ) : (
         <div className="space-y-3">
           {registrations.map((r) => (
             <Card key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
-                <p className="text-sm text-white/60">{r.user.email} · {r.collegeName}</p>
-                <p className="text-sm text-white/60">Txn ID: {r.transactionId} · ₹{r.totalAmount}</p>
+                <p className="text-sm text-shade/60">{r.user.email} · {r.collegeName}</p>
+                <p className="text-sm text-shade/60">Txn ID: {r.transactionId} · ₹{r.totalAmount}</p>
                 {r.paymentProofUrl && (
                   <button type="button" onClick={() => openProof(r.id)} className="text-cyan text-sm underline">
                     View payment screenshot
                   </button>
                 )}
                 {r.rejectionReason && <p className="text-sm text-danger mt-1">Reason: {r.rejectionReason}</p>}
+                {r.reviewedAt && (
+                  <p className="text-xs text-dim mt-1">
+                    {r.status === "rejected" ? "Rejected" : r.status === "approved" ? "Approved" : "Updated"} by {r.reviewedByName || "staff"} ·{" "}
+                    {new Date(r.reviewedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Badge status={r.status} />

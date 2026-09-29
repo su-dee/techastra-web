@@ -55,7 +55,14 @@ router.post("/login", loginLimiter, async (req, res) => {
         assignedEventId: user.assignedEventId || null,
       },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+      // Staff sessions are short (a lost or shared staff device stops working
+      // by the next day); participants stay signed in longer.
+      {
+        expiresIn:
+          user.role === "participant"
+            ? process.env.JWT_EXPIRES_IN || "7d"
+            : process.env.STAFF_JWT_EXPIRES_IN || "12h",
+      }
     );
 
     // Log successful login

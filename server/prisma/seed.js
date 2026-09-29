@@ -20,7 +20,7 @@
 const bcrypt = require("bcrypt");
 const prisma = require("../db");
 const { generateCertificatePdf } = require("../utils/certificatePdf");
-const { buildEvents } = require("./eventData");
+const { buildEvents, COMBOS, COMBO_PRICE } = require("./eventData");
 
 const IS_PROD = process.env.NODE_ENV === "production";
 // Demo participants, results and certificates: on by default locally, off in
@@ -46,7 +46,7 @@ const COLLEGES = [
 // Real event list, coordinators and known dates live in eventData.js;
 // see the header there for which fields are still unconfirmed.
 
-async function upsertStaff({ name, email, role, assignedEventId, dutyDesk, dutyTiming, dutyRole }) {
+async function upsertStaff({ name, email, role, assignedEventId }) {
   const passwordHash = await bcrypt.hash(STAFF_PASSWORD, 10);
   return prisma.user.upsert({
     where: { email },
@@ -57,9 +57,6 @@ async function upsertStaff({ name, email, role, assignedEventId, dutyDesk, dutyT
       passwordHash,
       role,
       assignedEventId: assignedEventId || null,
-      dutyDesk: dutyDesk || null,
-      dutyTiming: dutyTiming || null,
-      dutyRole: dutyRole || null,
     },
   });
 }
@@ -138,14 +135,6 @@ async function main() {
   const regTeam2 = await upsertStaff({ name: "Reg Desk Beta", email: "regteam2@techastra.dev", role: "registration_team" });
   const hospitality = await upsertStaff({ name: "Hospitality Lead", email: "hospitality@techastra.dev", role: "hospitality" });
   const certTeam = await upsertStaff({ name: "Certificate Desk", email: "certificates@techastra.dev", role: "certificate_team" });
-  const volunteer1 = await upsertStaff({
-    name: "Volunteer One", email: "volunteer1@techastra.dev", role: "volunteer",
-    dutyDesk: "Main Entrance", dutyTiming: "8:00 AM - 1:00 PM", dutyRole: "Registration Desk Support",
-  });
-  const volunteer2 = await upsertStaff({
-    name: "Volunteer Two", email: "volunteer2@techastra.dev", role: "volunteer",
-    dutyDesk: "Food Court", dutyTiming: "12:00 PM - 4:00 PM", dutyRole: "Hospitality Support",
-  });
 
   // One coordinator per event
   const coordinators = [];
@@ -161,8 +150,43 @@ async function main() {
     console.log(`Created coordinator for: ${event.name} (${coordinator.email})`);
   }
 
+  // 2b. Combo passes (real, not demo) - matched on name so a re-run
+  // refreshes events and price. Senior passes cost COMBO_PRICE; a combo can
+  // set its own `price` (Junior combos are free) and `level` (default senior).
+  for (const combo of COMBOS) {
+    const level = combo.level || "senior";
+    const comboEvents = combo.events.map((name) => {
+      const ev = events.find((e) => e.name === name && e.level === level);
+      if (!ev) throw new Error(`Combo "${combo.name}": ${level} event "${name}" not found`);
+      return ev;
+    });
+    const individualPrice = comboEvents.reduce((sum, e) => sum + e.fee, 0);
+    const comboPrice = combo.price ?? COMBO_PRICE;
+    const data = {
+      name: combo.name,
+      description: combo.description,
+      eventIds: comboEvents.map((e) => e.id),
+      individualPrice,
+      comboPrice,
+      savings: individualPrice - comboPrice,
+      category: "mixed",
+      availableSeats: Math.min(...comboEvents.map((e) => e.maxSeats)),
+      isActive: true,
+    };
+    const existing = await prisma.comboPass.findFirst({ where: { name: combo.name } });
+    if (existing) await prisma.comboPass.update({ where: { id: existing.id }, data });
+    else await prisma.comboPass.create({ data });
+    console.log(`${existing ? "Updated" : "Created"} combo: ${combo.name} (₹${comboPrice}, saves ₹${individualPrice - comboPrice})`);
+  }
+  // Retire the old demo combo (kept, just hidden, so past carts stay readable).
+  const retired = await prisma.comboPass.updateMany({
+    where: { name: { notIn: COMBOS.map((c) => c.name) }, isActive: true },
+    data: { isActive: false },
+  });
+  if (retired.count) console.log(`Deactivated ${retired.count} other combo pass(es)`);
+
   // 3-6 are one-off demo data (participants, results, certificates,
-  // announcements, combo pass). They're created together, so if the first
+  // announcements). They're created together, so if the first
   // demo participant exists they all do - skip them rather than crash on
   // duplicate emails / registration codes.
   if (!SEED_DEMO) {
@@ -316,27 +340,6 @@ async function main() {
   await prisma.announcement.create({
     data: { message: "Venue change: Crypt Clash has moved to Computer Lab 1 (Block C).", createdBy: masterAdmin.id },
   });
-
-  // 6. Combo Pass: 1 Technical + 2 Non-Technical events
-  const comboEvents = [hackNexus, verbalCombat, blitzHunt]; // 1 technical + 2 non-technical
-  const individualPrice = comboEvents.reduce((sum, e) => sum + e.fee, 0); // 300 + 80 + 60 = 440
-  const comboPrice = Math.round(individualPrice * 0.85); // 15% discount = 374
-  const savings = individualPrice - comboPrice; // 66
-
-  await prisma.comboPass.create({
-    data: {
-      name: "Tech & Culture Combo",
-      description: "Build a prototype at Hack Nexus, then compete in sharp debates and crack clues in a campus-wide treasure hunt. Save ₹66 on this power combo.",
-      eventIds: comboEvents.map(e => e.id),
-      individualPrice,
-      comboPrice,
-      savings,
-      category: "mixed",
-      availableSeats: 30,
-      isActive: true,
-    },
-  });
-  console.log(`Created combo pass: Tech & Culture Combo (₹${comboPrice}, saves ₹${savings})`);
 
   console.log("\nSeeding complete.\n");
   if (!IS_PROD) console.log("All staff/demo accounts use the password:", DEMO_PASSWORD);

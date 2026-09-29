@@ -62,7 +62,7 @@ export default function CertificatePortal() {
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </Select>
-        <label className="flex items-center gap-2 text-sm text-white/70">
+        <label className="flex items-center gap-2 text-sm text-shade/70">
           <input type="checkbox" checked={winnersOnly} onChange={(e) => setWinnersOnly(e.target.checked)} />
           Winners only
         </label>
@@ -77,14 +77,14 @@ export default function CertificatePortal() {
       </div>
 
       {loading ? (
-        <p className="text-white/50">Loading...</p>
+        <p className="text-shade/50">Loading...</p>
       ) : (
         <div className="space-y-2">
           {rows.map((row) => (
             <Card key={`${row.registrationId}-${row.eventId}`} className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">{row.participantName} <span className="text-dim text-sm">({row.registrationCode})</span></p>
-                <p className="text-sm text-white/60">{eventName(row.eventId)} · {row.college}</p>
+                <p className="text-sm text-shade/60">{eventName(row.eventId)} · {row.college}</p>
                 {row.isWinner && <Badge status="approved" className="mt-1">Winner — #{row.position}</Badge>}
               </div>
               <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export default function CertificatePortal() {
               </div>
             </Card>
           ))}
-          {rows.length === 0 && <p className="text-white/50">No participants match this filter.</p>}
+          {rows.length === 0 && <p className="text-shade/50">No participants match this filter.</p>}
         </div>
       )}
     </div>

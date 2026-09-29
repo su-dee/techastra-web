@@ -32,6 +32,41 @@ test("rejects bad email, short password, bad UTR, no events", () => {
   assert.equal(errors.length, 4);
 });
 
+test("UTR may be left out (free Junior registrations); the route requires it when there's a fee", () => {
+  const { errors, value } = validateRegistration({ ...valid, transactionId: "" });
+  assert.deepEqual(errors, []);
+  assert.equal(value.transactionId, "");
+});
+
+test("free events cost nothing; combos and paid events add up", () => {
+  const junior = [{ id: "j1", fee: 0 }, { id: "j2", fee: 0 }];
+  assert.equal(computeTotal(junior, []), 0);
+  const senior = [{ id: "a", fee: 200 }, { id: "b", fee: 200 }, { id: "c", fee: 100 }, { id: "d", fee: 1000 }];
+  assert.equal(computeTotal(senior, [{ name: "Combo 1", eventIds: ["a", "b", "c"], comboPrice: 200 }]), 1200);
+});
+
+test("combo passes: the team may be as large as the combo's biggest team event", () => {
+  const hf = { id: "hf", name: "Hidden Frames", isTeamEvent: true, minTeamSize: 2, maxTeamSize: 2 };
+  const tf = { id: "tf", name: "Team Feud", isTeamEvent: true, minTeamSize: 3, maxTeamSize: 3 };
+  const pa = { id: "pa", name: "Prompt Arena", isTeamEvent: false, minTeamSize: 1, maxTeamSize: 1 };
+  const combo1 = { eventIds: ["hf", "tf", "pa"] };
+  assert.equal(checkTeamSizes([hf, tf, pa], 3, [combo1]), null); // 2 of the 3 play Hidden Frames
+  assert.match(checkTeamSizes([hf, tf, pa], 2, [combo1]), /Team Feud/); // too few for Team Feud
+  assert.match(checkTeamSizes([hf, tf, pa], 4, [combo1]), /combo/); // bigger than any event
+  // Booked on their own (no combo), the exact sizes still apply.
+  assert.match(checkTeamSizes([hf, tf], 3, []), /Hidden Frames/);
+});
+
+test("junior team events accept individual registration (teams form at the venue)", () => {
+  const mindMerge = { id: "mm", name: "Mind Merge", level: "junior", isTeamEvent: true, minTeamSize: 3, maxTeamSize: 3 };
+  const traceX = { id: "tx", name: "TRACE//X", level: "junior", isTeamEvent: true, minTeamSize: 4, maxTeamSize: 4 };
+  const combo3 = { eventIds: ["mm", "tx"] };
+  assert.equal(checkTeamSizes([mindMerge, traceX], 1, [combo3]), null);
+  assert.equal(checkTeamSizes([mindMerge], 1, []), null);
+  // Senior team events are still checked.
+  assert.match(checkTeamSizes([{ ...mindMerge, level: "senior" }], 1, []), /Mind Merge/);
+});
+
 test("rejects duplicate and oversized event lists", () => {
   assert.ok(validateRegistration({ ...valid, eventIds: JSON.stringify(["a", "a"]) }).errors.length);
   assert.ok(validateRegistration({ ...valid, eventIds: JSON.stringify(Array.from({ length: 21 }, (_, i) => `e${i}`)) }).errors.length);

@@ -3,54 +3,43 @@
 // Design tokens mirror the main Techastra '26 site (techastra-web/src/index.css):
 // near-black base, warm amber accent, steel-blue secondary, Space Grotesk +
 // IBM Plex Mono. Keep the two sites visually in sync when changing these.
-const amber = {
-  DEFAULT: "#c9a24a",
-  light: "#ddbb6a",
-  pale: "#eed49c",
-  dim: "#8f7330",
-  deep: "#4a3b18",
-};
-const steel = {
-  DEFAULT: "#a7afb5",
-  light: "#c6ccd0",
-  dim: "#5e666c",
-};
+// Colours come from CSS variables (src/index.css) so the dark/light theme
+// switch applies to Tailwind classes too; <alpha-value> keeps /opacity working.
+const c = (k) => `rgb(var(--tw-${k}) / <alpha-value>)`;
+const amber = { DEFAULT: c("amber"), light: c("amber-light"), pale: c("amber-pale"), dim: c("amber-dim"), deep: c("amber-deep") };
+const steel = { DEFAULT: c("steel"), light: c("steel-light"), dim: c("steel-dim") };
 
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
       colors: {
-        ink: {
-          DEFAULT: "#2c2823",
-          2: "#2f2b26",
-          3: "#34302a",
-          panel: "#38342d",
-        },
-        text: "#efe8da",
-        heading: "#f5eee2",
-        soft: "#b1a898",
+        ink: { DEFAULT: c("ink"), 2: c("ink-2"), 3: c("ink-3"), panel: c("panel") },
+        text: c("text"),
+        heading: c("heading"),
+        soft: c("soft"),
         muted: { DEFAULT: "var(--muted)", foreground: "var(--muted-foreground)" },
-        dim: "#afa697",
+        dim: c("dim"),
         amber,
         steel,
-        line: "rgba(255, 255, 255, 0.08)",
+        line: "rgb(var(--tw-shade) / 0.08)",
+        shade: c("shade"),
 
         // Legacy token names from the previous crimson/cyan theme. Many
         // portal pages still use them, so they point at the new palette
         // instead of being removed. Prefer the names above in new code.
-        void: "#2c2823",
-        surface: "#38342d",
-        onyx: { DEFAULT: "#2c2823", light: "#3c3731" },
+        void: c("ink"),
+        surface: c("panel"),
+        onyx: { DEFAULT: c("ink"), light: c("onyx-light") },
         crimson: { DEFAULT: amber.DEFAULT, light: amber.light, dim: amber.deep, glow: amber.pale },
         arc: { DEFAULT: amber.light, light: amber.pale, dim: amber.dim },
         gold: { DEFAULT: amber.DEFAULT, light: amber.pale, dim: amber.dim, glow: amber.pale },
-        offwhite: "#efe8da",
+        offwhite: c("text"),
         cyan: { DEFAULT: steel.DEFAULT, dim: steel.dim },
 
-        success: "#4ade80",
-        warning: "#f5b453",
-        danger: "#fa8585",
+        success: c("success"),
+        warning: c("warning"),
+        danger: c("danger"),
 
         // shadcn-style tokens (components/shadcn/*), wired to index.css :root.
         background: "var(--background)",

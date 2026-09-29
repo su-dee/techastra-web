@@ -59,7 +59,6 @@ const RegistrationTeamPortal = lazyPage(() => import("./pages/portals/Registrati
 const CoordinatorPortal = lazyPage(() => import("./pages/portals/CoordinatorPortal"));
 const HospitalityPortal = lazyPage(() => import("./pages/portals/HospitalityPortal"));
 const CertificatePortal = lazyPage(() => import("./pages/portals/CertificatePortal"));
-const VolunteerPortal = lazyPage(() => import("./pages/portals/VolunteerPortal"));
 const AdminPortal = lazyPage(() => import("./pages/portals/AdminPortal"));
 
 // Warm the cache for the pages visitors open next from the landing page, once
@@ -169,14 +168,6 @@ export default function App() {
                 element={
                   <ProtectedRoute roles={["certificate_team", "master_admin"]}>
                     <CertificatePortal />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/volunteer"
-                element={
-                  <ProtectedRoute roles={["volunteer", "master_admin"]}>
-                    <VolunteerPortal />
                   </ProtectedRoute>
                 }
               />

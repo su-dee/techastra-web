@@ -102,14 +102,20 @@ export default function RegistrationsTab() {
       </div>
 
       {loading ? (
-        <p className="text-white/50">Loading...</p>
+        <p className="text-shade/50">Loading...</p>
       ) : (
         <div className="space-y-2">
           {registrations.map((r) => (
             <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
-                <p className="text-sm text-white/60">{r.user.email} · {r.collegeName} · ₹{r.totalAmount}</p>
+                <p className="text-sm text-shade/60">{r.user.email} · {r.collegeName} · ₹{r.totalAmount}</p>
+                {r.reviewedAt && (
+                  <p className="text-xs text-dim mt-1">
+                    {r.status === "rejected" ? "Rejected" : r.status === "approved" ? "Approved" : "Updated"} by {r.reviewedByName || "staff"} ·{" "}
+                    {new Date(r.reviewedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Badge status={r.status} />

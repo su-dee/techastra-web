@@ -56,6 +56,9 @@ export default function RegisterForm() {
     if (next.form.phone && !PHONE.test(next.form.phone.trim())) e.phone = "Enter a 10-digit Indian mobile number, like 98765 43210.";
     if (!next.form.password) e.password = "Create a password.";
     else if (next.form.password.length < MIN_PASSWORD) e.password = `Use at least ${MIN_PASSWORD} characters.`;
+    // Junior Techastra: school students register individually and teams are
+    // formed at the venue, so there are no team details to check.
+    if (junior) next = { ...next, mode: "individual" };
     if (next.mode === "team") {
       if (!next.teamName.trim()) e.teamName = "Enter a team name.";
       next.members.forEach((m, i) => {
@@ -64,12 +67,29 @@ export default function RegisterForm() {
       });
     }
     // Team events need the right number of people (you plus your members).
+    // Events in a combo pass may use a team as large as the combo's biggest
+    // team event (same rule as the server's checkTeamSizes).
     const size = next.mode === "team" ? 1 + next.members.length : 1;
-    const bad = items.find((i) => i.isTeamEvent && (size < (i.minTeamSize || 1) || size > (i.maxTeamSize || i.minTeamSize || 1)));
+    const comboCap = (i) => {
+      if (!i.comboId) return null;
+      const teamItems = items.filter((x) => x.comboId === i.comboId && x.isTeamEvent);
+      return Math.max(1, ...teamItems.map((x) => x.maxTeamSize || x.minTeamSize || 1));
+    };
+    const limits = (i) => {
+      const min = i.minTeamSize || 1;
+      return [min, comboCap(i) ?? (i.maxTeamSize || min)];
+    };
+    const bad = items.find((i) => {
+      if (!i.isTeamEvent || levelOf(i) === "junior") return false;
+      const [min, max] = limits(i);
+      return size < min || size > max;
+    });
     if (bad) {
-      const min = bad.minTeamSize || 1;
-      const max = bad.maxTeamSize || min;
-      e.teamSize = `${bad.name} needs a team of ${min === max ? min : `${min}–${max}`} people including you (you have ${size}).`;
+      const [min, max] = limits(bad);
+      const range = min === max ? min : `${min}–${max}`;
+      e.teamSize = bad.comboId
+        ? `${bad.comboName || "Your combo pass"} needs a team of ${range} people including you (you have ${size}).`
+        : `${bad.name} needs a team of ${range} people including you (you have ${size}).`;
     }
     if (!next.consent) e.consent = "Please accept the Terms and the Privacy Notice.";
     if (junior && !next.guardianConsent) e.guardianConsent = "A parent or guardian must agree before a school student can register.";
@@ -107,7 +127,7 @@ export default function RegisterForm() {
       requestAnimationFrame(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus());
       return;
     }
-    saveDraft({ mode, form, teamName, members, consent, guardianConsent });
+    saveDraft({ mode: junior ? "individual" : mode, form, teamName, members, consent, guardianConsent });
     navigate("/checkout");
   };
 
@@ -127,7 +147,7 @@ export default function RegisterForm() {
         <h1 className="h2">Register for Techastra ’26</h1>
         {items.length > 0 && (
           <p className="lead">
-            {plural(items.length, "event")} selected · Total ₹{total} ·{" "}
+            {plural(items.length, "event")} selected · {total > 0 ? `Total ₹${total}` : "Free registration"} ·{" "}
             <Link to="/cart" className="link-cta">Edit</Link>
           </p>
         )}
@@ -150,6 +170,12 @@ export default function RegisterForm() {
             </div>
           )}
 
+          {junior ? (
+            <p className="rounded-[10px] border border-line bg-shade/5 px-4 py-3 text-[14px] text-soft">
+              Register just yourself — for team events, <span className="text-heading">teams are formed at the venue</span> on
+              the day.
+            </p>
+          ) : (
           <fieldset>
             <legend className="mono-label mb-2">Registering as</legend>
             <div className="seg" role="radiogroup" aria-label="Registering as">
@@ -177,6 +203,7 @@ export default function RegisterForm() {
               <p id="reg-team-size-error" className="mt-2 text-[13px] text-danger" role="alert">{errors.teamSize}</p>
             )}
           </fieldset>
+          )}
 
           <div className="space-y-5">
             <div>
@@ -222,7 +249,7 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          {mode === "team" && (
+          {mode === "team" && !junior && (
             <fieldset className="border-t border-line pt-6 space-y-5">
               <legend className="h3 !text-[20px] !mt-0 pt-6">Team details</legend>
               <div>

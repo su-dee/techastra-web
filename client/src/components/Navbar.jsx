@@ -5,6 +5,7 @@ import { useCart } from "../context/CartContext";
 import { usePanels } from "../context/PanelContext";
 import { PORTAL_PATH } from "../lib/site";
 import logo from "../assets/logo-sm.webp";
+import ThemeToggle from "./ThemeToggle";
 
 const LINKS = [
   ["/", "Home"],
@@ -34,10 +35,31 @@ export default function Navbar() {
 
   useEffect(() => setOpen(false), [pathname]);
 
+  // Over the (always dark) landing hero the navbar uses the dark palette too,
+  // so light mode doesn't put a pale bar on the dark hero. No effect in dark mode.
+  const [overHero, setOverHero] = useState(false);
+  useEffect(() => {
+    if (pathname !== "/") {
+      setOverHero(false);
+      return undefined;
+    }
+    const check = () => {
+      const hero = document.querySelector(".hero");
+      setOverHero(!!hero && hero.getBoundingClientRect().bottom > 64);
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  }, [pathname]);
+
   const portal = user ? PORTAL_PATH[user.role] || "/dashboard" : null;
 
   return (
-    <nav className="nav" aria-label="Main">
+    <nav className={"nav" + (overHero ? " theme-dark" : "")} aria-label="Main">
       <div className="nav__left">
         <Link to="/" className="nav__brand" aria-label="Techastra ’26 registration home" data-log="nav-logo">
           <img src={logo} alt="Techastra ’26" />
@@ -55,6 +77,7 @@ export default function Navbar() {
       </div>
 
       <div className="nav__right">
+        <ThemeToggle />
         <Link to="/cart" className="nav__cart" aria-label={`Cart, ${items.length} event${items.length === 1 ? "" : "s"}`} data-log="nav-cart">
           <CartIcon />
           {items.length > 0 && <span className="nav__cart-count">{items.length}</span>}

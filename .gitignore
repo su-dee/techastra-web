@@ -15,3 +15,5 @@ server/prisma/migrations/**/migration_lock.toml.bak
 .idea/
 *.pdf
 !client/public/**/*.pdf
+php-mailer/config.php
+php-mailer/mail-log.txt

@@ -10,7 +10,7 @@ export default function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="min-h-[50vh] flex items-center justify-center text-white/60">Loading...</div>;
+    return <div className="min-h-[50vh] flex items-center justify-center text-shade/60">Loading...</div>;
   }
 
   if (!user) {

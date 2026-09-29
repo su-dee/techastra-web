@@ -6,7 +6,7 @@ import Modal from "../../../components/ui/Modal";
 import { Label, Input, Select } from "../../../components/ui/Input";
 import { api } from "../../../lib/api";
 
-const ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "volunteer", "master_admin"];
+const ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "master_admin"];
 
 export default function AccountsTab() {
   const [users, setUsers] = useState([]);
@@ -14,7 +14,7 @@ export default function AccountsTab() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({
     name: "", email: "", password: "", role: "coordinator",
-    assignedEventId: "", dutyDesk: "", dutyTiming: "", dutyRole: "",
+    assignedEventId: "",
   });
 
   const load = () => {
@@ -34,7 +34,7 @@ export default function AccountsTab() {
       await api.post("/api/admin/accounts", form);
       toast.success("Account created");
       setModalOpen(false);
-      setForm({ name: "", email: "", password: "", role: "coordinator", assignedEventId: "", dutyDesk: "", dutyTiming: "", dutyRole: "" });
+      setForm({ name: "", email: "", password: "", role: "coordinator", assignedEventId: "" });
       load();
     } catch (err) {
       toast.error(err.message);
@@ -63,7 +63,7 @@ export default function AccountsTab() {
           <Card key={u.id} className="flex items-center justify-between">
             <div>
               <p className="font-semibold">{u.name} <span className="text-dim text-sm capitalize">({u.role.replace("_", " ")})</span></p>
-              <p className="text-sm text-white/60">{u.email}</p>
+              <p className="text-sm text-shade/60">{u.email}</p>
             </div>
             <Button size="sm" variant="danger" onClick={() => deleteAccount(u.id)}>Delete</Button>
           </Card>
@@ -103,23 +103,6 @@ export default function AccountsTab() {
                 ))}
               </Select>
             </div>
-          )}
-
-          {form.role === "volunteer" && (
-            <>
-              <div>
-                <Label htmlFor="dutyDesk">Duty Desk</Label>
-                <Input id="dutyDesk" value={form.dutyDesk} onChange={(e) => update("dutyDesk", e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="dutyTiming">Duty Timing</Label>
-                <Input id="dutyTiming" value={form.dutyTiming} onChange={(e) => update("dutyTiming", e.target.value)} />
-              </div>
-              <div>
-                <Label htmlFor="dutyRole">Duty Role</Label>
-                <Input id="dutyRole" value={form.dutyRole} onChange={(e) => update("dutyRole", e.target.value)} />
-              </div>
-            </>
           )}
 
           <Button type="submit" className="w-full">Create Account</Button>

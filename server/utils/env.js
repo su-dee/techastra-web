@@ -22,8 +22,14 @@ function checkEnv() {
     console.error("\nConfiguration error - the API will not start:\n  - " + problems.join("\n  - ") + "\n");
     if (isProd || !process.env.JWT_SECRET || !process.env.DATABASE_URL) process.exit(1);
   }
-  if (!isProd && !process.env.SMTP_HOST) {
-    console.log("SMTP_HOST not set: emails are printed to this console instead of being sent.");
+  // Email goes through php-mailer/send.php on the website host (PHP mail(),
+  // no SMTP). Missing config only means approval emails aren't sent.
+  const mailSecret = process.env.MAIL_ENDPOINT_SECRET || "";
+  if (!process.env.MAIL_ENDPOINT_URL || !mailSecret) {
+    const msg = "MAIL_ENDPOINT_URL / MAIL_ENDPOINT_SECRET not set: approval emails are printed to this console instead of being sent.";
+    isProd ? console.warn("Warning: " + msg) : console.log(msg);
+  } else if (mailSecret.length < 32) {
+    console.warn("Warning: MAIL_ENDPOINT_SECRET should be at least 32 random characters.");
   }
 }
 

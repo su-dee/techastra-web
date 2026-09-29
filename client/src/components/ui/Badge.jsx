@@ -9,9 +9,9 @@ const STYLES = {
   rejected: "bg-danger/10 text-danger border-danger/35",
   absent: "bg-danger/10 text-danger border-danger/35",
   collected: "bg-success/10 text-success border-success/35",
-  "not-collected": "bg-white/5 text-[#d3cdc2] border-white/15",
+  "not-collected": "bg-shade/5 text-[color:var(--c-d3cdc2)] border-shade/15",
   info: "bg-amber/10 text-amber-pale border-amber/40",
-  neutral: "bg-white/5 text-[#d3cdc2] border-white/15",
+  neutral: "bg-shade/5 text-[color:var(--c-d3cdc2)] border-shade/15",
 };
 
 const LABELS = {

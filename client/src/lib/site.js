@@ -7,14 +7,33 @@ export const EDITION = "18th";
 export const EVENT_START = "2026-10-08T09:00:00+05:30";
 export const EVENT_DATES = "8 – 9 October 2026";
 
-export const ADDRESS = ["Poonamallee High Rd, Vishwas Nagar, Maduravoyal,", "Chennai, Tamil Nadu 600095"];
+export const ADDRESS = ["Poonamallee High Rd, Maduravoyal,", "Chennai, Tamil Nadu 600095"];
 export const PHONE = "04423782176";
 
-// Registration fees are paid to this UPI ID. The QR image
-// (assets/upi-qr.png) is the organisers' static GPay QR for the same ID - if
-// the account changes, replace both. The QR has no amount built in, so
-// participants type the amount shown at checkout.
+// Registration fees are paid to this UPI ID. Checkout generates the QR and the
+// "Pay with UPI app" link from it with the cart total built in (upiPayLink) -
+// to switch to the official account, change UPI_ID and UPI_PAYEE_NAME here
+// (and remove UPI_AID, which belongs to this account's GPay QR).
 export const UPI_ID = "subalakshmime-1@okaxis";
+// Payee name and Google Pay merchant reference exactly as in the organisers'
+// original QR, so UPI apps show the same payee students expect.
+export const UPI_PAYEE_NAME = "Subalakshmi Velaa PG men's hostel";
+const UPI_AID = "uGICAgIDn44v9cA";
+
+/**
+ * UPI payment link with the amount pre-filled (NPCI "upi://pay" format) - used
+ * for the checkout QR and the "Pay with UPI app" button. Spaces are encoded as
+ * %20 (not +), which every UPI app reads correctly.
+ */
+export function upiPayLink(amount, note = "Techastra 26 registration") {
+  const enc = (v) => encodeURIComponent(v).replace(/'/g, "%27");
+  // The UPI ID goes in as-is (like the organisers' original QR): some apps
+  // don't decode "%40" in the payee address. VPAs only use URL-safe characters.
+  return (
+    `upi://pay?pa=${UPI_ID}&pn=${enc(UPI_PAYEE_NAME)}&aid=${enc(UPI_AID)}` +
+    `&am=${Number(amount).toFixed(2)}&cu=INR&tn=${enc(note)}`
+  );
+}
 
 // Privacy / legal contact shown on the Privacy Notice and Terms pages (DPDP
 // Act 2023 needs a named contact for data requests and grievances).
@@ -23,7 +42,6 @@ export const LEGAL = {
   organiser: "Department of Computer Science & Engineering and Department of Cyber Security, Dr. M.G.R. Educational and Research Institute",
   contactName: "Techastra ’26 Organising Committee",
   contactEmail: "techastra@drmgrdu.ac.in", // PLACEHOLDER - confirm the real mailbox
-  lastUpdated: "26 September 2026",
   // Personal data is deleted this long after the symposium (certificates
   // and results are issued first).
   retention: "90 days after the symposium (by 7 January 2027)",
@@ -43,7 +61,6 @@ export const PORTAL_PATH = {
   coordinator: "/coordinator",
   hospitality: "/hospitality",
   certificate_team: "/certificates",
-  volunteer: "/volunteer",
   master_admin: "/admin",
   participant: "/dashboard",
 };

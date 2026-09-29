@@ -105,7 +105,7 @@ export default function CoordinatorPortal() {
       )}
 
       {!eventId ? (
-        <p className="text-white/50">No event assigned to this account.</p>
+        <p className="text-shade/50">No event assigned to this account.</p>
       ) : (
         <>
           <h2 className="font-heading text-xl font-semibold mb-4 text-cyan">{selectedEvent?.name}</h2>
@@ -115,7 +115,7 @@ export default function CoordinatorPortal() {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-white/5 text-[#b4ab9b] hover:text-white"}`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-shade/5 text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
               >
                 {t}
               </button>
@@ -124,9 +124,9 @@ export default function CoordinatorPortal() {
 
           {tab === "scan" && (
             <Card>
-              <p className="text-white/60 mb-4">Scan a participant's QR code to check them in.</p>
+              <p className="text-shade/60 mb-4">Scan a participant's QR code to check them in.</p>
               <Button onClick={() => setScannerOpen(true)}>Open Scanner</Button>
-              <p className="text-sm text-white/50 mt-4">
+              <p className="text-sm text-shade/50 mt-4">
                 Present: {roster.filter((r) => r.present).length} / {roster.length}
               </p>
             </Card>
@@ -136,14 +136,14 @@ export default function CoordinatorPortal() {
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Present / Absent List</h3>
-                <span className="text-sm text-white/50">{roster.filter((r) => r.present).length} / {roster.length} present</span>
+                <span className="text-sm text-shade/50">{roster.filter((r) => r.present).length} / {roster.length} present</span>
               </div>
               <div className="space-y-2">
                 {roster.map((r) => (
-                  <div key={r.registrationId} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-2">
+                  <div key={r.registrationId} className="flex items-center justify-between bg-shade/5 rounded-lg px-4 py-2">
                     <div>
                       <p className="text-sm font-medium">{r.name} {r.teamName ? `(${r.teamName})` : ""}</p>
-                      <p className="text-xs text-white/50">{r.registrationCode} · {r.college}</p>
+                      <p className="text-xs text-shade/50">{r.registrationCode} · {r.college}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge status={r.present ? "present" : "absent"} />
@@ -168,7 +168,7 @@ export default function CoordinatorPortal() {
                     {existingResults
                       .sort((a, b) => a.position - b.position)
                       .map((r) => (
-                        <div key={r.id} className="bg-white/5 rounded-lg px-4 py-2 text-sm">
+                        <div key={r.id} className="bg-shade/5 rounded-lg px-4 py-2 text-sm">
                           #{r.position} — {roster.find((p) => p.registrationId === r.registrationId)?.name || r.registrationId}
                         </div>
                       ))}
@@ -178,7 +178,7 @@ export default function CoordinatorPortal() {
                 <div className="space-y-4">
                   {[1, 2, 3].map((pos) => (
                     <div key={pos}>
-                      <label className="block text-sm text-white/70 mb-1">
+                      <label className="block text-sm text-shade/70 mb-1">
                         {pos === 1 ? "🥇 1st Place" : pos === 2 ? "🥈 2nd Place" : "🥉 3rd Place"}
                       </label>
                       <Select

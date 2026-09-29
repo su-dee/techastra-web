@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Public pages worth indexing. Staff portals, the dashboard and checkout
 // are private and disallowed in robots.txt.
 const PUBLIC_ROUTES = ["/", "/events", "/register", "/status", "/verify-certificate", "/privacy", "/terms"];
-const PRIVATE_ROUTES = ["/admin", "/dashboard", "/coordinator", "/registration-team", "/hospitality", "/certificates", "/volunteer", "/checkout", "/cart", "/register/form"];
+const PRIVATE_ROUTES = ["/admin", "/dashboard", "/coordinator", "/registration-team", "/hospitality", "/certificates", "/checkout", "/cart", "/register/form"];
 // Security contact for .well-known/security.txt (RFC 9116). PLACEHOLDER -
 // keep in sync with LEGAL.contactEmail in src/lib/site.js.
 const SECURITY_CONTACT = "mailto:techastra@drmgrdu.ac.in";

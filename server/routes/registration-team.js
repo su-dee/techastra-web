@@ -1,5 +1,5 @@
 const express = require("express");
-const XLSX = require("xlsx");
+const ExcelJS = require("exceljs");
 const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { exportLimiter } = require("../middleware/rateLimiter");
@@ -97,36 +97,31 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
       };
     });
 
-    // Create workbook and worksheet
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-
-    // Set column widths for better readability
-    const columnWidths = [
-      { wch: 20 }, // Name
-      { wch: 30 }, // Email
-      { wch: 15 }, // Phone
-      { wch: 40 }, // College
-      { wch: 15 }, // Register No
-      { wch: 25 }, // Team Name
-      { wch: 50 }, // Team Members
-      { wch: 40 }, // Events
-      { wch: 12 }, // Status
-      { wch: 20 }, // Transaction ID
-      { wch: 12 }, // Total Amount
-      { wch: 20 }, // Registration Date
-      { wch: 20 }, // Registration Code
-    ];
-    worksheet["!cols"] = columnWidths;
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Participants");
+    // Create workbook and worksheet, with column widths for readability
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Participants");
+    const widths = {
+      Name: 20,
+      Email: 30,
+      Phone: 15,
+      College: 40,
+      "Register No": 15,
+      "Team Name": 25,
+      "Team Members": 50,
+      Events: 40,
+      Status: 12,
+      "Transaction ID": 20,
+      "Total Amount": 12,
+      "Registration Date": 20,
+      "Registration Code": 20,
+    };
+    const headers = rows.length ? Object.keys(rows[0]) : Object.keys(widths);
+    worksheet.columns = headers.map((key) => ({ header: key, key, width: widths[key] || 20 }));
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.addRows(rows);
 
     // Generate Excel file buffer
-    const excelBuffer = XLSX.write(workbook, {
-      type: "buffer",
-      bookType: "xlsx",
-    });
+    const excelBuffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
     // Set response headers for file download
     const filename = `${event.name.replace(/[^a-z0-9]/gi, "-")}-participants-${Date.now()}.xlsx`;

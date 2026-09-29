@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { upload, uploadDir } = require("../middleware/upload");
-const { registrationIpLimiter, registrationEmailLimiter, exportLimiter } = require("../middleware/rateLimiter");
+const { registrationIpLimiter, registrationEmailLimiter, exportLimiter, statusLimiter } = require("../middleware/rateLimiter");
 const { logIDORAttempt, logSuspiciousActivity } = require("../middleware/securityLogger");
 const { generateRegistrationCode } = require("../utils/codes");
 const { sendMail } = require("../utils/mailer");
@@ -12,6 +12,55 @@ const fs = require("fs");
 const path = require("path");
 
 const router = express.Router();
+
+/** Audit fields for a status change made by the signed-in staff member. */
+const reviewedBy = (req) => ({ reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() });
+
+// Symposium days, as shown on the website ("October 8, 2026 (Day 1)").
+const DAY_NUMBER = { "2026-10-08": 1, "2026-10-09": 2 };
+const IST = "Asia/Kolkata";
+
+function formatEventLine(ev) {
+  const start = new Date(ev.startTime);
+  const ymd = start.toLocaleDateString("en-CA", { timeZone: IST });
+  const date = start.toLocaleDateString("en-US", { timeZone: IST, month: "long", day: "numeric", year: "numeric" });
+  const time = (d) => new Date(d).toLocaleTimeString("en-US", { timeZone: IST, hour: "numeric", minute: "2-digit" });
+  const day = DAY_NUMBER[ymd] ? ` (Day ${DAY_NUMBER[ymd]})` : "";
+  const venue = ev.venue ? `, ${ev.venue}` : "";
+  const endYmd = new Date(ev.endTime).toLocaleDateString("en-CA", { timeZone: IST });
+  if (endYmd !== ymd && DAY_NUMBER[ymd] && DAY_NUMBER[endYmd]) {
+    // Runs across both days (Hack Nexus).
+    return `- ${ev.name}: October 8-9, 2026 (Day 1-2), ${time(ev.startTime)} (Day ${DAY_NUMBER[ymd]}) - ${time(ev.endTime)} (Day ${DAY_NUMBER[endYmd]})${venue}`;
+  }
+  return `- ${ev.name}: ${date}${day}, ${time(ev.startTime)} - ${time(ev.endTime)}${venue}`;
+}
+
+/** The approval email - the only email the portal sends automatically. */
+async function sendApprovalEmail(registration) {
+  const events = await prisma.event.findMany({
+    where: { id: { in: registration.eventIds } },
+    orderBy: { startTime: "asc" },
+  });
+  const lines = [
+    `Hi ${registration.user.name},`,
+    "",
+    `Your Techastra '26 registration (${registration.registrationCode}) has been approved. See you there!`,
+    "",
+    "Your events:",
+    ...events.map(formatEventLine),
+    "",
+    "Log in to the Techastra '26 portal to see your digital ID card, and bring it (on your phone or printed) along with your college/school ID on the day.",
+    "",
+    "For any queries, reply to this email.",
+    "",
+    "- Techastra '26 Team",
+  ];
+  return sendMail({
+    to: registration.user.email,
+    subject: `Techastra '26 registration approved - ${registration.registrationCode}`,
+    text: lines.join("\n"),
+  });
+}
 
 /** Returns true if two [start,end) time ranges overlap. */
 function rangesOverlap(aStart, aEnd, bStart, bEnd) {
@@ -27,7 +76,7 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
  *    Junior Techastra (participants are under 18 - DPDP Act 2023, s.9)
  *  - all events are the same level (senior or junior), no time clashes
  *  - team sizes for team events
- *  - the UPI transaction ID hasn't been used by another registration
+ *  - paid registrations: a UPI transaction ID not used before, and a payment screenshot
  *  - the amount due, including combo pass prices (never trusted from the client)
  *  - seats, reserved atomically so two people can't take the last seat
  */
@@ -49,12 +98,6 @@ router.post(
       const existingUser = await prisma.user.findUnique({ where: { email: value.email } });
       if (existingUser) {
         return reject(409, "An account with this email already exists. Check your status or sign in instead.");
-      }
-
-      const usedTxn = await prisma.registration.findUnique({ where: { transactionId: value.transactionId } });
-      if (usedTxn) {
-        logSuspiciousActivity(req, "Reused UPI transaction ID", { transactionId: value.transactionId });
-        return reject(409, "This UPI transaction ID has already been used for another registration.");
       }
 
       const events = await prisma.event.findMany({ where: { id: { in: value.eventIds } } });
@@ -81,23 +124,45 @@ router.post(
         }
       }
 
-      const teamSize = value.teamMembers ? value.teamMembers.length : 1;
-      const teamError = checkTeamSizes(events, teamSize);
-      if (teamError) return reject(400, teamError);
-
       const combos = value.comboIds.length
         ? await prisma.comboPass.findMany({ where: { id: { in: value.comboIds }, isActive: true } })
         : [];
       if (combos.length !== value.comboIds.length) {
         return reject(400, "A selected combo pass is no longer available.");
       }
+      // Also checks each combo's events are all in the registration.
       const totalAmount = computeTotal(events, combos);
+
+      const teamSize = value.teamMembers ? value.teamMembers.length : 1;
+      const teamError = checkTeamSizes(events, teamSize, combos);
+      if (teamError) return reject(400, teamError);
+
+      // Free registrations (Junior Techastra) only collect the student's
+      // details: no payment to verify, so they're approved straight away.
+      const free = totalAmount === 0;
+      if (free) {
+        value.transactionId = null;
+        cleanupUpload();
+      } else {
+        if (!value.transactionId) {
+          return reject(400, "Enter the UPI transaction ID (UTR) from your payment app - the 12-digit reference number.");
+        }
+        // The registration desk checks every payment against this screenshot.
+        if (!req.file) {
+          return reject(400, "Upload a screenshot of your UPI payment's success screen.");
+        }
+        const usedTxn = await prisma.registration.findUnique({ where: { transactionId: value.transactionId } });
+        if (usedTxn) {
+          logSuspiciousActivity(req, "Reused UPI transaction ID", { transactionId: value.transactionId });
+          return reject(409, "This UPI transaction ID has already been used for another registration.");
+        }
+      }
 
       const passwordHash = await bcrypt.hash(value.password, 10);
       const registrationCode = await generateRegistrationCode(prisma);
       // Payment screenshots are personal data: kept out of the public static
       // folder and served only to staff (GET /api/registrations/:id/proof).
-      const paymentProofUrl = req.file ? req.file.filename : null;
+      const paymentProofUrl = !free && req.file ? req.file.filename : null;
 
       const result = await prisma.$transaction(async (tx) => {
         // Reserve seats atomically: the conditional UPDATE only succeeds while
@@ -134,18 +199,14 @@ router.post(
             totalAmount,
             transactionId: value.transactionId,
             paymentProofUrl,
-            paymentMethod: "upi",
-            status: "pending",
+            paymentMethod: free ? "free" : "upi",
+            status: free ? "approved" : "pending",
+            // Free registrations have no payment to check, so they are approved automatically.
+            ...(free ? { reviewedByName: "Automatic (free registration)", reviewedAt: new Date() } : {}),
             consentAt: new Date(),
             guardianConsent: value.guardianConsent,
           },
         });
-      });
-
-      await sendMail({
-        to: value.email,
-        subject: `Techastra '26 registration received - ${registrationCode}`,
-        text: `Hi ${value.name},\n\nWe received your registration (${registrationCode}) for ${events.length} event(s), totalling Rs. ${totalAmount}, with UPI transaction ID ${value.transactionId}. Our Registration Team will verify your payment shortly. You can track your status anytime on the Status page using your email or registration code.\n\n- Techastra '26 Team`,
       });
 
       res.status(201).json({
@@ -156,6 +217,14 @@ router.post(
           totalAmount: result.totalAmount,
         },
       });
+
+      // Free registrations are approved on the spot, so they get the approval
+      // email now (paid ones get it when the desk approves the payment).
+      if (free) {
+        sendApprovalEmail({ ...result, user: { name: value.name, email: value.email } }).catch((err) =>
+          console.warn("Approval email error:", err.message)
+        );
+      }
     } catch (err) {
       cleanupUpload();
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -189,22 +258,27 @@ router.get("/:id/proof", requireAuth, requireRole("registration_team", "master_a
   }
 });
 
-/** GET /api/registrations/status?code=...&email=... - public status check. */
-router.get("/status", async (req, res) => {
+/**
+ * GET /api/registrations/status?code=...&email=... - public status check.
+ * Needs BOTH the registration code and the email it was made with, so an
+ * email alone can't reveal whether someone registered (and codes, which are
+ * sequential, can't be browsed without the matching email).
+ */
+router.get("/status", statusLimiter, async (req, res) => {
   try {
-    const { code, email } = req.query;
-    if (!code && !email) {
-      return res.status(400).json({ error: "Provide a registration code or email" });
+    const code = String(req.query.code || "").trim().toUpperCase();
+    const email = String(req.query.email || "").trim().toLowerCase();
+    if (!code || !email) {
+      return res.status(400).json({ error: "Enter both your registration code and the email you registered with" });
     }
 
     const registration = await prisma.registration.findFirst({
-      where: code
-        ? { registrationCode: code }
-        : { user: { email: String(email).toLowerCase().trim() } },
-      include: { user: true },
+      where: { registrationCode: code, user: { email } },
     });
 
-    if (!registration) return res.status(404).json({ error: "Registration not found" });
+    if (!registration) {
+      return res.status(404).json({ error: "No registration matches that code and email" });
+    }
 
     res.json({
       registrationCode: registration.registrationCode,
@@ -314,17 +388,15 @@ router.patch(
     try {
       const registration = await prisma.registration.update({
         where: { id: req.params.id },
-        data: { status: "approved", rejectionReason: null },
+        data: { status: "approved", rejectionReason: null, ...reviewedBy(req) },
         include: { user: true },
       });
 
-      await sendMail({
-        to: registration.user.email,
-        subject: `TechAstra Registration Approved - ${registration.registrationCode}`,
-        text: `Hi ${registration.user.name},\n\nGreat news! Your registration (${registration.registrationCode}) has been approved. You can now log in to your dashboard to view your digital ID card.\n\n- TechAstra Team`,
-      });
-
       res.json({ registration });
+
+      // The only automatic email: sent after responding, so the desk never
+      // waits on (or fails because of) mail. sendMail never throws.
+      sendApprovalEmail(registration).catch((err) => console.warn("Approval email error:", err.message));
     } catch (err) {
       console.error("Approve error:", err);
       res.status(500).json({ error: "Failed to approve registration" });
@@ -342,14 +414,8 @@ router.patch(
       const { reason } = req.body;
       const registration = await prisma.registration.update({
         where: { id: req.params.id },
-        data: { status: "rejected", rejectionReason: reason || "Payment could not be verified" },
+        data: { status: "rejected", rejectionReason: reason || "Payment could not be verified", ...reviewedBy(req) },
         include: { user: true },
-      });
-
-      await sendMail({
-        to: registration.user.email,
-        subject: `TechAstra Registration Update - ${registration.registrationCode}`,
-        text: `Hi ${registration.user.name},\n\nUnfortunately your registration (${registration.registrationCode}) was rejected.\nReason: ${registration.rejectionReason}\n\nPlease contact the Registration Team desk or reply to this email if you believe this is a mistake.\n\n- TechAstra Team`,
       });
 
       res.json({ registration });
@@ -360,12 +426,29 @@ router.patch(
   }
 );
 
-/** PATCH /api/registrations/:id/override - master_admin only: force any field/status. */
+/**
+ * PATCH /api/registrations/:id/override - master_admin only: correct a
+ * registration's status or details. Only the fields below can change (no
+ * mass assignment of amounts, payment IDs, owner or audit fields), and the
+ * change is recorded as reviewed by this admin.
+ */
+const OVERRIDE_STATUSES = ["pending", "approved", "rejected"];
 router.patch("/:id/override", requireAuth, requireRole("master_admin"), async (req, res) => {
   try {
-    const data = { ...req.body };
-    delete data.id;
-    delete data.userId;
+    const { status, rejectionReason, teamName, collegeName } = req.body || {};
+    const data = {};
+    if (status !== undefined) {
+      if (!OVERRIDE_STATUSES.includes(status)) {
+        return res.status(400).json({ error: `status must be one of ${OVERRIDE_STATUSES.join(", ")}` });
+      }
+      data.status = status;
+      Object.assign(data, reviewedBy(req));
+      if (status !== "rejected") data.rejectionReason = null;
+    }
+    if (typeof rejectionReason === "string") data.rejectionReason = rejectionReason.trim().slice(0, 300) || null;
+    if (typeof teamName === "string") data.teamName = teamName.trim().slice(0, 80) || null;
+    if (typeof collegeName === "string") data.collegeName = collegeName.trim().slice(0, 150) || null;
+    if (!Object.keys(data).length) return res.status(400).json({ error: "Nothing to update" });
     const registration = await prisma.registration.update({ where: { id: req.params.id }, data });
     res.json({ registration });
   } catch (err) {

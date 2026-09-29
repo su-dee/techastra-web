@@ -34,7 +34,7 @@ export default function SlidePanel({ open, onClose, title, eyebrow, children, ba
         onClick={onClose}
         data-log="slide-panel-backdrop-dismiss"
       />
-      <div ref={panelRef} className="relative w-full sm:w-[480px] h-full overflow-y-auto border-l border-white/10 shadow-panel animate-panel-slide-in bg-[radial-gradient(120%_60%_at_100%_0%,rgba(176,140,58,0.18)_0%,rgba(56,52,45,0)_60%),#38342d]">
+      <div ref={panelRef} className="relative w-full sm:w-[480px] h-full overflow-y-auto border-l border-shade/10 shadow-panel animate-panel-slide-in bg-[radial-gradient(120%_60%_at_100%_0%,rgba(176,140,58,0.18)_0%,rgba(56,52,45,0)_60%),#38342d]">
         <div className="px-6 sm:px-9 py-8">
           <button onClick={onClose} className="link-cta mb-8" data-log="slide-panel-back">
             <span aria-hidden="true">&larr;</span>

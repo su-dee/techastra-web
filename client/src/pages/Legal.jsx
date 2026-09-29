@@ -15,7 +15,6 @@ function LegalPage({ kicker, title, children }) {
       <header className="page-head !text-left !mb-10">
         <div className="kicker">{kicker}</div>
         <h1 className="h2">{title}</h1>
-        <p className="lead !mx-0">Last updated {LEGAL.lastUpdated}</p>
       </header>
       {children}
     </article>
@@ -136,7 +135,7 @@ export function Terms() {
       )}
       <ul>
         <li>Registration fees are non-refundable.</li>
-        <li>If the organisers cancel an event, the fee for that event is refunded in full.</li>
+        <li>If the organisers cancel an event, the fee for that event is partially refunded.</li>
         <li>For any queries, write to <Mail />.</li>
       </ul>
 

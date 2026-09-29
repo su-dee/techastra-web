@@ -4,8 +4,12 @@ const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { exportLimiter } = require("../middleware/rateLimiter");
 const { toCsv } = require("../utils/csv");
+const { logSecurityEvent } = require("../middleware/securityLogger");
 
 const router = express.Router();
+
+// Staff roles an admin can create or assign (participants sign up via registration).
+const STAFF_ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "master_admin"];
 
 // Every route below is master_admin only.
 router.use(requireAuth, requireRole("master_admin"));
@@ -128,10 +132,9 @@ router.get("/accounts", async (req, res) => {
 /** POST /api/admin/accounts - create a login for any staff role. */
 router.post("/accounts", async (req, res) => {
   try {
-    const { name, email, password, role, assignedEventId, dutyDesk, dutyTiming, dutyRole } = req.body;
-    const validRoles = ["registration_team", "coordinator", "hospitality", "certificate_team", "volunteer", "master_admin"];
-    if (!name || !email || !password || !validRoles.includes(role)) {
-      return res.status(400).json({ error: `role must be one of ${validRoles.join(", ")}` });
+    const { name, email, password, role, assignedEventId } = req.body;
+    if (!name || !email || !password || !STAFF_ROLES.includes(role)) {
+      return res.status(400).json({ error: `role must be one of ${STAFF_ROLES.join(", ")}` });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -142,12 +145,10 @@ router.post("/accounts", async (req, res) => {
         passwordHash,
         role,
         assignedEventId: role === "coordinator" ? assignedEventId || null : null,
-        dutyDesk: role === "volunteer" ? dutyDesk || null : null,
-        dutyTiming: role === "volunteer" ? dutyTiming || null : null,
-        dutyRole: role === "volunteer" ? dutyRole || null : null,
       },
     });
     const { passwordHash: _, ...safeUser } = user;
+    if (role === "master_admin") logSecurityEvent("MASTER_ADMIN_CREATED", { by: req.user.id, email: user.email });
     res.status(201).json({ user: safeUser });
   } catch (err) {
     console.error("Create account error:", err);
@@ -158,12 +159,39 @@ router.post("/accounts", async (req, res) => {
 /** PUT /api/admin/accounts/:id - edit a staff login. */
 router.put("/accounts/:id", async (req, res) => {
   try {
-    const data = { ...req.body };
-    delete data.id;
-    if (data.password) {
-      data.passwordHash = await bcrypt.hash(data.password, 10);
-      delete data.password;
+    // Only these fields may change (no mass assignment of role/passwordHash etc.).
+    const { name, email, password, role, assignedEventId } = req.body || {};
+    const data = {};
+    if (typeof name === "string" && name.trim()) data.name = name.trim();
+    if (typeof email === "string" && email.trim()) data.email = email.toLowerCase().trim();
+    const target = await prisma.user.findUnique({ where: { id: req.params.id }, select: { role: true } });
+    if (!target) return res.status(404).json({ error: "Account not found" });
+    if (target.role === "participant") {
+      return res.status(400).json({ error: "Participant accounts are managed through their registration." });
     }
+    if (role !== undefined) {
+      if (!STAFF_ROLES.includes(role)) {
+        return res.status(400).json({ error: `role must be one of ${STAFF_ROLES.join(", ")}` });
+      }
+      // Lockout protection: nobody removes their own admin rights, and the
+      // last master admin can't be demoted.
+      if (target.role === "master_admin" && role !== "master_admin") {
+        if (req.params.id === req.user.id) {
+          return res.status(400).json({ error: "You can't remove your own admin role." });
+        }
+        if ((await prisma.user.count({ where: { role: "master_admin" } })) <= 1) {
+          return res.status(400).json({ error: "This is the last master admin account - it can't be demoted." });
+        }
+      }
+      data.role = role;
+    }
+    // Only coordinators have an assigned event.
+    if (role !== undefined || assignedEventId !== undefined) {
+      const finalRole = role ?? target.role;
+      if (finalRole !== "coordinator") data.assignedEventId = null;
+      else if (assignedEventId !== undefined) data.assignedEventId = assignedEventId || null;
+    }
+    if (typeof password === "string" && password) data.passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.update({ where: { id: req.params.id }, data });
     const { passwordHash, ...safeUser } = user;
     res.json({ user: safeUser });
@@ -176,7 +204,19 @@ router.put("/accounts/:id", async (req, res) => {
 /** DELETE /api/admin/accounts/:id */
 router.delete("/accounts/:id", async (req, res) => {
   try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ error: "You can't delete your own account." });
+    }
+    const target = await prisma.user.findUnique({ where: { id: req.params.id }, select: { role: true, email: true } });
+    if (!target) return res.status(404).json({ error: "Account not found" });
+    if (target.role === "participant") {
+      return res.status(400).json({ error: "Participant accounts are managed through their registration." });
+    }
+    if (target.role === "master_admin" && (await prisma.user.count({ where: { role: "master_admin" } })) <= 1) {
+      return res.status(400).json({ error: "This is the last master admin account - create another one before deleting it." });
+    }
     await prisma.user.delete({ where: { id: req.params.id } });
+    logSecurityEvent("STAFF_ACCOUNT_DELETED", { by: req.user.id, email: target.email, role: target.role });
     res.json({ success: true });
   } catch (err) {
     console.error("Delete account error:", err);
@@ -211,6 +251,8 @@ router.get("/export/registrations.csv", exportLimiter, async (req, res) => {
       { label: "Total Amount", value: "totalAmount" },
       { label: "Transaction ID", value: "transactionId" },
       { label: "Status", value: "status" },
+      { label: "Reviewed By", value: (r) => r.reviewedByName || "" },
+      { label: "Reviewed At", value: (r) => (r.reviewedAt ? r.reviewedAt.toISOString() : "") },
       { label: "Created At", value: (r) => r.createdAt.toISOString() },
     ]);
     res.setHeader("Content-Type", "text/csv");
@@ -227,7 +269,7 @@ router.patch("/registrations/:id/waitlist-promote", async (req, res) => {
   try {
     const registration = await prisma.registration.update({
       where: { id: req.params.id },
-      data: { status: "approved" },
+      data: { status: "approved", reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() },
     });
     res.json({ registration });
   } catch (err) {
@@ -241,7 +283,7 @@ router.post("/registrations/:id/refund", async (req, res) => {
   try {
     const registration = await prisma.registration.update({
       where: { id: req.params.id },
-      data: { status: "rejected", rejectionReason: "Cancelled/refunded by admin" },
+      data: { status: "rejected", rejectionReason: "Cancelled/refunded by admin", reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() },
     });
     res.json({ registration });
   } catch (err) {

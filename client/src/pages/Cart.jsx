@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import Button from "../components/ui/Button";
 import Stepper from "../components/ui/Stepper";
 import { useCart } from "../context/CartContext";
-import { formatDay, formatTimeRange, kickerFor } from "../components/EventInfo";
+import { formatDay, formatFee, formatTimeRange, kickerFor } from "../components/EventInfo";
 import { plural } from "../lib/a11y";
 
 export default function Cart() {
@@ -31,7 +31,7 @@ export default function Cart() {
         </div>
       ) : (
         <>
-          <ul className="card divide-y divide-[rgba(255,255,255,0.08)] mb-8">
+          <ul className="card divide-y divide-shade/10 mb-8">
             {items.map((item) => (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
                 <div className="min-w-0">
@@ -43,7 +43,7 @@ export default function Cart() {
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  {!item.isComboItem && <span className="text-[17px] text-amber-light tabular-nums">₹{item.fee}</span>}
+                  {!item.isComboItem && <span className="text-[17px] text-amber-light tabular-nums">{formatFee(item.fee)}</span>}
                   <button
                     type="button"
                     className="btn-ghost-sm"
@@ -60,7 +60,7 @@ export default function Cart() {
 
           <div className="flex items-baseline justify-between mb-8 px-1">
             <span className="mono-label">Total</span>
-            <span className="text-[30px] text-heading tabular-nums">₹{total}</span>
+            <span className="text-[30px] text-heading tabular-nums">{formatFee(total)}</span>
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-3">

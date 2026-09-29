@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import Modal from "./ui/Modal";
 import EventArt from "./EventArt";
-import EventInfo, { formatDay, formatTimeRange, kickerFor, teamLabel } from "./EventInfo";
+import EventInfo, { formatDay, formatFee, formatTimeRange, kickerFor, teamLabel } from "./EventInfo";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, levelOf } from "../lib/site";
@@ -174,7 +174,7 @@ export function EventCard({ event, inCart, onOpen, onToggle }) {
       <div className="ev__stats">
         <div>
           <span className="mono-label">Fee</span>
-          <div>₹{event.fee}</div>
+          <div>{formatFee(event.fee)}</div>
         </div>
         <div>
           <span className="mono-label">Participation</span>
@@ -271,7 +271,7 @@ export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavi
             )}
             <div className="modal__bar-row">
               <div className="modal__bar-info">
-                <span className="text-amber-light tabular-nums">₹{event.fee}</span> · {teamLabel(event)}
+                <span className="text-amber-light tabular-nums">{formatFee(event.fee)}</span> · {teamLabel(event)}
               </div>
               {inCart ? (
                 <div className="modal__bar-actions">

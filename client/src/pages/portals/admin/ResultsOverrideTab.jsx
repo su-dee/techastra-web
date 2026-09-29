@@ -68,7 +68,7 @@ export default function ResultsOverrideTab() {
           <div className="space-y-4">
             {[1, 2, 3].map((pos) => (
               <div key={pos}>
-                <label className="block text-sm text-white/70 mb-1">
+                <label className="block text-sm text-shade/70 mb-1">
                   {pos === 1 ? "🥇 1st" : pos === 2 ? "🥈 2nd" : "🥉 3rd"} Place
                 </label>
                 <Select value={winners[pos]} onChange={(e) => setWinners((w) => ({ ...w, [pos]: e.target.value }))}>

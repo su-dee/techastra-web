@@ -35,7 +35,7 @@ export default function HospitalityPortal() {
       <h1 className="font-heading text-3xl font-bold mb-6">Hospitality Portal</h1>
 
       <Card className="mb-6">
-        <label className="block text-sm text-white/70 mb-2">Meal Session</label>
+        <label className="block text-sm text-shade/70 mb-2">Meal Session</label>
         <Select aria-label="Meal session" value={mealSession} onChange={(e) => setMealSession(e.target.value)} className="max-w-xs mb-4">
           {SESSIONS.map((s) => (
             <option key={s} value={s} className="capitalize">{s}</option>
@@ -47,13 +47,13 @@ export default function HospitalityPortal() {
       <Card>
         <h2 className="font-semibold mb-3 capitalize">{mealSession} — Collected ({logs.length})</h2>
         {logs.length === 0 ? (
-          <p className="text-white/50 text-sm">No collections logged yet for this session.</p>
+          <p className="text-shade/50 text-sm">No collections logged yet for this session.</p>
         ) : (
           <div className="space-y-2">
             {logs.map((l) => (
-              <div key={l.id} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-2 text-sm">
+              <div key={l.id} className="flex items-center justify-between bg-shade/5 rounded-lg px-4 py-2 text-sm">
                 <span>Registration: {l.registrationId}</span>
-                <span className="text-white/50">{new Date(l.collectedAt).toLocaleTimeString()}</span>
+                <span className="text-shade/50">{new Date(l.collectedAt).toLocaleTimeString()}</span>
               </div>
             ))}
           </div>

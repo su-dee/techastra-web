@@ -4,14 +4,14 @@ import React from "react";
 // action, hairline-bordered ghost buttons for everything secondary.
 const VARIANTS = {
   primary:
-    "bg-grad-btn text-[#2c2823] font-semibold border border-white/15 shadow-amber-sm hover:brightness-110 rounded-[7px]",
+    "bg-grad-btn text-[#2c2823] font-semibold border border-shade/15 shadow-amber-sm hover:brightness-110 rounded-[7px]",
   secondary:
     "bg-steel-dim/40 text-heading border border-steel/40 hover:bg-steel-dim/60 hover:border-steel/70 rounded-[7px]",
   outline:
-    "bg-transparent text-[#e0dacd] border border-white/15 hover:border-amber/55 hover:text-white rounded-[7px]",
+    "bg-transparent text-[color:var(--c-e0dacd)] border border-shade/15 hover:border-amber/55 hover:text-heading rounded-[7px]",
   danger:
     "bg-danger/15 text-danger border border-danger/40 hover:bg-danger/25 rounded-[7px]",
-  ghost: "bg-transparent text-[#e0dacd] hover:bg-white/5 hover:text-white rounded-[7px]",
+  ghost: "bg-transparent text-[color:var(--c-e0dacd)] hover:bg-shade/5 hover:text-heading rounded-[7px]",
   link: "link-cta !p-0",
 };
 

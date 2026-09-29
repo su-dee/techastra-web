@@ -1,16 +1,34 @@
 import React from "react";
 import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/site";
 
+// Symposium day the event ends on (Hack Nexus runs from Day 1 into Day 2).
+function endDayOf(event) {
+  const date = new Date(event.endTime).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  return DAYS.find((d) => d.date === date)?.id ?? null;
+}
+
+function isMultiDay(event) {
+  const end = endDayOf(event);
+  return end != null && end !== dayOf(event);
+}
+
 export function formatDay(event) {
   const day = dayOf(event);
   const known = DAYS.find((d) => d.id === day);
-  if (known) return known.label; // "Day 1 · October 8, 2026"
+  if (known && isMultiDay(event)) return "October 8–9, 2026 (Day 1–2)";
+  if (known) return known.label; // "October 8, 2026 (Day 1)"
   return new Date(event.startTime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 export function formatTimeRange(event) {
-  const t = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const t = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  if (isMultiDay(event)) return `${t(event.startTime)} (Day ${dayOf(event)}) – ${t(event.endTime)} (Day ${endDayOf(event)})`;
   return `${t(event.startTime)} – ${t(event.endTime)}`;
+}
+
+// Junior events are free (registration only collects the student's details).
+export function formatFee(amount) {
+  return amount > 0 ? `₹${amount}` : "Free";
 }
 
 export function teamLabel(event) {
@@ -53,7 +71,7 @@ export default function EventInfo({ event }) {
     ["Time", formatTimeRange(event)],
     ["Venue", event.venue],
     ["Format", teamLabel(event)],
-    ["Fee", `₹${event.fee}`],
+    ["Fee", formatFee(event.fee)],
   ];
 
   return (

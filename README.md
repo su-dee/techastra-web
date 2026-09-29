@@ -23,7 +23,7 @@ certificates.
 - **Real-time:** Socket.io (announcements, live leaderboard), falls back to polling
 - **Uploads:** Multer (payment screenshots) stored under `server/uploads/`
 - **Charts:** Recharts
-- **Email:** Nodemailer (Gmail SMTP) — logs to console instead of sending if unconfigured
+- **Email:** one automatic email (on approval), sent by `php-mailer/send.php` with PHP `mail()` on the website host — no SMTP account; logs to console if unconfigured
 
 ## Repository Layout
 
@@ -92,14 +92,14 @@ See `server/.env.example` and `client/.env.example` for the full list. Key ones:
 | `DATABASE_URL` | server | Postgres connection string |
 | `JWT_SECRET` | server | Signs auth tokens — use a long random string |
 | `UPI_PAYEE_ID` / `UPI_PAYEE_NAME` | server | Used to build the UPI deep-link QR on Checkout |
-| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | server | Optional — leave blank to log emails to console instead of sending |
+| `MAIL_ENDPOINT_URL` / `MAIL_ENDPOINT_SECRET` | server | Optional — the PHP mailer URL and shared secret; leave blank to log emails to console |
 | `CLIENT_ORIGIN` | server | CORS + Socket.io allowed origin (your frontend URL) |
 | `VITE_API_URL` | client | Base URL the frontend calls for the API |
 
 ## Seeded Logins
 
 Every role (master admin, registration team, coordinators, hospitality,
-certificate team, volunteers) has a demo login. **Full list, including
+certificate team) has a demo login. **Full list, including
 sample participant accounts, is in [`SEED_CREDENTIALS.md`](./SEED_CREDENTIALS.md).**
 
 All seeded accounts share the password `TechAstra@2026` — change this before
@@ -220,7 +220,7 @@ Or download via your organization's proxy/mirror if applicable.
   implemented — the scanner components currently require connectivity.
 - Bulk CSV registration upload, coupon codes, and the big-screen leaderboard
   display mode are listed as nice-to-haves and are not yet built.
-- Email sending requires real SMTP credentials in `.env`; without them the
-  server logs the email content to the console instead (safe default for
-  local development).
+- Email sending requires the PHP mailer (`php-mailer/`) deployed on the
+  website host and `MAIL_ENDPOINT_*` set; without them the server logs the
+  email content to the console instead.
 - **Razorpay package installation:** The `razorpay` npm package must be installed manually before deployment (`npm install razorpay` in `server/`). Payment routes will return 503 until this package is available.

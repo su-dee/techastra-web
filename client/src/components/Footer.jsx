@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import logo from "../assets/logo-sm.webp";
-import { INSTITUTE, DEPARTMENTS, EDITION, ADDRESS, PHONE, SOCIALS } from "../lib/site";
+import { INSTITUTE, EDITION, ADDRESS, PHONE, SOCIALS } from "../lib/site";
 
 // Mirrors the main site's footer (techastra-web Footer.jsx), with the
 // portal's own utility links in place of the page anchors.
@@ -12,7 +12,9 @@ export default function Footer() {
         <div>
           <img className="footer__logo" src={logo} alt="Techastra ’26" />
           <p className="footer__inst">{INSTITUTE}</p>
-          <p>Departments of {DEPARTMENTS}</p>
+          <p className="footer__depts">
+            Department of Computer Science and Engineering &amp; Department of Cyber Security
+          </p>
         </div>
         <div>
           <div className="mono-label">Portal</div>

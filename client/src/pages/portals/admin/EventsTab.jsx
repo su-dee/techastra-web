@@ -88,7 +88,7 @@ export default function EventsTab() {
           <Card key={ev.id} className="flex items-center justify-between">
             <div>
               <p className="font-semibold">{ev.name}</p>
-              <p className="text-sm text-white/60">
+              <p className="text-sm text-shade/60">
                 {ev.level === "junior" ? "Junior" : "Senior"} · {ev.category === "non_technical" ? "Non-Technical" : "Technical"} · ₹{ev.fee} · {ev.seatsTaken}/{ev.maxSeats} seats · {new Date(ev.startTime).toLocaleString()}
               </p>
             </div>
@@ -156,7 +156,7 @@ export default function EventsTab() {
               <Input id="maxSeats" type="number" required value={form.maxSeats} onChange={(e) => update("maxSeats", e.target.value)} />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm text-white/70">
+          <label className="flex items-center gap-2 text-sm text-shade/70">
             <input type="checkbox" checked={!!form.isTeamEvent} onChange={(e) => update("isTeamEvent", e.target.checked)} />
             Team Event
           </label>

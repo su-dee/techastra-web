@@ -16,6 +16,9 @@ const NAMES = {
   'oracle-academy': 'Oracle Academy',
   'red-hat': 'Red Hat',
   cisco: 'Cisco',
+  acm: 'ACM (Association for Computing Machinery)',
+  'advantage-pro': 'Advantage Pro by Vectra Technosoft',
+  'smb-hosting': 'SMB Hosting Solutions',
 }
 
 const PARTNERS = Object.entries(files)

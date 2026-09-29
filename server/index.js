@@ -26,7 +26,6 @@ const announcementRoutes = require("./routes/announcements");
 const feedbackRoutes = require("./routes/feedback");
 const helpRoutes = require("./routes/help");
 const adminRoutes = require("./routes/admin");
-const volunteerRoutes = require("./routes/volunteer");
 const upiRoutes = require("./routes/upi");
 const comboRoutes = require("./routes/combos");
 
@@ -116,7 +115,6 @@ app.use("/api/announcements", announcementRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/help", helpRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/volunteer", volunteerRoutes);
 app.use("/api/upi", upiRoutes);
 app.use("/api/combos", comboRoutes);
 

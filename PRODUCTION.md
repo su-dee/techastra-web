@@ -11,7 +11,7 @@ Deployment runbook and the standards this project is built to. The API runs on R
 | Approved refund policy | `client/src/pages/Legal.jsx` (Terms), then set `LEGAL.refundPolicyConfirmed = true` |
 | Final fees, times, seats, venues, team sizes | `server/prisma/eventData.js`, then re-run the seed |
 | Staff password for seeding | Render env `STAFF_PASSWORD` (12+ chars); each person changes it after first sign-in |
-| SMTP account for emails | Render env `SMTP_*`, `MAIL_FROM` |
+| Approval emails (PHP `mail()`, no SMTP) | Upload `php-mailer/` to the site and create `config.php` (see `php-mailer/README.md`), then set API env `MAIL_ENDPOINT_URL`, `MAIL_ENDPOINT_SECRET` |
 
 ## 2. Deploy
 

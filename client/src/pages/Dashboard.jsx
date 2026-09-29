@@ -102,7 +102,7 @@ export default function Dashboard() {
     e.preventDefault();
     if (!feedbackEventId) return toast.error("Select an event");
     try {
-      await api.post("/api/feedback", { eventId: feedbackEventId, userId: user.id, rating: Number(rating), comments });
+      await api.post("/api/feedback", { eventId: feedbackEventId, rating: Number(rating), comments });
       toast.success("Thanks for your feedback!");
       setComments("");
     } catch (err) {

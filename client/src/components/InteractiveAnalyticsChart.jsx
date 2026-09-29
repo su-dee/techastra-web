@@ -5,6 +5,7 @@ import { Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import Card from "./ui/Card";
 import Badge from "./ui/Badge";
 import { api } from "../lib/api";
+import { useThemeMode } from "../lib/theme";
 
 const EASE_CINEMATIC = [0.25, 0.1, 0.25, 1];
 
@@ -43,6 +44,8 @@ const chartConfig = {
   pending: { label: "Pending", color: "#F59E0B" },
   revenue: { label: "Revenue Collected", color: "#a7afb5" },
 };
+// Deeper shades for light mode, so numbers and lines read on white.
+const LIGHT_COLOR = { totalRegistrations: "#7d5f1a", approved: "#15803d", pending: "#b45309", revenue: "#4f5a63" };
 
 // Custom Tooltip
 const CustomTooltip = ({ active, payload, selectedMetric }) => {
@@ -52,11 +55,11 @@ const CustomTooltip = ({ active, payload, selectedMetric }) => {
     
     if (metric) {
       return (
-        <div className="bg-void/95 backdrop-blur-sm border border-white/10 rounded-sm p-3 shadow-xl">
+        <div className="bg-void/95 backdrop-blur-sm border border-shade/10 rounded-sm p-3 shadow-xl">
           <div className="flex items-center gap-2 text-sm">
             <div className="size-1.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
-            <span className="text-white/70">{metric.label}:</span>
-            <span className="font-semibold text-white">{metric.format(entry.value)}</span>
+            <span className="text-shade/70">{metric.label}:</span>
+            <span className="font-semibold text-heading">{metric.format(entry.value)}</span>
           </div>
         </div>
       );
@@ -67,6 +70,10 @@ const CustomTooltip = ({ active, payload, selectedMetric }) => {
 
 export default function InteractiveAnalyticsChart() {
   const [selectedMetric, setSelectedMetric] = useState("totalRegistrations");
+  const light = useThemeMode() === "light";
+  const colorOf = (key) => (light ? LIGHT_COLOR[key] : chartConfig[key]?.color);
+  // Axis/grid ink: white on dark, warm ink on light.
+  const ink = (a) => (light ? `rgba(43,36,27,${a})` : `rgba(255,255,255,${a})`);
   const [timeseriesData, setTimeseriesData] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -92,7 +99,7 @@ export default function InteractiveAnalyticsChart() {
     return (
       <Card className="mb-8">
         <div className="flex items-center justify-center h-96">
-          <p className="text-white/50">Loading analytics...</p>
+          <p className="text-shade/50">Loading analytics...</p>
         </div>
       </Card>
     );
@@ -102,7 +109,7 @@ export default function InteractiveAnalyticsChart() {
     return (
       <Card className="mb-8">
         <div className="flex items-center justify-center h-96">
-          <p className="text-white/50">No data available</p>
+          <p className="text-shade/50">No data available</p>
         </div>
       </Card>
     );
@@ -166,20 +173,20 @@ export default function InteractiveAnalyticsChart() {
     >
       <Card className="overflow-hidden">
         {/* Metrics Grid */}
-        <motion.div className="grid grid-cols-2 md:grid-cols-4 border-b border-white/5">
+        <motion.div className="grid grid-cols-2 md:grid-cols-4 border-b border-shade/5">
           {metricValues.map((metric, index) => (
             <motion.button
               key={metric.key}
               onClick={() => setSelectedMetric(metric.key)}
               variants={cardVariants}
               className={`
-                text-start p-4 border-b md:border-b-0 md:border-r border-white/5 last:border-r-0
-                transition-all duration-300 hover:bg-white/5
-                ${selectedMetric === metric.key ? "bg-white/5" : ""}
+                text-start p-4 border-b md:border-b-0 md:border-r border-shade/5 last:border-r-0
+                transition-all duration-300 hover:bg-shade/5
+                ${selectedMetric === metric.key ? "bg-shade/5" : ""}
               `}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-white/50 uppercase tracking-wider">
+                <span className="text-xs text-shade/50 uppercase tracking-wider">
                   {metric.label}
                 </span>
                 <Badge
@@ -196,11 +203,11 @@ export default function InteractiveAnalyticsChart() {
               </div>
               <div
                 className="text-2xl font-bold mb-1"
-                style={{ color: metric.color }}
+                style={{ color: colorOf(metric.key) }}
               >
                 {metric.format(metric.value)}
               </div>
-              <div className="text-[10px] text-white/40">
+              <div className="text-[10px] text-shade/40">
                 from {metric.format(metric.previousValue)}
               </div>
             </motion.button>
@@ -220,7 +227,7 @@ export default function InteractiveAnalyticsChart() {
                     dx="0"
                     dy="4"
                     stdDeviation="8"
-                    floodColor={chartConfig[selectedMetric]?.color}
+                    floodColor={colorOf(selectedMetric)}
                     floodOpacity="0.3"
                   />
                 </filter>
@@ -229,12 +236,12 @@ export default function InteractiveAnalyticsChart() {
                 </filter>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={ink(light ? 0.08 : 0.05)} />
               
               <XAxis
                 dataKey="date"
-                stroke="rgba(255,255,255,0.3)"
-                tick={{ fontSize: 11, fill: "rgba(255,255,255,0.5)" }}
+                stroke={ink(0.3)}
+                tick={{ fontSize: 11, fill: ink(light ? 0.7 : 0.5) }}
                 tickLine={false}
                 tickMargin={10}
                 tickFormatter={(value) => {
@@ -247,8 +254,8 @@ export default function InteractiveAnalyticsChart() {
               />
               
               <YAxis
-                stroke="rgba(255,255,255,0.3)"
-                tick={{ fontSize: 11, fill: "rgba(255,255,255,0.5)" }}
+                stroke={ink(0.3)}
+                tick={{ fontSize: 11, fill: ink(light ? 0.7 : 0.5) }}
                 tickLine={false}
                 tickMargin={10}
                 tickFormatter={(value) => {
@@ -259,19 +266,19 @@ export default function InteractiveAnalyticsChart() {
               
               <Tooltip
                 content={<CustomTooltip selectedMetric={selectedMetric} />}
-                cursor={{ strokeDasharray: "3 3", stroke: "#6d665a" }}
+                cursor={{ strokeDasharray: "3 3", stroke: light ? "#a39985" : "#6d665a" }}
               />
               
               <Line
                 type="monotone"
                 dataKey={selectedMetric}
-                stroke={chartConfig[selectedMetric]?.color}
+                stroke={colorOf(selectedMetric)}
                 strokeWidth={3}
                 filter="url(#lineShadow)"
                 dot={false}
                 activeDot={{
                   r: 6,
-                  fill: chartConfig[selectedMetric]?.color,
+                  fill: colorOf(selectedMetric),
                   stroke: "#fff",
                   strokeWidth: 2,
                   filter: "url(#dotShadow)",

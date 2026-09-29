@@ -72,13 +72,6 @@ Each coordinator can only check in / submit results for their own
 |---|---|---|
 | Certificate Desk | certificates@techastra.dev | certificate_team |
 
-## Volunteers
-
-| Name | Email | Duty Desk | Timing |
-|---|---|---|---|
-| Volunteer One | volunteer1@techastra.dev | Main Entrance | 8:00 AM - 1:00 PM |
-| Volunteer Two | volunteer2@techastra.dev | Food Court | 12:00 PM - 4:00 PM |
-
 ## Sample Participants
 
 14 dummy participant registrations are seeded (7 approved, 4 pending, 3

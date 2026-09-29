@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Countdown from "../components/Countdown";
 import Partners from "../components/Partners";
-import { EventCard, EventFilters, EventModal, useCartToggle, useEventModal, useEvents } from "../components/EventBrowser";
+import { EventModal, useCartToggle, useEventModal, useEvents } from "../components/EventBrowser";
 import { formatTimeRange, teamLabel } from "../components/EventInfo";
+import EventArt from "../components/EventArt";
 import {
   ADDRESS,
   CATEGORY_COORDINATORS,
@@ -56,8 +57,6 @@ const COURSES = [
   { faculty: "Faculty of Engineering & Technology", list: ["B.Tech CSE", "B.Tech CFIS", "B.Tech CSE (Cyber Security)", "M.Tech CSE", "M.Tech CFIS"] },
   { faculty: "Faculty of Humanities & Science", list: ["B.Sc ISCF", "B.Sc Criminology", "M.Sc CFIS", "M.Sc Criminology"] },
 ];
-
-const PREVIEW_COUNT = 6;
 
 // Camera lens behind the hero (three.js, lib/particleLens.js) - focus,
 // perspective, precision: an 8-blade aperture that slowly opens and closes,
@@ -276,7 +275,7 @@ function Hero({ eventCount }) {
       <div className="hero__content">
         <div className="hero__badge">{EDITION} National Level Technical Symposium · 2026</div>
         <img className="hero__logo" src={logo} alt="Techastra ’26 — VISION" />
-        <h1 className="hero__title">Imagine. Innovate. Ignite.</h1>
+        <h1 className="hero__title">Where Vision Meets Innovation.</h1>
         <p className="hero__depts">C S E &nbsp;×&nbsp; C Y B E R &nbsp; S E C U R I T Y</p>
         <div className="hero__vision" aria-label="VISION">
           {VISION.map(([l, rest], i) => (
@@ -407,7 +406,7 @@ function AboutTechastra({ eventCount }) {
             grand success.
           </p>
           <div className="tags tags--grid mt-7">
-            {["Senior events (college students)", "Junior events (school students)", "Individual & Team participation", "Technical & non-technical"].map((t) => (
+            {["Senior events (college students)", "Junior events (school students)", "Individual & Team participation", "Technical Events & Non-Technical Events"].map((t) => (
               <span key={t} className="tag">{t}</span>
             ))}
           </div>
@@ -421,39 +420,74 @@ function AboutTechastra({ eventCount }) {
   );
 }
 
-function EventsPreview({ events, loading, items, inCart, onOpen, onToggle }) {
+// Home "Events" section: pick Senior or Junior, then every event name is
+// listed under Technical and Non-Technical. A name opens its details pop-up;
+// cards, filters and registration live on /events.
+function EventsPreview({ events, loading, items, inCart, onOpen }) {
   const [level, setLevel] = useState(() => (items[0] ? levelOf(items[0]) : "senior"));
-  const [cat, setCat] = useState("all");
-  const list = events.filter((e) => levelOf(e) === level && (cat === "all" || categoryOf(e) === cat));
-  const shown = list.slice(0, PREVIEW_COUNT);
-  const label = `${LEVEL_LABEL[level]} · ${cat === "all" ? "All" : CATEGORY_LABEL[cat]}`;
+  const ofLevel = events.filter((e) => levelOf(e) === level);
+  const byStart = (a, b) => new Date(a.startTime) - new Date(b.startTime) || a.name.localeCompare(b.name);
+  const groups = ["technical", "non_technical"].map((cat) => ({ cat, list: ofLevel.filter((e) => categoryOf(e) === cat).sort(byStart) }));
   return (
     <section id="events" className="section events">
       <div className="wrap">
         <div className="events__head">
           <div>
             <div className="kicker">03 — Events</div>
-            <h2 className="h2">{events.length ? `${events.length} ways to compete` : "Ways to compete"}</h2>
+            <h2 className="h2">Choose your arena</h2>
           </div>
-          <EventFilters level={level} onLevel={setLevel} category={cat} onCategory={setCat} />
+          <div className="seg" role="group" aria-label="Level">
+            {Object.entries(LEVEL_LABEL).map(([k, v]) => (
+              <button key={k} className={level === k ? "is-active" : ""} aria-pressed={level === k} onClick={() => setLevel(k)} data-log={`home-events-level-${k}`}>
+                {v} events
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="events__count">
+        <div className="events__count" aria-live="polite">
           {loading
             ? "LOADING EVENTS…"
-            : `${label.toUpperCase()} — ${list.length} EVENT${list.length === 1 ? "" : "S"} · FOR ${LEVEL_AUDIENCE[level].toUpperCase()}`}
+            : `${LEVEL_LABEL[level].toUpperCase()} EVENTS · FOR ${LEVEL_AUDIENCE[level].toUpperCase()} — ${ofLevel.length} EVENTS`}
         </div>
-        <div className="events__grid">
-          {shown.map((e) => (
-            <EventCard key={e.id} event={e} inCart={inCart(e.id)} onOpen={onOpen} onToggle={onToggle} />
+
+        <div className="evcats">
+          {groups.map(({ cat, list }) => (
+            <section key={cat} className="card evcat" aria-labelledby={`evcat-${cat}`}>
+              <div className="evcat__head">
+                <h3 id={`evcat-${cat}`} className="evcat__title">
+                  {LEVEL_LABEL[level]} {CATEGORY_LABEL[cat]} Events
+                </h3>
+                <span className="evcat__n">{list.length}</span>
+              </div>
+              <ul className="evcat__list">
+                {list.map((e) => (
+                  <li key={e.id}>
+                    <button type="button" className="evcat__row" onClick={() => onOpen(e)} aria-label={`${e.name}, view details`}>
+                      <EventArt event={e} className="evcat__art" />
+                      <span className="evcat__main">
+                        <span className="evcat__name">
+                          {e.name}
+                          {inCart(e.id) && <span className="evcat__in">✓ In cart</span>}
+                        </span>
+                        <span className="evcat__meta">{e.track}</span>
+                      </span>
+                      <span className="evcat__when">
+                        Day {dayOf(e) || "TBA"} · {formatTimeRange(e)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {!loading && list.length === 0 && <li className="evcat__empty">To be announced</li>}
+              </ul>
+            </section>
           ))}
         </div>
-        {list.length > shown.length && (
-          <div className="mt-10 text-center">
-            <Link to={`/events?level=${level}`} className="btn-ghost" data-log="home-events-all">
-              See all {LEVEL_LABEL[level]} Events →
-            </Link>
-          </div>
-        )}
+
+        <div className="mt-10 text-center">
+          <Link to={`/events?level=${level}`} className="btn-reg" data-log="home-events-all">
+            See all {LEVEL_LABEL[level]} Events &amp; register →
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -465,8 +499,13 @@ function Schedule({ events, onOpen }) {
   const tabs = undated.length ? [...DAYS, { id: "tba", label: "Date TBA", long: "Dates to be announced" }] : DAYS;
   const current = tabs.find((t) => t.id === day) || tabs[0];
   const list = (day === "tba" ? undated : events.filter((e) => dayOf(e) === day)).sort(
-    (a, b) => new Date(a.startTime) - new Date(b.startTime)
+    (a, b) => new Date(a.startTime) - new Date(b.startTime) || a.name.localeCompare(b.name)
   );
+  // Same grouping as the Events section: level, then category. Groups with
+  // no events on this day are left out.
+  const groups = ["senior", "junior"]
+    .flatMap((lv) => ["technical", "non_technical"].map((cat) => ({ lv, cat, list: list.filter((e) => levelOf(e) === lv && categoryOf(e) === cat) })))
+    .filter((g) => g.list.length);
 
   return (
     <section id="schedule" className="section schedule">
@@ -485,19 +524,35 @@ function Schedule({ events, onOpen }) {
         <div className="schedule__day">
           {current.long} · {list.length} event{list.length === 1 ? "" : "s"}
         </div>
-        <div className="agenda">
-          {list.length === 0 && <p className="schedule__note">No events scheduled for this day yet.</p>}
-          {list.map((e) => (
-            <button key={e.id} className="agenda__row" onClick={() => onOpen(e)}>
-              <span className="agenda__time">{formatTimeRange(e)}</span>
-              <div>
-                <div className="agenda__title">{e.name}</div>
-                <div className="agenda__where">
-                  {e.venue || "Venue TBA"} · {e.track || teamLabel(e)}
-                </div>
+        {list.length === 0 && <p className="schedule__note">No events scheduled for this day yet.</p>}
+        <div className="agenda-groups">
+          {groups.map(({ lv, cat, list: rows }) => (
+            <section
+              key={`${lv}-${cat}`}
+              className="card agenda-group"
+              // Distinct from the Events section's groups with the same heading.
+              aria-label={`Schedule, Day ${day}: ${LEVEL_LABEL[lv]} ${CATEGORY_LABEL[cat]} Events`}
+            >
+              <div className="evcat__head">
+                <h3 id={`agenda-${day}-${lv}-${cat}`} className="evcat__title">
+                  {LEVEL_LABEL[lv]} {CATEGORY_LABEL[cat]} Events
+                </h3>
+                <span className="evcat__n">{rows.length}</span>
               </div>
-              <span className="pill">{LEVEL_LABEL[levelOf(e)].toUpperCase()} · {CATEGORY_LABEL[categoryOf(e)].toUpperCase()}</span>
-            </button>
+              <div className="agenda">
+                {rows.map((e) => (
+                  <button key={e.id} className="agenda__row" onClick={() => onOpen(e)}>
+                    <span className="agenda__time">{formatTimeRange(e)}</span>
+                    <div>
+                      <div className="agenda__title">{e.name}</div>
+                      <div className="agenda__where">
+                        {e.venue || "Venue TBA"} · {e.track || teamLabel(e)}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
         <p className="schedule__note">
@@ -597,7 +652,7 @@ export default function Home() {
       <Hero eventCount={events.length} />
       <About />
       <AboutTechastra eventCount={events.length} />
-      <EventsPreview events={events} loading={loading} items={items} inCart={inCart} onOpen={modal.open} onToggle={toggle} />
+      <EventsPreview events={events} loading={loading} items={items} inCart={inCart} onOpen={modal.open} />
       <Schedule events={events} onOpen={modal.open} />
       <Partners />
       <Contact />

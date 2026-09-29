@@ -72,7 +72,9 @@ function validateRegistration(body = {}) {
   if (value.collegeName && value.collegeName.length > 150) errors.push("College / school name is too long.");
   if (value.registerNo && value.registerNo.length > 50) errors.push("Register number / class is too long.");
   if (value.teamName && value.teamName.length > 80) errors.push("Team name is too long.");
-  if (!isUpiTxn(value.transactionId))
+  // Required only when there's something to pay (free Junior registrations
+  // have no payment) - the route checks that once the total is known.
+  if (value.transactionId && !isUpiTxn(value.transactionId))
     errors.push("Enter the UPI transaction ID (UTR) from your payment app - the 12-digit reference number.");
   if (!value.consent) errors.push("Please accept the Terms and the Privacy Notice to register.");
 
@@ -103,15 +105,31 @@ function validateRegistration(body = {}) {
 /**
  * Team-size rules for team events. Solo events ignore the team (the lead
  * takes part alone). Returns an error message or null.
+ *
+ * Events booked through a combo pass are checked against the combo: the team
+ * must have enough people for each event, and may be as large as the biggest
+ * team event in that combo - e.g. Combo 1 (Hidden Frames 2, Team Feud 3) is
+ * booked by a team of 3, and 2 of them play Hidden Frames.
  */
-function checkTeamSizes(events, teamSize) {
+function checkTeamSizes(events, teamSize, combos = []) {
+  const comboCap = new Map(); // eventId -> largest team allowed in its combo
+  for (const combo of combos) {
+    const inCombo = events.filter((e) => combo.eventIds.includes(e.id) && e.isTeamEvent);
+    const cap = Math.max(1, ...inCombo.map((e) => e.maxTeamSize || e.minTeamSize || 1));
+    inCombo.forEach((e) => comboCap.set(e.id, cap));
+  }
   for (const ev of events) {
     if (!ev.isTeamEvent) continue;
+    // Junior Techastra: school students register individually and teams
+    // are formed at the venue, so the team size isn't checked here.
+    if (ev.level === "junior") continue;
     const min = ev.minTeamSize || 1;
-    const max = ev.maxTeamSize || min;
+    const max = comboCap.get(ev.id) ?? (ev.maxTeamSize || min);
     if (teamSize < min || teamSize > max) {
       const range = min === max ? `${min}` : `${min}–${max}`;
-      return `"${ev.name}" needs a team of ${range} (you have ${teamSize}).`;
+      return comboCap.has(ev.id)
+        ? `"${ev.name}" is in a combo pass that needs a team of ${range} (you have ${teamSize}).`
+        : `"${ev.name}" needs a team of ${range} (you have ${teamSize}).`;
     }
   }
   return null;

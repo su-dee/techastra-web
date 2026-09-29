@@ -13,7 +13,7 @@
 #      and deploys.
 #   4. Everything under `envVars` marked `sync: false` needs a real value
 #      typed into the Render dashboard by you - these are secrets that
-#      should never live in this repo (JWT_SECRET, UPI details, SMTP
+#      should never live in this repo (JWT_SECRET, UPI details, mail secret
 #      credentials, etc.). Render will prompt for each one during setup.
 #
 # ONLY the backend (server/) is defined here. The frontend (client/) is a
@@ -54,15 +54,9 @@ services:
         sync: false # optional: only used by /api/upi/qr; checkout shows the static QR in client/src/assets/upi-qr.png
       - key: UPI_PAYEE_NAME
         sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        value: 587
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: MAIL_FROM
+      - key: MAIL_ENDPOINT_URL
+        sync: false # php-mailer/send.php on the website host (PHP mail(), no SMTP)
+      - key: MAIL_ENDPOINT_SECRET
         sync: false
     disk:
       # Persistent disk mounted at server/uploads - WITHOUT this, every

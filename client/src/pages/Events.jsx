@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import Stepper from "../components/ui/Stepper";
 import Button from "../components/ui/Button";
 import ComboPassCard from "../components/ComboPassCard";
+import { formatFee } from "../components/EventInfo";
 import { EventCard, EventFilters, EventModal, useCartToggle, useEventModal, useEvents, useLevelFilter } from "../components/EventBrowser";
 import { useCart } from "../context/CartContext";
 import { api } from "../lib/api";
@@ -22,7 +23,7 @@ import { LEVEL_AUDIENCE, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/
 // Level-specific part of the step-1 description.
 const LEVEL_INTRO = {
   senior: "For college students, held on October 8, 2026 (Day 1) and October 9, 2026 (Day 2). Junior events for school students are registered separately.",
-  junior: "For school students, all held on October 9, 2026 (Day 2). Senior events for college students are registered separately.",
+  junior: "For school students, all held on October 9, 2026 (Day 2). Registration is free — register individually; teams for team events are formed at the venue. Senior events for college students are registered separately.",
 };
 
 export default function Events() {
@@ -45,8 +46,17 @@ export default function Events() {
 
   const ofLevel = useMemo(() => events.filter((e) => levelOf(e) === level), [events, level]);
   const days = useMemo(() => [...new Set(ofLevel.map(dayOf).filter(Boolean))].sort(), [ofLevel]);
+  // Technical events first, then non-technical; each group by start time.
   const visible = useMemo(
-    () => ofLevel.filter((e) => (category === "all" || categoryOf(e) === category) && (day === "all" || dayOf(e) === day)),
+    () =>
+      ofLevel
+        .filter((e) => (category === "all" || categoryOf(e) === category) && (day === "all" || dayOf(e) === day))
+        .sort(
+          (a, b) =>
+            (categoryOf(a) === "technical" ? 0 : 1) - (categoryOf(b) === "technical" ? 0 : 1) ||
+            new Date(a.startTime) - new Date(b.startTime) ||
+            a.name.localeCompare(b.name)
+        ),
     [ofLevel, category, day]
   );
   // A combo only shows under the level all of its events belong to.
@@ -112,7 +122,7 @@ export default function Events() {
 
           {levelCombos.length > 0 && (
             <section className="mt-16" aria-labelledby="combos-title">
-              <div className="kicker">Save more</div>
+              <div className="kicker">{level === "junior" ? "Back-to-back events" : "Save more"}</div>
               <h2 id="combos-title" className="h3">Combo passes</h2>
               <div className="grid gap-6 md:grid-cols-2 mt-6">
                 {levelCombos.map((combo) => (
@@ -135,7 +145,7 @@ export default function Events() {
         <div className="reg-bar__inner">
           <div>
             <div className="text-heading">
-              {items.length ? `${plural(items.length, "event")} in your cart · ₹${total}` : "Your cart is empty"}
+              {items.length ? `${plural(items.length, "event")} in your cart · ${formatFee(total)}` : "Your cart is empty"}
             </div>
             <div className="text-sm text-soft">
               {items.length ? "Next: your details, then payment" : "Add an event above to start registering"}

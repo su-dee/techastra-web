@@ -52,7 +52,6 @@ const TITLES = [
   ["/coordinator", "Coordinator portal"],
   ["/hospitality", "Hospitality portal"],
   ["/certificates", "Certificate portal"],
-  ["/volunteer", "Volunteer portal"],
   ["/admin", "Admin portal"],
 ];
 const SITE = "Techastra ’26";

@@ -145,6 +145,15 @@ const apiLimiter = createRateLimiter({
   message: "Too many requests from this IP. Please try again later.",
 });
 
+// Public status check: generous for shared college/venue Wi-Fi, but stops
+// anyone scripting through registration codes.
+const statusLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: "Too many status checks from this network. Please try again in a few minutes.",
+  keyGenerator: (req) => `status:${req.ip || req.connection.remoteAddress}`,
+});
+
 // Strict limiter for export/download endpoints
 const exportLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -173,4 +182,5 @@ module.exports = {
   scanLimiter,
   apiLimiter,
   exportLimiter,
+  statusLimiter,
 };

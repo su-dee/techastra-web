@@ -1,8 +1,8 @@
 import React from "react";
 
 const FIELD =
-  "w-full rounded-[10px] bg-white/[0.03] border border-[#8f8676] px-3.5 py-2.5 text-[15px] text-text placeholder-[#afa697] " +
-  "hover:border-[#afa697] focus:border-amber/60 focus:ring-2 focus:ring-amber/20 outline-none transition-colors " +
+  "w-full rounded-[10px] bg-shade/[0.03] border border-[color:var(--c-8f8676)] px-3.5 py-2.5 text-[15px] text-text placeholder-[color:var(--c-afa697)] " +
+  "hover:border-[color:var(--c-afa697)] focus:border-amber/60 focus:ring-2 focus:ring-amber/20 outline-none transition-colors " +
   "aria-[invalid=true]:border-danger aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-danger/40";
 
 // Mono uppercase micro-labels, matching the main site's `.mono-label`.
