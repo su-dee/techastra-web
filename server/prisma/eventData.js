@@ -169,7 +169,7 @@ const EVENTS = [
     },
     coordinators: [
       staff("Ms. Ruth Rubavathy", "7702957580"),
-      staff("Mr. Sambhav"),
+      staff("Mr. Sambhav", "9862963711"),
       student("Mr. Sathyanarayanan", "7200493725"),
       student("Ms. Mamathi", "9150733457"),
       student("Mr. Sabarinathan P", "9361232667"),
@@ -196,7 +196,7 @@ const EVENTS = [
       staff("Mr. Ajay", "9400225351"),
       student("Ms. Pavni Ahuja", "9345495489"),
       student("Mr. Geetkumar B", "9514773056"),
-      student("Ms. Mohana Priya B"),
+      student("Ms. Mohana Priya B", "8270633107"),
     ],
     when: [2, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [2, 2],
   },
@@ -211,7 +211,7 @@ const EVENTS = [
     rules: { judging: ["Accuracy", "Speed", "Debugging skills", "Problem-solving ability"] },
     coordinators: [
       staff("Dr. G. Senthilvelan", "9840466300"),
-      staff("Mr. Sudarshan"),
+      staff("Mr. P. Sudarsan", "9790780562"),
       student("Mr. Sanjai P A", "9487826286"),
       student("Ms. Kavitha G", "6382401242"),
       student("Mr. Yashvinthan M"),
@@ -303,8 +303,8 @@ const EVENTS = [
       ],
     },
     coordinators: [
-      staff("Dr. M. Sujitha"),
-      staff("Dr. M. Nisha"),
+      staff("Dr. M. Sujitha", "9176628345"),
+      staff("Dr. M. Nisha", "9042006686"),
       student("Mr. Aldrin", "7550249271"),
       student("Ms. Dharani Rajan", "8610555944"),
       student("Ms. Nandika Hegde N", "9943007783"),
@@ -318,7 +318,7 @@ const EVENTS = [
     day: 1,
     venue: "CAD Lab & VOC 201",
     description: "Look closer. Spot what is concealed in every frame and piece together the picture before anyone else does.",
-    coordinators: [staff("Mrs. G. Priyanka"), student("Mr. Dhevanathan R", "6383429727"), student("Mr. Sham Prasad", "9043595650"), student("Mr. Rithvick Sree", "7397449938")],
+    coordinators: [staff("Mrs. G. Priyanka", "8072937403"), student("Mr. Dhevanathan R", "6383429727"), student("Mr. Sham Prasad", "9043595650"), student("Mr. Rithvick Sree", "7397449938")],
     when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [2, 2],
   },
   {
@@ -336,7 +336,7 @@ const EVENTS = [
         { title: "Tie-breaker round (if needed)" },
       ],
     },
-    coordinators: [staff("Dr. K. K. Rekha"), student("Ms. Kanishkaa R", "9884014565"), student("Ms. Lavanya R", "6369497230"), student("Mr. Shelton Paul Christopher", "7094508258")],
+    coordinators: [staff("Dr. K. K. Rekha", "9841246265"), student("Ms. Kanishkaa R", "9884014565"), student("Ms. Lavanya R", "6369497230"), student("Mr. Shelton Paul Christopher", "7094508258")],
     when: [1, [14, 15], [16, 15]], fee: 100, maxSeats: 40, team: [1, 1],
   },
   {
@@ -353,7 +353,7 @@ const EVENTS = [
         { title: "The Upside Down" },
       ],
     },
-    coordinators: [staff("Mrs. E. Nalini"), student("Ms. Lathika", "8122690763"), student("Mr. Gopi Shankar", "8939496446"), student("Mr. Sai Jeevan N", "8778592427")],
+    coordinators: [staff("Mrs. E. Nalini", "9176497770"), student("Ms. Lathika", "8122690763"), student("Mr. Gopi Shankar", "8939496446"), student("Mr. Sai Jeevan N", "8778592427")],
     when: [1, [14, 15], [16, 15]], fee: 100, maxSeats: 90, team: [3, 3],
   },
   {
@@ -371,7 +371,7 @@ const EVENTS = [
         { title: "Twist Tower" },
       ],
     },
-    coordinators: [staff("Dr. B. Raja"), staff("Mr. Mohan"), student("Ms. Harshini", "7042613974"), student("Ms. Subiksha", "8838741574"), student("Ms. Jayashree", "6369719262")],
+    coordinators: [staff("Dr. B. Raja", "8754363789"), staff("Mr. Mohan", "9445761267"), student("Ms. Harshini", "7042613974"), student("Ms. Subiksha", "8838741574"), student("Ms. Jayashree", "6369719262")],
     when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 50, team: [3, 3],
   },
   {
@@ -389,8 +389,8 @@ const EVENTS = [
       ],
     },
     coordinators: [
-      staff("Dr. M. Manikandan"),
-      staff("Mr. M. Umamahesh"),
+      staff("Dr. M. Manikandan", "9840291680"),
+      staff("Mr. M. Umamahesh", "9790948948"),
       student("Ms. Subhashini M", "9677184868"),
       student("Mr. Guru Prasath", "7904186779"),
       student("Mr. Venkatesh", "9110348446"),
@@ -412,7 +412,7 @@ const EVENTS = [
         { title: "Can you guess the song?" },
       ],
     },
-    coordinators: [staff("Mrs. M. Kanagapriya"), student("Ms. Sonali", "9790574852"), student("Ms. Harini Sri", "6385554331"), student("Mr. Kumaresan", "6381090465")],
+    coordinators: [staff("Mrs. M. Kanagapriya", "9176818964"), student("Ms. Sonali", "9790574852"), student("Ms. Harini Sri", "6385554331"), student("Mr. Kumaresan", "6381090465")],
     when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 100, team: [3, 3],
   },
   {
@@ -431,7 +431,7 @@ const EVENTS = [
         "Format: knockout / elimination — defeat the opposing team to advance to the next round.",
       ],
     },
-    coordinators: [staff("Dr. S. Mohandoss"), student("Mr. Hamdan Arabi", "8122276912"), student("Mr. Lakshmikanth", "6374786721"), student("Mr. Praveen", "6307563967")],
+    coordinators: [staff("Dr. S. Mohandoss", "9884974422"), student("Mr. Hamdan Arabi", "8122276912"), student("Mr. Lakshmikanth", "6374786721"), student("Mr. Praveen", "6307563967")],
     when: [2, [9, 30], [14, 0]], fee: 100, maxSeats: 80, team: [4, 4],
   },
 
@@ -467,7 +467,7 @@ const EVENTS = [
         "The judges’ decision is final and binding.",
       ],
     },
-    coordinators: [staff("Mr. M. Uma Mahesh"), student("Mr. Arya Venkata Sai", "9703288071"), student("Mr. Sunil Reddy", "9581513594"), student("Mr. S. Dhanush", "9150739030")],
+    coordinators: [staff("Mr. M. Uma Mahesh", "9790948948"), student("Mr. Arya Venkata Sai", "9703288071"), student("Mr. Sunil Reddy", "9581513594"), student("Mr. S. Dhanush", "9150739030")],
     when: [2, [10, 0], [11, 0]], fee: 0, maxSeats: 60, team: [2, 2],
   },
   {
@@ -493,7 +493,7 @@ const EVENTS = [
       ],
       judging: ["Visual similarity", "Accuracy", "Creativity", "Prompt effectiveness"],
     },
-    coordinators: [staff("Dr. S. Akila"), staff("Mr. L. Magnus Jesrus"), student("Ms. Nandhitha L", "6383937832"), student("Ms. Dharshini K", "9080495122"), student("Mr. Bharathi V")],
+    coordinators: [staff("Dr. S. Akila", "9941615902"), staff("Mr. L. Magnus Jesrus", "9840513775"), student("Ms. Nandhitha L", "6383937832"), student("Ms. Dharshini K", "9080495122"), student("Mr. Bharathi V")],
     when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 45, team: [2, 2],
   },
   {
@@ -520,7 +520,7 @@ const EVENTS = [
       ],
       judging: ["Creativity & innovation", "Theme relevance", "Effective use of materials", "Practicality / problem-solving", "Presentation"],
     },
-    coordinators: [staff("Mr. E. Murali"), staff("Mrs. G. S. Ashitha"), student("Ms. S. M. Pooja", "7200376899"), student("Ms. B. Nisha", "8122608126"), student("Ms. J. Kavya", "7845515045")],
+    coordinators: [staff("Mr. E. Murali", "9444558197"), staff("Mrs. G. S. Ashitha", "8939168215"), student("Ms. S. M. Pooja", "7200376899"), student("Ms. B. Nisha", "8122608126"), student("Ms. J. Kavya", "7845515045")],
     when: [2, [10, 0], [13, 0]], fee: 0, maxSeats: 45, team: [3, 3],
   },
   {
@@ -546,7 +546,7 @@ const EVENTS = [
         "Report any technical issue to the coordinator immediately; the coordinator’s decision is final.",
       ],
     },
-    coordinators: [staff("Mrs. Ruth Rubavathy"), student("Mr. Aravind Kumar", "8940807776"), student("Mr. Aravind Krishan", "9344858132"), student("Ms. G. Lekha Sri", "8681831760")],
+    coordinators: [staff("Mrs. Ruth Rubavathy", "7702957580"), student("Mr. Aravind Kumar", "8940807776"), student("Mr. Aravind Krishan", "9344858132"), student("Ms. G. Lekha Sri", "8681831760")],
     when: [2, [12, 0], [13, 0]], fee: 0, maxSeats: 40, team: [2, 2],
   },
   {
@@ -573,7 +573,7 @@ const EVENTS = [
       ],
       judging: ["Accuracy of the root cause", "Evidence spotted", "Solutions proposed", "Clue deductions", "Rule compliance"],
     },
-    coordinators: [staff("Ms. G. Priyanka"), student("Mr. Gokul Krishan S R", "6385132601"), student("Mr. Gowtham Pandian", "8122739807"), student("Mr. Bavanan S", "7708009302")],
+    coordinators: [staff("Ms. G. Priyanka", "8072937403"), student("Mr. Gokul Krishan S R", "6385132601"), student("Mr. Gowtham Pandian", "8122739807"), student("Mr. Bavanan S", "7708009302")],
     when: [2, [13, 0], [14, 0]], fee: 0, maxSeats: 40, team: [3, 3],
   },
   {
@@ -601,7 +601,7 @@ const EVENTS = [
       ],
       judging: ["Correct connections", "Speed", "Accuracy"],
     },
-    coordinators: [staff("Mr. J. R. Jayavelu"), staff("Dr. K. K. Rekha"), student("Ms. Lalitha", "7904294376"), student("Mr. Linga Munishwar", "6374052798"), student("Ms. Mythreya", "8939121925")],
+    coordinators: [staff("Mr. J. R. Jayavelu", "9940268573"), staff("Dr. K. K. Rekha", "9841246265"), student("Ms. Lalitha", "7904294376"), student("Mr. Linga Munishwar", "6374052798"), student("Ms. Mythreya", "8939121925")],
     when: [2, [10, 0], [11, 0]], fee: 0, maxSeats: 45, team: [3, 3],
   },
   {
@@ -627,7 +627,7 @@ const EVENTS = [
       ],
       judging: ["Correct answers", "Speed"],
     },
-    coordinators: [staff("Mrs. Vidhyalakshmi"), staff("Mrs. S. Amutha"), student("Mr. Ferlin Jose", "6381524624"), student("Mr. Siva Sankar", "7810070834"), student("Mr. Dhaya T", "7305431403")],
+    coordinators: [staff("Mrs. Vidhyalakshmi", "9176627897"), staff("Mrs. S. Amutha", "7550108982"), student("Mr. Ferlin Jose", "6381524624"), student("Mr. Siva Sankar", "7810070834"), student("Mr. Dhaya T", "7305431403")],
     when: [2, [12, 0], [13, 0]], fee: 0, maxSeats: 40, team: [2, 2],
   },
   {
@@ -654,7 +654,7 @@ const EVENTS = [
       ],
       judging: ["Originality", "Presentation", "Teamwork", "Impact"],
     },
-    coordinators: [staff("Mr. P. Sudarsan"), staff("Mr. P. Jayakrishnan"), student("Mr. Pavan", "8807059054"), student("Mr. Kevin Adithya", "9384860454"), student("Ms. Lavanya A", "8148206146")],
+    coordinators: [staff("Mr. P. Sudarsan", "9790780562"), staff("Mr. P. Jayakrishnan", "9884766568"), student("Mr. Pavan", "8807059054"), student("Mr. Kevin Adithya", "9384860454"), student("Ms. Lavanya A", "8148206146")],
     when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 20, team: [3, 3],
   },
   {
@@ -683,7 +683,7 @@ const EVENTS = [
       ],
       judging: ["Identification accuracy", "Creativity", "Imagination", "Logical connection", "Storytelling", "Presentation"],
     },
-    coordinators: [staff("Dr. M. Manikandan"), staff("Dr. M. Anand"), student("Mr. Rubesh Kumar R", "9025036748"), student("Mr. Abhishek", "9491535251"), student("Mr. Abdul Basith", "9962765727")],
+    coordinators: [staff("Dr. M. Manikandan", "9840291680"), staff("Dr. M. Anand", "9600686861"), student("Mr. Rubesh Kumar R", "9025036748"), student("Mr. Abhishek", "9491535251"), student("Mr. Abdul Basith", "9962765727")],
     when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 40, team: [2, 2],
   },
   {
@@ -710,7 +710,7 @@ const EVENTS = [
       ],
       judging: ["Accuracy", "Completion time", "Response speed", "Memory"],
     },
-    coordinators: [staff("Mr. Saravanan Elumalai"), staff("Mrs. K. Menaga"), student("Mr. Vignesh A", "9994463241"), student("Mr. Vallarasu", "7904529336"), student("Mr. Kiran Sankar R")],
+    coordinators: [staff("Mr. Saravanan Elumalai", "9176667009"), staff("Mrs. K. Menaga", "9500958682"), student("Mr. Vignesh A", "9994463241"), student("Mr. Vallarasu", "7904529336"), student("Mr. Kiran Sankar R")],
     when: [2, [10, 0], [11, 0]], fee: 0, maxSeats: 50, team: [1, 1],
   },
   {
@@ -736,7 +736,7 @@ const EVENTS = [
       ],
       judging: ["Completion time", "Fewest mistakes"],
     },
-    coordinators: [staff("Mrs. S. Divya"), staff("Mrs. P. Papitha"), student("Ms. Lilly Priya", "7358669187"), student("Mr. Benil Josuva", "6374771339"), student("Mr. Padmanaban E")],
+    coordinators: [staff("Mrs. S. Divya", "9080791858"), staff("Mrs. P. Papitha", "7397410083"), student("Ms. Lilly Priya", "7358669187"), student("Mr. Benil Josuva", "6374771339"), student("Mr. Padmanaban E")],
     when: [2, [13, 0], [14, 0]], fee: 0, maxSeats: 50, team: [1, 1],
   },
 ];
