@@ -168,16 +168,19 @@ export function ExternalRegisterButton({ event, className = "btn-small", short =
       </button>
     );
   }
+  // A path on this site (Hack Nexus at /hacknexus/) opens in the same tab; a
+  // different website opens in a new one. A plain <a>, not a router Link:
+  // that path is a separate app, not a page of this one.
+  const sameSite = event.registrationUrl.startsWith("/");
   return (
     <a
       href={event.registrationUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+      {...(sameSite ? {} : { target: "_blank", rel: "noopener noreferrer" })}
       className={className}
-      aria-label={`Register for ${event.name} on its own website (opens in a new tab)`}
+      aria-label={sameSite ? `Register for ${event.name}` : `Register for ${event.name} on its own website (opens in a new tab)`}
       data-log={`events-external-${event.id}`}
     >
-      {short ? "Register ↗" : `Register on the ${event.name} website ↗`}
+      {short ? "Register ↗" : `Register for ${event.name} ↗`}
     </a>
   );
 }

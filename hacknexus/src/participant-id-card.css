@@ -1,0 +1,410 @@
+/* Participant ID card. The card is 100 units wide and 140 tall; 1 unit is
+   1cqw of .idc-frame, so the whole card scales as one piece. Positions match
+   renderIDCard in ParticipantIDCard.jsx. */
+.idc {
+  --idc-surface: #11170e;
+  --idc-surface-deep: #080a0b;
+  --idc-panel: #172112;
+  --idc-line: #2d3924;
+  --idc-line-strong: #3b4b2d;
+  --idc-lime: #c2f478;
+  --idc-lime-bright: #d3ff97;
+  --idc-lime-deep: #7e9f45;
+  --idc-text: #edeeeb;
+  --idc-soft: #dce6d2;
+  --idc-muted: #8fa37d;
+}
+
+.idc-frame {
+  container-type: inline-size;
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+  /* drop-shadow follows the slot cut-out; box-shadow would not. */
+  filter: drop-shadow(0 28px 40px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 28px rgb(194 244 120 / 0.07));
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 0.5s ease;
+}
+
+.idc {
+  position: relative;
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  border-radius: 5cqw;
+  color: var(--idc-text);
+  font-family: "Manrope", Arial, sans-serif;
+  background:
+    radial-gradient(
+      90% 55% at 100% 0%,
+      color-mix(in srgb, var(--idc-lime) 10%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(
+      160deg,
+      var(--idc-surface) 0%,
+      var(--idc-surface) 50%,
+      var(--idc-surface-deep) 100%
+    );
+  box-shadow: inset 0 0 0 0.2cqw var(--idc-line);
+  /* Lanyard slot: a real hole through the card. */
+  --idc-slot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 36'%3E%3Crect width='180' height='36' rx='18'/%3E%3C/svg%3E");
+  -webkit-mask:
+    var(--idc-slot) center 4.5cqw / 18cqw 3.6cqw no-repeat,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    var(--idc-slot) center 4.5cqw / 18cqw 3.6cqw no-repeat exclude,
+    linear-gradient(#000 0 0);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+:where(.idc) :is(p, h2, dl, dd) {
+  margin: 0;
+}
+
+.idc-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.idc-big-arrow {
+  fill: none;
+  stroke: var(--idc-surface-deep);
+  stroke-width: 14;
+  stroke-linecap: square;
+  opacity: 0.88;
+}
+
+.idc-slot {
+  position: absolute;
+  top: 3.9cqw;
+  left: 40.4cqw;
+  width: 19.2cqw;
+  height: 4.8cqw;
+  border-radius: 2.4cqw;
+  background: var(--idc-line);
+}
+
+/* Brand: the website's N↗ symbol and wordmark */
+.idc-brand {
+  position: absolute;
+  top: 11.5cqw;
+  left: 8cqw;
+  height: 8cqw;
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+}
+.idc-symbol {
+  position: relative;
+  flex: none;
+  width: 7.4cqw;
+  height: 8cqw;
+  font-family: "Space Grotesk", Arial, sans-serif;
+  font-size: 8.6cqw;
+  font-weight: 700;
+  line-height: 8cqw;
+  color: var(--idc-lime);
+}
+.idc-symbol svg {
+  position: absolute;
+  left: 4cqw;
+  top: -0.9cqw;
+  width: 4.2cqw;
+  height: 4.2cqw;
+  overflow: visible;
+}
+.idc-symbol path {
+  fill: none;
+  stroke: var(--idc-lime);
+  stroke-width: 1.5;
+  stroke-linecap: square;
+}
+.idc-symbol .idc-symbol-cut {
+  stroke: var(--idc-surface);
+  stroke-width: 3;
+}
+.idc-wordmark {
+  display: grid;
+}
+.idc-wordmark strong {
+  font-family: "Space Grotesk", Arial, sans-serif;
+  font-size: 5.4cqw;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+.idc-underscore {
+  color: var(--idc-lime);
+}
+.idc-wordmark small {
+  margin-top: 1.1cqw;
+  font:
+    700 1.9cqw/1.2 "Courier New",
+    monospace;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  color: var(--idc-muted);
+}
+
+.idc-chip {
+  position: absolute;
+  top: 13.11cqw;
+  right: 8cqw;
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  padding: 1cqw 1.5cqw;
+  border: 0.25cqw solid var(--idc-line-strong);
+  border-radius: 0.6cqw;
+  font:
+    700 1.9cqw/1.2 "Courier New",
+    monospace;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  color: var(--idc-soft);
+}
+.idc-chip i {
+  width: 0.9cqw;
+  height: 0.9cqw;
+  border-radius: 50%;
+  background: var(--idc-lime);
+}
+
+.idc-rule {
+  position: absolute;
+  top: 22cqw;
+  left: 8cqw;
+  width: 84cqw;
+  height: 0.2cqw;
+  background: var(--idc-line);
+}
+
+/* Photo, role, name, participant ID */
+.idc-identity {
+  position: absolute;
+  top: 25.5cqw;
+  left: 8cqw;
+  width: 84cqw;
+  height: 30cqw;
+  display: flex;
+  align-items: center;
+  gap: 5cqw;
+}
+.idc-photo {
+  flex: none;
+  width: 24cqw;
+  height: 30cqw;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 0.3cqw solid var(--idc-line-strong);
+  border-radius: 2cqw;
+  background: var(--idc-panel);
+}
+.idc-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.idc-photo span {
+  font-family: "Space Grotesk", Arial, sans-serif;
+  font-size: 9cqw;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--idc-lime);
+}
+.idc-info {
+  width: 55cqw;
+  min-width: 0;
+}
+.idc-role {
+  display: flex;
+  gap: 1cqw;
+  font:
+    700 2.3cqw/1.4 "Courier New",
+    monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--idc-lime);
+}
+.idc-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 1.4cqw;
+  font-family: "Space Grotesk", Arial, sans-serif;
+  font-size: calc(var(--idc-name-size) * 1cqw);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+  color: var(--idc-text);
+}
+.idc-pid {
+  margin-top: 2.6cqw;
+}
+.idc-pid dd {
+  margin-top: 0.7cqw;
+  font-family: "Space Grotesk", Arial, sans-serif;
+  font-size: 3.6cqw;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: var(--idc-soft);
+}
+
+/* Labels share the website's monospace style. */
+.idc-pid dt,
+.idc-details dt,
+.idc-code p:not(.idc-code-value) {
+  font:
+    700 2.2cqw/1.2 "Courier New",
+    monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--idc-muted);
+}
+
+/* Details */
+.idc-details {
+  position: absolute;
+  top: 59cqw;
+  left: 8cqw;
+  width: 84cqw;
+  display: grid;
+  grid-template-columns: 39.5cqw 39.5cqw;
+  gap: 2.4cqw 5cqw;
+}
+.idc-details .idc-wide {
+  grid-column: 1 / -1;
+}
+.idc-details dd {
+  margin-top: 0.8cqw;
+  font-size: 3.3cqw;
+  font-weight: 600;
+  line-height: 1.28;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--idc-soft);
+}
+.idc-details .idc-wide dd {
+  -webkit-line-clamp: 2;
+}
+
+/* QR and printed code */
+.idc-qr {
+  position: absolute;
+  left: 8cqw;
+  bottom: 7cqw;
+  width: 30cqw;
+  height: 30cqw;
+  padding: 1.6cqw;
+  border-radius: 1.6cqw;
+  background: #fff;
+}
+.idc-qr img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+.idc-code {
+  position: absolute;
+  top: 103.4cqw;
+  bottom: 7cqw;
+  left: 42cqw;
+  display: flex;
+  flex-direction: column;
+}
+.idc-code > p:first-child {
+  color: var(--idc-lime);
+}
+.idc-code-value {
+  display: grid;
+  margin-top: 1.4cqw;
+  font:
+    700 2.5cqw/1.45 "Courier New",
+    monospace;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: var(--idc-soft);
+}
+.idc-code-short {
+  font-size: 4.4cqw;
+  line-height: 1.2;
+  color: var(--idc-text);
+}
+.idc-code-note {
+  margin-top: auto;
+}
+
+.idc-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgb(194 244 120 / 0.12) 50%,
+    transparent 62%
+  );
+  transform: translateX(-130%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .idc-frame {
+    animation: idc-enter 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .idc-shine {
+    animation: idc-shine 1.4s 0.5s ease-in-out both;
+  }
+  @media (hover: hover) {
+    .idc-frame:hover {
+      transform: translateY(-6px);
+      filter: drop-shadow(0 36px 44px rgb(0 0 0 / 0.65))
+        drop-shadow(0 0 36px rgb(194 244 120 / 0.14));
+    }
+    .idc-frame:hover .idc-shine {
+      animation: idc-shine 1.2s ease-in-out both;
+    }
+  }
+}
+@keyframes idc-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) rotate(-1deg) scale(0.98);
+  }
+}
+@keyframes idc-shine {
+  from {
+    transform: translateX(-130%);
+  }
+  to {
+    transform: translateX(130%);
+  }
+}
+
+@media print {
+  .idc-frame {
+    width: 3.5in;
+    max-width: none;
+    filter: none;
+    animation: none;
+  }
+  .idc-shine {
+    display: none;
+  }
+}

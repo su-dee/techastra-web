@@ -1,0 +1,222 @@
+.boot-loader[hidden],
+.boot-loader [hidden] {
+  display: none !important;
+}
+.boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #080a0bf8;
+  color: #a7b69b;
+  font:
+    11px/1.7 "Courier New",
+    monospace;
+  letter-spacing: 0.35px;
+}
+.boot-loader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(#adff7909 1px, transparent 1px),
+    linear-gradient(90deg, #adff7909 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse, #000 5%, transparent 78%);
+  pointer-events: none;
+}
+.boot-terminal {
+  position: relative;
+  width: min(570px, 100%);
+  overflow: hidden;
+  border: 1px solid #46583a;
+  border-radius: 5px;
+  background: #0b0f0bec;
+  box-shadow:
+    0 32px 120px #0009,
+    0 0 80px #8bbb4110;
+  text-align: left;
+}
+.boot-chrome,
+.boot-status {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 17px;
+  background: #11170e;
+  border-bottom: 1px solid #2b3424;
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  color: #94a187;
+}
+.boot-lights {
+  display: flex;
+  gap: 5px;
+}
+.boot-lights i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #697553;
+}
+.boot-lights i:first-child {
+  background: #b3d785;
+}
+.boot-lights i:nth-child(2) {
+  background: #7d9861;
+}
+.boot-lights i:last-child {
+  background: #4e603d;
+}
+.boot-chrome > span:nth-child(2) {
+  margin-right: auto;
+}
+.boot-chrome > #boot-state {
+  color: #c2f478;
+  font-size: 7px;
+}
+.boot-body {
+  padding: 34px 32px 29px;
+  min-height: 290px;
+  background: radial-gradient(ellipse at 8% 10%, #9cc35e0b, transparent 55%);
+}
+.boot-brand,
+.boot-subtitle,
+.boot-message {
+  margin: 0;
+}
+.boot-brand {
+  font:
+    500 27px/1.2 Arial,
+    sans-serif;
+  letter-spacing: -1px;
+  color: #f0f2eb;
+}
+.boot-brand > span:first-child {
+  color: #c2f478;
+}
+.boot-brand > span:last-child {
+  font:
+    9px "Courier New",
+    monospace;
+  color: #c2f478;
+  letter-spacing: 1px;
+  margin-left: 8px;
+}
+.boot-subtitle {
+  margin-top: 7px;
+  color: #718068;
+  font-size: 8px;
+  letter-spacing: 1.3px;
+}
+.boot-output {
+  min-height: 118px;
+  margin-top: 30px;
+  color: #abb89f;
+}
+.boot-output > p {
+  display: flex;
+  gap: 15px;
+  align-items: baseline;
+  margin: 0 0 7px;
+  min-height: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.boot-output > p > span {
+  color: #596a4b;
+  font-size: 8px;
+}
+.boot-output code {
+  font: inherit;
+  color: #acbd9e;
+}
+.boot-output > p:first-child code {
+  color: #c2f478;
+}
+.boot-output .boot-ready {
+  color: #c2f478;
+}
+.boot-message {
+  margin-top: 10px;
+  color: #738568;
+  font-size: 9px;
+}
+.boot-status {
+  height: 37px;
+  border: 0;
+  border-top: 1px solid #293322;
+  font-size: 7px;
+  color: #75866a;
+}
+.boot-status > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.boot-status i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c2f478;
+  box-shadow: 0 0 9px #c2f47870;
+}
+.boot-loader a {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 0;
+  color: #c2f478;
+  text-decoration: underline;
+}
+.boot-loader a:focus-visible {
+  outline: 2px solid #c2f478;
+  outline-offset: 4px;
+}
+.boot-loader.boot-exit {
+  animation: boot-handoff 680ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
+  pointer-events: none;
+}
+.boot-exit .boot-terminal {
+  animation: terminal-powerdown 490ms ease forwards;
+}
+@keyframes boot-handoff {
+  to {
+    clip-path: inset(0 0 100% 0);
+    background: #080a0b00;
+  }
+}
+@keyframes terminal-powerdown {
+  to {
+    opacity: 0;
+    filter: blur(9px);
+    transform: translateY(-16px) scale(0.98);
+  }
+}
+@media (max-width: 500px) {
+  .boot-loader {
+    padding: 18px;
+  }
+  .boot-chrome {
+    padding: 0 12px;
+    font-size: 7px;
+  }
+  .boot-body {
+    padding: 28px 20px 23px;
+    min-height: 278px;
+  }
+  .boot-status {
+    padding: 0 12px;
+    font-size: 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-loader.boot-exit,
+  .boot-exit .boot-terminal {
+    animation: none;
+  }
+}

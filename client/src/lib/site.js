@@ -142,12 +142,12 @@ export const CATEGORY_COORDINATORS = [
   {
     role: "SENIOR · NON-TECHNICAL",
     staff: ["Dr. S. Mohandoss", "Dr. M. Nisha"],
-    students: ["Mr. Dhevanathan R", "Ms. Madhumitha T S"],
+    students: ["Ms. Madhumitha T S", "Ms. Charulatha", "Mr. Dhevanathan R"],
   },
   {
     role: "JUNIOR · ALL EVENTS",
     staff: ["Mr. Syed Ali D", "Mrs. Shyamala"],
-    students: ["Ms. Divya R", "Mr. Kalidas K", "Mr. Yashwanth"],
+    students: ["Ms. Divya R", "Mr. Kalidas K", "Mr. Yashwanth Kumar"],
   },
 ];
 

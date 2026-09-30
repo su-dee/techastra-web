@@ -33,6 +33,41 @@ Deployment runbook and the standards this project is built to. The API runs on R
 - securityheaders.com gives an A;
 - Google's Rich Results Test sees the main site's Event.
 
+### Hack Nexus at `/hacknexus`
+
+Hack Nexus is its own app in `hacknexus/` (own PostgreSQL database, accounts, payments, admin and check-in). It is served under the portal's domain at `/hacknexus/`, and the Techastra event card links there.
+
+1. **Server:** Node 22.12 or later. In `hacknexus/`: `npm install`, then build with the prefix: `BASE_PATH=/hacknexus npm run build`.
+2. **Environment** (see `hacknexus/.env.example`):
+   - `DATABASE_URL`: its own database; it can share the Postgres server.
+   - `NODE_ENV=production`.
+   - `APP_ORIGIN=https://<portal domain>`, the domain only, no path.
+   - `BASE_PATH=/hacknexus`.
+   - `PORT=3001`.
+   - `TRUST_PROXY=1`, since it runs behind the web server.
+   - `UPI_ID` / `UPI_PAYEE_NAME` / `REGISTRATION_FEE`.
+3. **Database:** `npm run db:migrate`.
+4. **Admin:** `npm run admin:create -- <username>`. Admin access is only ever granted from the command line.
+5. **Start:** `npm start`. It listens on `127.0.0.1:3001` and answers only under `/hacknexus`.
+6. **Route `/hacknexus` to it.** In Plesk, go to the domain's **Apache & nginx Settings → Additional nginx directives** and add:
+   ```nginx
+   location /hacknexus/ {
+     proxy_pass http://127.0.0.1:3001;
+     proxy_set_header Host $host;
+     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+     proxy_set_header X-Forwarded-Proto $scheme;
+     client_max_body_size 8m;
+   }
+   location = /hacknexus { return 301 /hacknexus/; }
+   ```
+   Keep the path on `proxy_pass` (no trailing slash): the app expects `/hacknexus/...`.
+7. **Emails:** they use SMTP (`SMTP_*` in `.env`). If you leave them unset, the site works with emails off.
+8. **Check:**
+   - `https://<domain>/hacknexus/api/health` returns `{"status":"ok"}`.
+   - Sign up, register a squad, then open the admin console at `/hacknexus/admin`.
+
+**Locally:** run the database with `npm run db:local` in `hacknexus/`. Then run the server with `BASE_PATH=/hacknexus SERVE_CLIENT=1 APP_ORIGIN=http://localhost:5173 PORT=3001` and `DATABASE_URL` from `.local/postgres.json`. The Techastra dev server (:5173) forwards `/hacknexus` to it (`client/vite.config.js`).
+
 ## 3. After the event
 
 Within 90 days (the Privacy Notice promises by 7 January 2027):

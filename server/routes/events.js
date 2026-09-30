@@ -55,7 +55,10 @@ function eventFields(body) {
   }
   if (body.registrationUrl !== undefined) {
     const url = String(body.registrationUrl || "").trim();
-    if (url && !/^https?:\/\/[^\s]+$/i.test(url)) return { error: "Registration link must be a full web address starting with https://" };
+    // A full address, or a path on this site (e.g. /hacknexus/).
+    if (url && !/^https?:\/\/[^\s]+$/i.test(url) && !/^\/[^\s/][^\s]*$|^\/$/.test(url)) {
+      return { error: "Registration link must be a full web address starting with https://, or a path on this site starting with /" };
+    }
     data.registrationUrl = url || null;
   }
   for (const k of ["startTime", "endTime"]) {

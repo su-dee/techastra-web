@@ -1,0 +1,362 @@
+.scroll-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 3px;
+  z-index: 80;
+  background: var(--lime);
+  box-shadow: 0 0 12px #c2f47850;
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+
+/* Shared interaction transitions remain independent of scroll-reveal offsets. */
+.button svg,
+.text-button svg,
+.login-link svg,
+.challenge-arrow,
+.domain-top > span svg {
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.button:hover svg,
+.text-button:hover svg,
+.login-link:hover svg {
+  transform: translate(3px, -2px);
+}
+.button:active {
+  transform: translateY(0) scale(0.98);
+}
+@keyframes countdown-flip {
+  0% {
+    opacity: 0.55;
+    transform: rotateX(-82deg) translateY(-3px);
+  }
+  65% {
+    opacity: 1;
+    transform: rotateX(8deg) translateY(1px);
+  }
+  100% {
+    transform: rotateX(0) translateY(0);
+  }
+}
+.nav-links > a {
+  position: relative;
+}
+.nav-links > a::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -8px;
+  height: 1px;
+  background: var(--lime);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 280ms ease;
+}
+.nav-links > a:hover::after,
+.nav-links > a:focus-visible::after {
+  transform: scaleX(1);
+}
+.auth-tabs button {
+  transition:
+    color 250ms ease,
+    border-color 250ms ease,
+    background 250ms ease;
+}
+.auth-tabs button:hover {
+  background: #c2f47808;
+  color: var(--lime);
+}
+.icon-button,
+.password-input button {
+  transition:
+    color 250ms ease,
+    background 250ms ease,
+    transform 250ms ease;
+}
+.icon-button:hover {
+  transform: rotate(90deg);
+  background: #c2f47812;
+}
+.password-input button:hover {
+  color: var(--lime);
+}
+.filter-tabs button {
+  transition:
+    color 250ms ease,
+    border-color 250ms ease,
+    background 250ms ease;
+}
+.faq-list summary {
+  transition: color 250ms ease;
+}
+.faq-list summary:hover,
+.faq-list details[open] summary {
+  color: var(--lime);
+}
+.hero-bottom-note a {
+  transition:
+    color 250ms ease,
+    border-color 250ms ease,
+    background 250ms ease;
+}
+.hero-bottom-note a:hover {
+  color: var(--lime);
+  background: #c2f47812;
+  border-color: var(--lime);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-topline {
+    animation: fade-in 800ms ease both;
+  }
+  .hero-copy > * {
+    animation: enter-up 1000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .hero-badge {
+    animation-delay: 80ms;
+  }
+  .hero-copy h1 {
+    animation-delay: 180ms;
+  }
+  .hero-copy > p {
+    animation-delay: 300ms;
+  }
+  .hero-actions {
+    animation-delay: 410ms;
+  }
+  .hero-visual > .terminal-scene {
+    animation: core-materialize 1600ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+  }
+  .hero-bottom {
+    animation: enter-up 900ms cubic-bezier(0.22, 1, 0.36, 1) 600ms both;
+  }
+  .hero-badge .live-dot,
+  .countdown-label .live-dot {
+    animation: status-pulse 3s ease-in-out infinite;
+  }
+  .hero-bottom-note a svg {
+    animation: scroll-cue 2.6s ease-in-out infinite;
+  }
+  .nav-links.open {
+    animation: menu-enter 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .challenge-dialog[open] {
+    animation: dialog-enter 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .challenge-dialog[open]::backdrop {
+    animation: fade-in 300ms ease both;
+  }
+  .faq-list details[open] > p {
+    animation: enter-up 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .registration-success {
+    animation: enter-up 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .success-icon {
+    animation: success-pop 650ms cubic-bezier(0.2, 1.6, 0.5, 1) both;
+  }
+  .form-error {
+    animation: enter-up 300ms ease both;
+  }
+  .auth-art {
+    animation: core-materialize 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .auth-manifesto {
+    animation: enter-up 1000ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
+  }
+  .auth-form-wrap {
+    animation: enter-up 900ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+  }
+  .auth-form-content {
+    animation: enter-up 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .domain-card:hover,
+  .challenge-card:hover {
+    transform: translateY(-5px);
+  }
+  .domain-card:hover .domain-top > span svg,
+  .challenge-card:hover .challenge-arrow {
+    transform: translate(3px, -3px);
+  }
+  .prize-card:hover {
+    transform: translateY(-7px);
+    border-color: #92b661;
+  }
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes core-materialize {
+  from {
+    opacity: 0;
+    transform: scale(0.87) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 #c2f47800;
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px #c2f47815,
+      0 0 12px #c2f47830;
+  }
+}
+@keyframes scroll-cue {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+@keyframes success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-scroll-motion="active"] [data-reveal] {
+  transition:
+    opacity 800ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms),
+    translate 900ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms),
+    background 200ms ease,
+    border-color 200ms ease,
+    transform 200ms ease;
+}
+
+[data-scroll-motion="active"] [data-reveal="pending"] {
+  opacity: 0;
+  translate: 0 38px;
+}
+
+[data-scroll-motion="active"] [data-reveal="visible"] {
+  opacity: 1;
+  translate: 0 0;
+}
+
+[data-scroll-motion="active"] .hero-visual {
+  translate: 0 var(--hero-drift, 0px);
+}
+
+[data-scroll-motion="active"] .timeline-list {
+  position: relative;
+}
+
+[data-scroll-motion="active"] .timeline-list::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 30px;
+  width: 1px;
+  background: linear-gradient(to bottom, #c2f47830, var(--lime));
+  transform: scaleY(var(--timeline-progress, 0));
+  transform-origin: top;
+  pointer-events: none;
+}
+
+[data-scroll-motion="active"] .timeline-node {
+  z-index: 1;
+  transition:
+    background 400ms ease,
+    color 400ms ease,
+    box-shadow 400ms ease;
+}
+
+[data-scroll-motion="active"] .checkpoint-reached .timeline-node {
+  background: var(--lime);
+  color: #15220a;
+  box-shadow: 0 0 18px #c2f47828;
+}
+
+[data-scroll-motion="active"] .footer-wordmark {
+  translate: var(--wordmark-drift, 0px) 0;
+}
+
+@media (max-width: 640px) {
+  [data-scroll-motion="active"] [data-reveal="pending"] {
+    translate: 0 24px;
+  }
+  [data-scroll-motion="active"] .timeline-list::before {
+    left: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-progress {
+    display: none;
+  }
+  .countdown-digit {
+    animation: none;
+  }
+  [data-scroll-motion="active"] [data-reveal] {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+  [data-scroll-motion="active"] .hero-visual,
+  [data-scroll-motion="active"] .footer-wordmark {
+    translate: none;
+  }
+}
+
+@media print {
+  .scroll-progress {
+    display: none;
+  }
+  [data-scroll-motion="active"] [data-reveal] {
+    opacity: 1;
+    translate: none;
+  }
+}

@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Public pages worth indexing. Staff portals, the dashboard and checkout
 // are private and disallowed in robots.txt.
-const PUBLIC_ROUTES = ["/", "/events", "/register", "/status", "/verify-certificate", "/privacy", "/terms"];
+const PUBLIC_ROUTES = ["/", "/events", "/register", "/status", "/verify-certificate", "/committee", "/hacknexus/", "/privacy", "/terms"];
 const PRIVATE_ROUTES = ["/admin", "/dashboard", "/coordinator", "/registration-team", "/hospitality", "/certificates", "/checkout", "/cart", "/register/form"];
 // Security contact for .well-known/security.txt (RFC 9116). PLACEHOLDER -
 // keep in sync with LEGAL.contactEmail in src/lib/site.js.
@@ -61,6 +61,12 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: true,
+      // Hack Nexus is its own app (techweb/hacknexus) served under /hacknexus;
+      // in development its server runs on :3001 (in production the web
+      // server routes /hacknexus to it - see PRODUCTION.md).
+      proxy: {
+        "/hacknexus": { target: "http://127.0.0.1:3001", changeOrigin: false },
+      },
     },
   };
 });

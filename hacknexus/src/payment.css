@@ -1,0 +1,398 @@
+/* Squad payment and ID card pages. */
+.pay-page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.pay-main {
+  padding: 56px 0 90px;
+}
+.pay-title {
+  font-family: var(--heading);
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 600;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
+  margin-bottom: 40px;
+  overflow-wrap: anywhere;
+}
+.pay-title span {
+  color: var(--lime);
+}
+.pay-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.pay-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.pay-card {
+  background: #0f150c;
+  border: 1px solid #2d3924;
+  border-radius: 5px;
+  padding: 32px;
+}
+.pay-card h2 {
+  font-family: var(--heading);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  margin: 10px 0 10px;
+}
+.pay-step {
+  font:
+    700 11px "Courier New",
+    monospace;
+  letter-spacing: 1.4px;
+  color: var(--lime);
+}
+.pay-muted {
+  color: #a7b39c;
+  font-size: 14px;
+  line-height: 1.65;
+  margin-bottom: 24px;
+}
+.pay-hint {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #8e9a84;
+  margin-top: 18px;
+}
+.pay-hint strong {
+  color: #dce6d2;
+}
+
+/* QR: always dark modules on white so every UPI app can read it. */
+.qr-card {
+  background: #fff;
+  color: #0b0f0a;
+  border-radius: 12px;
+  padding: 22px 22px 18px;
+  max-width: 360px;
+  margin: 0 auto;
+  box-shadow: 0 18px 60px #0007;
+}
+.qr-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px dashed #d4d9cf;
+  padding-bottom: 12px;
+}
+.qr-amount span {
+  font:
+    700 11px "Courier New",
+    monospace;
+  letter-spacing: 1.2px;
+  color: #5d6657;
+}
+.qr-amount strong {
+  font-family: var(--heading);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.qr-image {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  margin: 8px 0;
+}
+.qr-image img {
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+.qr-payee {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+  border-top: 1px dashed #d4d9cf;
+  padding-top: 12px;
+}
+.qr-payee strong {
+  font-size: 15px;
+  letter-spacing: 0.3px;
+}
+.qr-payee span {
+  font-size: 13px;
+  color: #5d6657;
+}
+.pay-facts {
+  display: grid;
+  gap: 0;
+  margin: 24px 0 0;
+  border-top: 1px solid #243020;
+}
+.pay-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #243020;
+  font-size: 14px;
+}
+.pay-facts dt {
+  color: #8e9a84;
+}
+.pay-facts dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: right;
+  overflow-wrap: anywhere;
+  color: #e5ecde;
+}
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid #3b4b2d;
+  border-radius: 3px;
+  padding: 4px 9px;
+  font-size: 12px;
+  color: var(--lime);
+}
+.pay-app-button {
+  width: 100%;
+  justify-content: space-between;
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+/* Proof form */
+.pay-card label {
+  font-size: 13px;
+}
+.pay-card label input:not([type="checkbox"]) {
+  font-size: 15px;
+  letter-spacing: 0.5px;
+}
+.pay-card label small {
+  font-size: 12px;
+}
+.pay-card .submit-button {
+  font-size: 14px;
+  min-height: 50px;
+}
+.pay-card .form-footnote {
+  font-size: 12px !important;
+}
+.drop-zone {
+  border: 1px dashed #4a5e38;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  background: #11190d;
+}
+.drop-zone.has-file {
+  border-style: solid;
+}
+.drop-button {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 34px 16px;
+  background: none;
+  border: 0;
+  color: var(--lime);
+}
+.drop-button strong {
+  font-size: 15px;
+  color: #e5ecde;
+}
+.drop-button span {
+  font-size: 12px;
+  color: #8e9a84;
+}
+.drop-preview {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+}
+.drop-preview img {
+  width: 84px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #2d3924;
+  background: #fff;
+}
+.drop-preview div {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  min-width: 0;
+}
+.drop-preview strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.pay-alert {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ffd1c6;
+  background: #46231d;
+  border: 1px solid #824834;
+  border-radius: 3px;
+  padding: 12px 14px;
+  margin: 12px 0 22px;
+}
+
+/* Status */
+.pay-status {
+  max-width: 640px;
+}
+.pay-status h2 {
+  font-size: 32px;
+}
+.pay-status .pay-facts {
+  margin-bottom: 28px;
+}
+.success-icon.pending {
+  background: #1c2913;
+}
+
+/* ID cards: the card itself is styled in participant-id-card.css. */
+.pass-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  grid-template-areas:
+    "card picker"
+    "card actions";
+  grid-template-rows: auto 1fr;
+  gap: 28px 56px;
+  align-items: start;
+}
+.pass-card {
+  grid-area: card;
+  min-width: 0;
+}
+.pass-picker {
+  grid-area: picker;
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+.pass-picker button {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 16px;
+  text-align: left;
+  background: #0f150c;
+  border: 1px solid #2d3924;
+  border-radius: 5px;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+.pass-picker button:hover {
+  border-color: #4a5e38;
+}
+.pass-picker button[aria-pressed="true"] {
+  background: #17210f;
+  border-color: var(--lime);
+}
+.pass-picker strong {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pass-picker span {
+  flex: none;
+  font:
+    700 11px "Courier New",
+    monospace;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #8fa37d;
+}
+.pass-picker button[aria-pressed="true"] span {
+  color: var(--lime);
+}
+.pass-actions {
+  grid-area: actions;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  max-width: 420px;
+}
+.pass-actions .button {
+  min-width: 240px;
+  justify-content: space-between;
+  font-size: 14px;
+}
+.pass-checked {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lime);
+  font-size: 14px;
+}
+.pass-actions code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .pay-grid {
+    grid-template-columns: 1fr;
+  }
+  .pass-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "picker" "card" "actions";
+    grid-template-rows: auto;
+  }
+  .pass-picker,
+  .pass-actions {
+    max-width: 440px;
+    width: 100%;
+    margin-inline: auto;
+  }
+}
+@media (max-width: 560px) {
+  .pay-main {
+    padding-top: 32px;
+  }
+  .pay-card {
+    padding: 22px 18px;
+  }
+  .pass-actions .button {
+    width: 100%;
+  }
+}
+
+/* Print only the selected ID card. */
+@media print {
+  .policy-nav,
+  .pay-title,
+  .pay-page .eyebrow,
+  .pass-picker,
+  .pass-actions,
+  .skip-link {
+    display: none !important;
+  }
+  .pay-page,
+  body {
+    background: #fff !important;
+  }
+  .pay-main {
+    padding: 0;
+  }
+  .pass-layout {
+    display: block;
+  }
+}
