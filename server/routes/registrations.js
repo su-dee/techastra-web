@@ -14,6 +14,7 @@ const {
   checkComboRules,
   checkParticipation,
   checkRegistrationOpen,
+  checkParticipantDetails,
   computeTotal,
   normalizeEmail,
   normalizeTxn,
@@ -98,7 +99,13 @@ async function createRegistration(req, res) {
       if (levels.has("junior")) {
         value.teamMembers = null;
         value.teamName = null;
+        // Course / department / year of study are for college students only.
+        value.course = value.department = value.yearOfStudy = null;
       }
+      // College / school name (printed on the ID card) and, for college
+      // students, course, department and year of study.
+      const detailsError = checkParticipantDetails(value, levels.has("junior") ? "junior" : "senior");
+      if (detailsError) return reject(400, detailsError);
 
       // Online registration for an event closes once it has started (the
       // desk can still add a walk-up on the day).
@@ -191,6 +198,9 @@ async function createRegistration(req, res) {
             role: "participant",
             collegeName: value.collegeName,
             registerNo: value.registerNo,
+            course: value.course,
+            department: value.department,
+            yearOfStudy: value.yearOfStudy,
           },
         });
 

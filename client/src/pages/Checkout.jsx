@@ -203,6 +203,9 @@ export default function Checkout() {
     fd.append("password", needsPassword ? password : form.password);
     fd.append("collegeName", form.collegeName || "");
     fd.append("registerNo", form.registerNo || "");
+    fd.append("course", form.course || "");
+    fd.append("department", form.department || "");
+    fd.append("yearOfStudy", form.yearOfStudy || "");
     fd.append("teamName", mode === "team" ? teamName : "");
     if (teamMembers) fd.append("teamMembers", JSON.stringify(teamMembers));
     fd.append("eventIds", JSON.stringify(items.map((i) => i.id)));

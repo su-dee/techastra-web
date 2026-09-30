@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Button from "../components/ui/Button";
 import Stepper from "../components/ui/Stepper";
-import { Label, Input, FieldError, FieldHint } from "../components/ui/Input";
+import { Label, Input, Select, FieldError, FieldHint } from "../components/ui/Input";
 import { useCart } from "../context/CartContext";
 import { levelOf } from "../lib/site";
 import { plural } from "../lib/a11y";
@@ -14,6 +14,9 @@ export { REGISTRATION_DRAFT_KEY };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE = /^(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}$/;
 const MIN_PASSWORD = 8;
+// Same options as the server (YEARS_OF_STUDY in server/utils/validation.js).
+const YEARS_OF_STUDY = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+const EMPTY_FORM = { name: "", email: "", phone: "", password: "", collegeName: "", registerNo: "", course: "", department: "", yearOfStudy: "" };
 
 /**
  * Registration details - step 2 of 3 (events -> details -> payment). The
@@ -32,9 +35,8 @@ export default function RegisterForm() {
 
   const saved = loadDraft();
   const [chosenMode, setMode] = useState(saved?.mode || "individual");
-  const [form, setForm] = useState(
-    saved?.form || { name: "", email: "", phone: "", password: "", collegeName: "", registerNo: "" }
-  );
+  // Merged with the defaults so a draft saved before a field existed still works.
+  const [form, setForm] = useState({ ...EMPTY_FORM, ...(saved?.form || {}) });
   const [teamName, setTeamName] = useState(saved?.teamName || "");
   const [members, setMembers] = useState(saved?.members || [{ name: "", regNo: "", role: "member" }]);
   const [consent, setConsent] = useState(saved?.consent || false);
@@ -81,6 +83,13 @@ export default function RegisterForm() {
     if (next.form.phone && !PHONE.test(next.form.phone.trim())) e.phone = "Enter a 10-digit Indian mobile number, like 98765 43210.";
     if (!next.form.password) e.password = "Create a password.";
     else if (next.form.password.length < MIN_PASSWORD) e.password = `Use at least ${MIN_PASSWORD} characters.`;
+    // The college / school name is printed on the ID card exactly as entered.
+    if (!next.form.collegeName.trim()) e.collegeName = `Enter your ${orgLabel.toLowerCase()}.`;
+    if (!junior) {
+      if (!next.form.course.trim()) e.course = "Enter your course, for example B.E. or B.Tech.";
+      if (!next.form.department.trim()) e.department = "Enter your department.";
+      if (!next.form.yearOfStudy) e.yearOfStudy = "Choose your year of study.";
+    }
     // Junior Techastra: school students register individually and teams are
     // formed at the venue, so there are no team details to check.
     if (junior) next = { ...next, mode: "individual" };
@@ -301,13 +310,51 @@ export default function RegisterForm() {
               )}
             </div>
             <div>
-              <Label htmlFor="reg-college">{orgLabel}</Label>
-              <Input id="reg-college" autoComplete="organization" value={form.collegeName} onChange={(e) => updateForm("collegeName", e.target.value)} />
+              <Label htmlFor="reg-college" required>{orgLabel}</Label>
+              <Input
+                {...field("reg-college", "collegeName")}
+                aria-describedby={errors.collegeName ? "reg-college-error" : "reg-college-hint"}
+                required
+                autoComplete="organization"
+                value={form.collegeName}
+                onChange={(e) => updateForm("collegeName", e.target.value)}
+              />
+              {errors.collegeName ? (
+                <FieldError id="reg-college">{errors.collegeName}</FieldError>
+              ) : (
+                <FieldHint id="reg-college">Printed on your ID card exactly as you type it - use the full name.</FieldHint>
+              )}
             </div>
             <div>
               <Label htmlFor="reg-regno">{idLabel}</Label>
               <Input id="reg-regno" autoComplete="off" value={form.registerNo} onChange={(e) => updateForm("registerNo", e.target.value)} />
             </div>
+            {!junior && (
+              <>
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <div>
+                    <Label htmlFor="reg-course" required>Course</Label>
+                    <Input {...field("reg-course", "course")} required placeholder="B.E. / B.Tech / B.Sc" value={form.course} onChange={(e) => updateForm("course", e.target.value)} />
+                    <FieldError id="reg-course">{errors.course}</FieldError>
+                  </div>
+                  <div>
+                    <Label htmlFor="reg-department" required>Department</Label>
+                    <Input {...field("reg-department", "department")} required placeholder="Computer Science and Engineering" value={form.department} onChange={(e) => updateForm("department", e.target.value)} />
+                    <FieldError id="reg-department">{errors.department}</FieldError>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="reg-year" required>Year of study</Label>
+                  <Select {...field("reg-year", "yearOfStudy")} required value={form.yearOfStudy} onChange={(e) => updateForm("yearOfStudy", e.target.value)}>
+                    <option value="">Select your year</option>
+                    {YEARS_OF_STUDY.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </Select>
+                  <FieldError id="reg-year">{errors.yearOfStudy}</FieldError>
+                </div>
+              </>
+            )}
           </div>
 
           {mode === "team" && !junior && (

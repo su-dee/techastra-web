@@ -51,6 +51,9 @@ export default function RegistrationTeamPortal() {
     phone: "",
     collegeName: "",
     registerNo: "",
+    course: "",
+    department: "",
+    yearOfStudy: "",
     consent: false, // the participant agrees to the Terms and Privacy Notice
     eventIds: [],
     isTeam: false,
@@ -198,6 +201,9 @@ export default function RegistrationTeamPortal() {
       formData.append("phone", cashRegistration.phone);
       formData.append("collegeName", cashRegistration.collegeName || "");
       formData.append("registerNo", cashRegistration.registerNo || "");
+      formData.append("course", cashRegistration.course || "");
+      formData.append("department", cashRegistration.department || "");
+      formData.append("yearOfStudy", cashRegistration.yearOfStudy || "");
       formData.append("eventIds", JSON.stringify(cashRegistration.eventIds));
       formData.append("amountCollected", String(cashRegistration.amountCollected));
       formData.append("consent", "true");
@@ -223,6 +229,9 @@ export default function RegistrationTeamPortal() {
         phone: "",
         collegeName: "",
         registerNo: "",
+        course: "",
+        department: "",
+        yearOfStudy: "",
         consent: false,
         eventIds: [],
         isTeam: false,
@@ -319,12 +328,12 @@ export default function RegistrationTeamPortal() {
                 </div>
 
                 <div>
-                  <Label htmlFor="cash-college">College/Institution</Label>
+                  <Label htmlFor="cash-college">College/Institution *</Label>
                   <Input
                     id="cash-college"
                     value={cashRegistration.collegeName}
                     onChange={(e) => setCashRegistration({ ...cashRegistration, collegeName: e.target.value })}
-                    placeholder="College name (optional)"
+                    placeholder="College / school name (printed on the ID card)"
                   />
                 </div>
 
@@ -336,6 +345,40 @@ export default function RegistrationTeamPortal() {
                     onChange={(e) => setCashRegistration({ ...cashRegistration, registerNo: e.target.value })}
                     placeholder="Student register number (optional)"
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="cash-course">Course</Label>
+                  <Input
+                    id="cash-course"
+                    value={cashRegistration.course}
+                    onChange={(e) => setCashRegistration({ ...cashRegistration, course: e.target.value })}
+                    placeholder="B.E. / B.Tech / B.Sc (college students)"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="cash-department">Department</Label>
+                  <Input
+                    id="cash-department"
+                    value={cashRegistration.department}
+                    onChange={(e) => setCashRegistration({ ...cashRegistration, department: e.target.value })}
+                    placeholder="Department (college students)"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="cash-year">Year of Study</Label>
+                  <Select
+                    id="cash-year"
+                    value={cashRegistration.yearOfStudy}
+                    onChange={(e) => setCashRegistration({ ...cashRegistration, yearOfStudy: e.target.value })}
+                  >
+                    <option value="">Select year (college students)</option>
+                    {["1st Year", "2nd Year", "3rd Year", "4th Year"].map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </Select>
                 </div>
 
                 <div>
@@ -486,6 +529,9 @@ export default function RegistrationTeamPortal() {
                     phone: "",
                     collegeName: "",
                     registerNo: "",
+                    course: "",
+                    department: "",
+                    yearOfStudy: "",
                     consent: false,
                     eventIds: [],
                     isTeam: false,

@@ -19,6 +19,10 @@ model User {
   role             String   // participant | registration_team | coordinator | hospitality | certificate_team | master_admin
   collegeName      String?
   registerNo       String?
+  // College students (senior events): course, department and year of study
+  course           String?
+  department       String?
+  yearOfStudy      String?  // "1st Year" | "2nd Year" | "3rd Year" | "4th Year"
   photoUrl         String?
   assignedEventId  String?  // for coordinators
   dutyDesk         String?  // unused: volunteer role removed (kept to avoid a migration)

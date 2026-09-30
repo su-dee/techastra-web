@@ -201,3 +201,22 @@ test("individual events: every team member takes part (fee and seats per member)
   assert.equal(checkParticipation([solo], 1), null);
   assert.equal(checkParticipation([solo, team], 3), null);
 });
+
+test("college / school name and senior details are required", () => {
+  const { checkParticipantDetails, YEARS_OF_STUDY } = require("../utils/validation");
+  const full = { collegeName: "ABC College", course: "B.E.", department: "CSE", yearOfStudy: "2nd Year" };
+  assert.equal(checkParticipantDetails(full, "senior"), null);
+  assert.match(checkParticipantDetails({ ...full, collegeName: null }, "senior"), /college name/);
+  assert.match(checkParticipantDetails({ ...full, course: null }, "senior"), /course/);
+  assert.match(checkParticipantDetails({ ...full, department: null }, "senior"), /department/);
+  assert.match(checkParticipantDetails({ ...full, yearOfStudy: null }, "senior"), /year of study/);
+  // school students: only the school name
+  assert.equal(checkParticipantDetails({ collegeName: "XYZ School" }, "junior"), null);
+  assert.match(checkParticipantDetails({ collegeName: null }, "junior"), /school name/);
+  assert.deepEqual(YEARS_OF_STUDY, ["1st Year", "2nd Year", "3rd Year", "4th Year"]);
+});
+
+test("year of study must be one of the four options", () => {
+  assert.equal(validateRegistration({ ...valid, yearOfStudy: "3rd Year" }).errors.length, 0);
+  assert.ok(validateRegistration({ ...valid, yearOfStudy: "5th Year" }).errors.some((e) => /year of study/.test(e)));
+});

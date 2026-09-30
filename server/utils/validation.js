@@ -12,6 +12,8 @@ const UPI_TXN = /^[A-Z0-9]{10,35}$/;
 
 const MIN_PASSWORD = 8;
 const MAX_PASSWORD = 128;
+// College students' year of study (senior registrations).
+const YEARS_OF_STUDY = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 const MAX_EVENTS = 20;
 const MAX_TEAM = 10;
 
@@ -55,6 +57,9 @@ function validateRegistration(body = {}) {
     password: typeof body.password === "string" ? body.password : "",
     collegeName: str(body.collegeName) || null,
     registerNo: str(body.registerNo) || null,
+    course: str(body.course) || null,
+    department: str(body.department) || null,
+    yearOfStudy: str(body.yearOfStudy) || null,
     teamName: str(body.teamName) || null,
     transactionId: normalizeTxn(body.transactionId),
     eventIds,
@@ -71,6 +76,9 @@ function validateRegistration(body = {}) {
     errors.push(`Password must be ${MIN_PASSWORD}–${MAX_PASSWORD} characters.`);
   if (value.collegeName && value.collegeName.length > 150) errors.push("College / school name is too long.");
   if (value.registerNo && value.registerNo.length > 50) errors.push("Register number / class is too long.");
+  if (value.course && value.course.length > 100) errors.push("Course is too long.");
+  if (value.department && value.department.length > 100) errors.push("Department is too long.");
+  if (value.yearOfStudy && !YEARS_OF_STUDY.includes(value.yearOfStudy)) errors.push("Choose your year of study.");
   if (value.teamName && value.teamName.length > 80) errors.push("Team name is too long.");
   // Required only when there's something to pay (free Junior registrations
   // have no payment) - the route checks that once the total is known.
@@ -107,6 +115,22 @@ function validateRegistration(body = {}) {
   }
 
   return { errors, value };
+}
+
+/**
+ * Participant details required for the registration's level: every
+ * registration needs its college / school name (printed on the ID card);
+ * college students (senior) also give course, department and year of
+ * study. Returns an error message or null.
+ */
+function checkParticipantDetails(value, level) {
+  if (!value.collegeName) return level === "junior" ? "Enter your school name." : "Enter your college name.";
+  if (level !== "junior") {
+    if (!value.course) return "Enter your course (for example B.E. or B.Tech).";
+    if (!value.department) return "Enter your department.";
+    if (!value.yearOfStudy) return "Choose your year of study.";
+  }
+  return null;
 }
 
 /**
@@ -229,6 +253,8 @@ function checkParticipation(events, teamSize) {
 
 module.exports = {
   MIN_PASSWORD,
+  YEARS_OF_STUDY,
+  checkParticipantDetails,
   parseJsonField,
   normalizeEmail,
   normalizeTxn,
