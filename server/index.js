@@ -58,6 +58,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Hack Nexus (its own app) at /hacknexus on this domain - forwarded before
+// CORS and the body parsers so its requests pass through untouched.
+if (process.env.HACKNEXUS_ORIGIN) {
+  const { hackNexusProxy } = require("./utils/hacknexusProxy");
+  // "/hacknexus" -> "/hacknexus/" (exact path only; Express's own routing
+  // treats both the same, which would loop).
+  app.use((req, res, next) => (req.path === "/hacknexus" ? res.redirect(301, "/hacknexus/") : next()));
+  app.use("/hacknexus", hackNexusProxy(process.env.HACKNEXUS_ORIGIN));
+}
+
 // Allowed CORS origins: CLIENT_ORIGIN (comma-separated) in production. In
 // development the common local Vite ports are allowed too, because Vite
 // silently moves to 5174/5175 when 5173 is taken.
@@ -129,6 +139,53 @@ if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
 }
 
 app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
+
+// The website itself (client/dist, built with `npm run build`) is served by
+// this same app in production, so the portal and API share one domain.
+// Headers match the old client/vercel.json, with every source same-origin.
+const clientDist = process.env.CLIENT_DIST || path.join(__dirname, "..", "client", "dist");
+if ((isProd || process.env.SERVE_CLIENT === "1") && require("fs").existsSync(path.join(clientDist, "index.html"))) {
+  const SITE_CSP = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "media-src 'self' blob:",
+    "frame-src https://www.google.com",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(isProd ? ["upgrade-insecure-requests"] : []),
+  ].join("; ");
+  const siteHeaders = (res) => {
+    res.setHeader("Content-Security-Policy", SITE_CSP);
+    // The camera is needed for QR scanning (attendance / food counters).
+    res.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), payment=()");
+  };
+  app.use(
+    "/assets",
+    express.static(path.join(clientDist, "assets"), { immutable: true, maxAge: "1y", index: false, fallthrough: false })
+  );
+  app.use(
+    express.static(clientDist, {
+      index: false,
+      setHeaders: (res) => {
+        siteHeaders(res);
+        res.setHeader("Cache-Control", "no-cache");
+      },
+    })
+  );
+  // Every other page is the single-page app (React Router decides).
+  app.get(/^\/(?!api\/|uploads\/|hacknexus(\/|$)|socket\.io\/).*/, (req, res) => {
+    siteHeaders(res);
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
 
 // Centralised error handler. 4xx messages are meant for the user; anything
 // else is logged and replaced with a generic message so internals don't leak.

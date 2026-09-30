@@ -1,6 +1,6 @@
 # Going live: Techastra '26
 
-Deployment runbook and the standards this project is built to. The API runs on Render (`render.yaml`); the portal (`client/`) and the main site (`../techastra-web`) run on Vercel (`vercel.json` in each).
+Deployment runbook and the standards this project is built to. Everything runs on the Plesk hosting at techastra.drmgrdu.ac.in (section 2).
 
 ## 1. Before launch: information only the organisers have
 
@@ -10,63 +10,129 @@ Deployment runbook and the standards this project is built to. The API runs on R
 | Privacy / grievance contact email | `client/src/lib/site.js` (`LEGAL.contactEmail`), both `vite.config.js` (`SECURITY_CONTACT`) |
 | Approved refund policy | `client/src/pages/Legal.jsx` (Terms), then set `LEGAL.refundPolicyConfirmed = true` |
 | Final fees, times, seats, venues, team sizes | `server/prisma/eventData.js`, then re-run the seed |
-| Staff password for seeding | Render env `STAFF_PASSWORD` (12+ chars); each person changes it after first sign-in |
-| Approval emails (PHP `mail()`, no SMTP) | Upload `php-mailer/` to the site and create `config.php` (see `php-mailer/README.md`), then set API env `MAIL_ENDPOINT_URL`, `MAIL_ENDPOINT_SECRET` |
+| Staff password for seeding | Plesk env `STAFF_PASSWORD` (12+ chars); each person changes it after first sign-in |
+| Emails (PHP `mail()`, no SMTP) | The mailer subdomain in section 2.5, then set `MAIL_ENDPOINT_URL` and `MAIL_ENDPOINT_SECRET` |
 
-## 2. Deploy
+## 2. Deploy on Plesk (techastra.drmgrdu.ac.in)
 
-**API (Render):** New → Blueprint → this repo. Set the `sync: false` variables. The build runs `prisma migrate deploy`.
-- The database was first created with `db push`? Then run once in the Render shell: `npx prisma migrate resolve --applied 0_init`.
-- Seed: `NODE_ENV=production STAFF_PASSWORD=… npm run seed`. Demo participants are skipped in production.
-- The server **refuses to start** with a missing or weak `JWT_SECRET` or no `CLIENT_ORIGIN`.
+**Layout: three sites on the Plesk plan.** One PostgreSQL server holds two databases.
 
-**Portal (Vercel, root `client/`):**
-- `VITE_API_URL` = the Render URL.
-- `VITE_SITE_URL` = the portal URL.
-- If the API URL isn't `https://techastra-api.onrender.com`, update `connect-src` / `img-src` in `client/vercel.json`.
+| Site | What runs there | Why separate |
+|---|---|---|
+| `techastra.drmgrdu.ac.in` | **Node app** `techweb/server`. It serves the website (`client/dist`) and the API, and forwards `/hacknexus` to Hack Nexus. | The main site |
+| `hn.techastra.drmgrdu.ac.in` | **Node app** `techweb/hacknexus`, the Hack Nexus app. Visitors use it at `techastra.drmgrdu.ac.in/hacknexus/`. | Plesk runs one Node app per (sub)domain |
+| `mailer.techastra.drmgrdu.ac.in` | **PHP site** with `php-mailer/` (Techastra's emails via PHP `mail()`) | A Node-enabled domain doesn't run PHP. There, `config.php` (with its secret) would be served as plain text. |
 
-**Main site (Vercel, root `techastra-web/`):** set `VITE_SITE_URL` and `VITE_PORTAL_URL`.
+The subdomains need DNS records pointing at the Plesk server. If the university IT manages `drmgrdu.ac.in` DNS, ask them for `techastra`, `hn.techastra` and `mailer.techastra`. Turn on **Let's Encrypt SSL** for all three. The QR camera scanners need https.
 
-**After deploy:** add the portal URL to the API's `CLIENT_ORIGIN`, then check:
-- `/api/health` returns `db: ok`;
-- a ₹1 test registration goes end to end;
-- securityheaders.com gives an A;
-- Google's Rich Results Test sees the main site's Event.
+### 2.1 Databases (Plesk → Databases → Add database, type PostgreSQL)
+- Create two databases, `techastra` and `hacknexus`, each with its own user.
+- Note both connection strings: `postgresql://USER:PASSWORD@HOST:5432/techastra` and `postgresql://USER:PASSWORD@HOST:5432/hacknexus`.
 
-### Hack Nexus at `/hacknexus`
+### 2.2 Code (SSH)
+```bash
+cd ~                                   # the subscription's home folder
+git clone https://github.com/su-dee/techastra-web.git techweb
+```
+The same checkout serves both Node apps. To update later: `cd ~/techweb && git pull`, then repeat the build steps and restart the apps.
 
-Hack Nexus is its own app in `hacknexus/` (own PostgreSQL database, accounts, payments, admin and check-in). It is served under the portal's domain at `/hacknexus/`, and the Techastra event card links there.
+### 2.3 Techastra app (`techastra.drmgrdu.ac.in` → Node.js)
+- **Plesk → Node.js:**
+  - Node **22.12 or newer**.
+  - Application root: `techweb/server`.
+  - Document root: `techweb/server/public` (keep it empty).
+  - Startup file: `index.js`.
+  - Application mode: production.
+- **Environment variables** (Node.js → Custom environment variables):
 
-1. **Server:** Node 22.12 or later. In `hacknexus/`: `npm install`, then build with the prefix: `BASE_PATH=/hacknexus npm run build`.
-2. **Environment** (see `hacknexus/.env.example`):
-   - `DATABASE_URL`: its own database; it can share the Postgres server.
-   - `NODE_ENV=production`.
-   - `APP_ORIGIN=https://<portal domain>`, the domain only, no path.
-   - `BASE_PATH=/hacknexus`.
-   - `PORT=3001`.
-   - `TRUST_PROXY=1`, since it runs behind the web server.
-   - `UPI_ID` / `UPI_PAYEE_NAME` / `REGISTRATION_FEE`.
-3. **Database:** `npm run db:migrate`.
-4. **Admin:** `npm run admin:create -- <username>`. Admin access is only ever granted from the command line.
-5. **Start:** `npm start`. It listens on `127.0.0.1:3001` and answers only under `/hacknexus`.
-6. **Route `/hacknexus` to it.** In Plesk, go to the domain's **Apache & nginx Settings → Additional nginx directives** and add:
-   ```nginx
-   location /hacknexus/ {
-     proxy_pass http://127.0.0.1:3001;
-     proxy_set_header Host $host;
-     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-     proxy_set_header X-Forwarded-Proto $scheme;
-     client_max_body_size 8m;
-   }
-   location = /hacknexus { return 301 /hacknexus/; }
-   ```
-   Keep the path on `proxy_pass` (no trailing slash): the app expects `/hacknexus/...`.
-7. **Emails:** they use SMTP (`SMTP_*` in `.env`). If you leave them unset, the site works with emails off.
-8. **Check:**
-   - `https://<domain>/hacknexus/api/health` returns `{"status":"ok"}`.
-   - Sign up, register a squad, then open the admin console at `/hacknexus/admin`.
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | the `techastra` connection string |
+| `JWT_SECRET` | 48+ random characters: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` |
+| `CLIENT_ORIGIN` | `https://techastra.drmgrdu.ac.in` |
+| `TRUST_PROXY` | `1` |
+| `HACKNEXUS_ORIGIN` | `https://hn.techastra.drmgrdu.ac.in` |
+| `MAIL_ENDPOINT_URL` | `https://mailer.techastra.drmgrdu.ac.in/send.php` |
+| `MAIL_ENDPOINT_SECRET` | the same secret as in the mailer's `config.php` (below) |
+| `STAFF_PASSWORD` | 12+ characters. Only used by the seed; each staff member changes it after first sign-in. |
 
-**Locally:** run the database with `npm run db:local` in `hacknexus/`. Then run the server with `BASE_PATH=/hacknexus SERVE_CLIENT=1 APP_ORIGIN=http://localhost:5173 PORT=3001` and `DATABASE_URL` from `.local/postgres.json`. The Techastra dev server (:5173) forwards `/hacknexus` to it (`client/vite.config.js`).
+- **Build and set up (SSH).** Plesk's own Node: use the path Plesk shows, e.g. `/opt/plesk/node/22/bin`, or tick "run with this Node" in the panel.
+```bash
+cd ~/techweb/server
+npm ci                     # includes the prisma CLI (a dev dependency) needed below
+export DATABASE_URL='postgresql://…/techastra'
+npx prisma migrate deploy
+npx prisma generate
+NODE_ENV=production STAFF_PASSWORD='…' npm run seed      # events, combos, staff accounts
+npm run recount:seats -- --confirm
+cd ../client
+npm ci
+npm run build          # uses client/.env.production (same-domain API, site URL)
+```
+- In Plesk, click **NPM install** (if you didn't run it above), then **Restart App**.
+
+### 2.4 Hack Nexus app (`hn.techastra.drmgrdu.ac.in` → Node.js)
+- **Plesk → Node.js:**
+  - Node **22.12 or newer**.
+  - Application root: `techweb/hacknexus`.
+  - Document root: `techweb/hacknexus/public`.
+  - Startup file: `server/passenger.cjs`.
+- **Environment variables:**
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | the `hacknexus` connection string |
+| `APP_ORIGIN` | `https://techastra.drmgrdu.ac.in` (the MAIN domain, which the browser uses) |
+| `BASE_PATH` | `/hacknexus` |
+| `TRUST_PROXY` | `1` |
+| `REGISTRATION_FEE` / `UPI_ID` / `UPI_PAYEE_NAME` | `1000` / `7010826253-2@ybl` / `THIRUVENKATAM V` (confirm with the organisers) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM` / `MAIL_REPLY_TO` | the Gmail values from `hacknexus/.env` on the development laptop (never commit them) |
+
+- **Build and set up (SSH):**
+```bash
+cd ~/techweb/hacknexus
+npm ci
+BASE_PATH=/hacknexus npm run build
+export DATABASE_URL='postgresql://…/hacknexus'
+npm run db:migrate
+npm run admin:create -- <organiser-username>             # prompts for a 12+ character password
+```
+- Click **Restart App**.
+
+### 2.5 Mailer (`mailer.techastra.drmgrdu.ac.in` → PHP)
+- **Upload the files.** Upload the contents of `php-mailer/` to this subdomain's `httpdocs/`, so the mailer is at `https://mailer.techastra.drmgrdu.ac.in/send.php`.
+- **Create `config.php`** from `config.sample.php`:
+  - `SECRET`: the same value as `MAIL_ENDPOINT_SECRET`.
+  - `FROM`: `no-reply@techastra.drmgrdu.ac.in`.
+  - `REPLY_TO`: `techastra@drmgrdu.ac.in`.
+  - `DRY_RUN`: `false`.
+- **Mail settings:** turn on DKIM for the domain and add the SPF record Plesk suggests (details in `php-mailer/README.md`).
+
+### 2.6 Check before announcing
+- **Health checks:**
+  - `https://techastra.drmgrdu.ac.in/api/health` returns `"db":"ok"`.
+  - `https://techastra.drmgrdu.ac.in/hacknexus/api/health` returns `"status":"ok"`.
+- **Techastra dry run:** register with your own email and a real ₹ payment to the UPI ID. You should get the "received" email. Approve it on the desk and you should get the "approved" email. Then sign in, download the ID card, and scan its QR with the Coordinator scanner on a phone.
+- **Hack Nexus:** sign up, register a squad, and check the email arrives. Then open `/hacknexus/admin`.
+- **Security headers:** securityheaders.com gives an A.
+- **Backups:** add a daily `pg_dump` of both databases as a Plesk scheduled task.
+
+**Unused alternative:** `render.yaml` and `client/vercel.json` are for the old Render + Vercel plan. They're kept for reference and not used on Plesk.
+
+### Hack Nexus on this laptop
+
+1. **Database:** run `npm run db:local` in `hacknexus/`.
+2. **Server:** from PowerShell, run `node --env-file-if-exists=.env server/index.js` with these set:
+   - `BASE_PATH=/hacknexus`
+   - `SERVE_CLIENT=1`
+   - `APP_ORIGIN=http://localhost:5173`
+   - `PORT=3001`
+   - `DATABASE_URL` from `.local/postgres.json`
+
+   (In Git Bash, `/hacknexus` gets rewritten to a Windows path.)
+3. **Browsing:** the Techastra dev server (:5173) forwards `/hacknexus` to it (`client/vite.config.js`).
 
 ## 3. After the event
 

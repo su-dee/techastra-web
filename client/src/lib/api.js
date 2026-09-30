@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+// Production: the API is on the same domain (the server also serves this
+// site), so calls are relative. Development: the local API on :4000.
+// VITE_API_URL overrides both (e.g. an API on another domain).
+const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:4000" : "");
 
 function getToken() {
   return localStorage.getItem("techastra_token");
