@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { settings } from "./env.js";
 
 // Event details quoted in emails; keep in sync with the timeline in src/main.jsx.
 const EVENT = {
@@ -117,7 +118,7 @@ function plainText({
 
 // Returns a mailer for squad emails, or null when SMTP is not configured.
 // Works with any SMTP provider; Gmail with an app password is free.
-export function createMailer(env = process.env) {
+export function createMailer(env = settings) {
   const { SMTP_HOST, SMTP_USER, SMTP_PASS } = env;
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
   const port = Number(env.SMTP_PORT || 465);

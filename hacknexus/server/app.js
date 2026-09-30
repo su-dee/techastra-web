@@ -4,6 +4,7 @@ import { rateLimit } from "express-rate-limit";
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   hashPassword,
   verifyPassword,
@@ -437,7 +438,9 @@ export function createApp(
     res.status(404).json({ error: "Endpoint not found." }),
   );
   if (serveClient) {
-    const dist = path.resolve("dist");
+    // Next to this folder, whatever the working directory (it differs when
+    // embedded in the Techastra server).
+    const dist = fileURLToPath(new URL("../dist", import.meta.url));
     app.use(
       "/assets",
       express.static(path.join(dist, "assets"), {

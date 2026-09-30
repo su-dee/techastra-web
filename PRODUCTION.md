@@ -11,19 +11,17 @@ Deployment runbook and the standards this project is built to. Everything runs o
 | Approved refund policy | `client/src/pages/Legal.jsx` (Terms), then set `LEGAL.refundPolicyConfirmed = true` |
 | Final fees, times, seats, venues, team sizes | `server/prisma/eventData.js`, then re-run the seed |
 | Staff logins (35: admin, hospitality, certificates, desk1–5, one per event) | `npm run staff:setup` creates them with unique passwords in `server/staff-credentials.csv` + printable `staff-credentials.html` (never commit) |
-| Emails (PHP `mail()`, no SMTP) | The mailer subdomain in section 2.5, then set `MAIL_ENDPOINT_URL` and `MAIL_ENDPOINT_SECRET` |
+| Emails (the server's own mail, no SMTP) | `MAIL_TRANSPORT=sendmail` and `MAIL_FROM` (section 2.5), plus DKIM/SPF for the domain |
 
 ## 2. Deploy on Plesk (techastra.drmgrdu.ac.in)
 
-**Layout: three sites on the Plesk plan, and the database on Supabase.** Plesk needs no PostgreSQL. Both apps use one Supabase project (hosted PostgreSQL): Techastra's tables are in the `public` schema and Hack Nexus's in a `hacknexus` schema.
+**Layout: one site on the Plesk plan, and the database on Supabase.** Plesk needs no PostgreSQL and no extra subdomains. Both apps use one Supabase project (hosted PostgreSQL): Techastra's tables are in the `public` schema and Hack Nexus's in a `hacknexus` schema.
 
-| Site | What runs there | Why separate |
-|---|---|---|
-| `techastra.drmgrdu.ac.in` | **Node app** `techweb/server`. It serves the website (`client/dist`) and the API, and forwards `/hacknexus` to Hack Nexus. | The main site |
-| `hn.techastra.drmgrdu.ac.in` | **Node app** `techweb/hacknexus`, the Hack Nexus app. Visitors use it at `techastra.drmgrdu.ac.in/hacknexus/`. | Plesk runs one Node app per (sub)domain |
-| `mailer.techastra.drmgrdu.ac.in` | **PHP site** with `php-mailer/` (Techastra's emails via PHP `mail()`) | A Node-enabled domain doesn't run PHP. There, `config.php` (with its secret) would be served as plain text. |
+| Site | What runs there |
+|---|---|
+| `techastra.drmgrdu.ac.in` | **Node app** `techweb/server`. It serves the website (`client/dist`), the API, **Hack Nexus at `/hacknexus/`** (inside the same app, `HACKNEXUS_EMBEDDED=1`), and sends Techastra's emails through the server's `sendmail`, which is what PHP's `mail()` uses (`MAIL_TRANSPORT=sendmail`). |
 
-The subdomains need DNS records pointing at the Plesk server. If the university IT manages `drmgrdu.ac.in` DNS, ask them for `techastra`, `hn.techastra` and `mailer.techastra`. Turn on **Let's Encrypt SSL** for all three. The QR camera scanners need https.
+Turn on **Let's Encrypt SSL** for the domain. The QR camera scanners need https.
 
 ### 2.1 Database (Supabase)
 - **Project:** `kmosxyeszbvdpmtxasxk`, region **Mumbai (ap-south-1)**, pooler host `aws-0-ap-south-1.pooler.supabase.com`.
@@ -58,10 +56,15 @@ The same checkout serves both Node apps. To update later: `cd ~/techweb && git p
 | `JWT_SECRET` | 48+ random characters: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` |
 | `CLIENT_ORIGIN` | `https://techastra.drmgrdu.ac.in` |
 | `TRUST_PROXY` | `1` |
-| `HACKNEXUS_ORIGIN` | `https://hn.techastra.drmgrdu.ac.in` |
-| `HACKNEXUS_HOST` | only while `hn.techastra.drmgrdu.ac.in` has no public DNS record: set `HACKNEXUS_ORIGIN` to `http://127.0.0.1` and this to `hn.techastra.drmgrdu.ac.in`. The request then goes to the Hack Nexus site on the same server. In Plesk, turn off the HTTPS redirect for the `hn.` subdomain (Hosting Settings) so this plain-http request isn't redirected. |
-| `MAIL_ENDPOINT_URL` | `https://mailer.techastra.drmgrdu.ac.in/send.php` |
-| `MAIL_ENDPOINT_SECRET` | the same secret as in the mailer's `config.php` (below) |
+| `HACKNEXUS_EMBEDDED` | `1`. This runs Hack Nexus inside this app, and its settings are the `HN_` variables below. |
+| `HN_DATABASE_URL` | the Supabase **session pooler** URL (port 5432) |
+| `HN_DB_SCHEMA` / `HN_DB_SSL` / `HN_DB_POOL_MAX` | `hacknexus` / `1` / `5` |
+| `HN_APP_ORIGIN` | `https://techastra.drmgrdu.ac.in` |
+| `HN_REGISTRATION_FEE` / `HN_UPI_ID` / `HN_UPI_PAYEE_NAME` | `1000` / `7010826253-2@ybl` / `THIRUVENKATAM V` (confirm with the organisers) |
+| `HN_SMTP_HOST` / `HN_SMTP_PORT` / `HN_SMTP_USER` / `HN_SMTP_PASS` / `HN_MAIL_FROM` / `HN_MAIL_REPLY_TO` | the Gmail values from `hacknexus/.env` on the development laptop (never commit them) |
+| `MAIL_TRANSPORT` | `sendmail` |
+| `MAIL_FROM` | `no-reply@techastra.drmgrdu.ac.in` |
+| `MAIL_REPLY_TO` | `techastra@drmgrdu.ac.in` |
 
 - **Build and set up (SSH).** Plesk's own Node: use the path Plesk shows, e.g. `/opt/plesk/node/22/bin`, or tick "run with this Node" in the panel.
 ```bash
@@ -82,62 +85,32 @@ npm run build          # uses client/.env.production (same-domain API, site URL)
 ```
 - In Plesk, click **NPM install** (if you didn't run it above), then **Restart App**.
 
-### 2.4 Hack Nexus app (`hn.techastra.drmgrdu.ac.in` → Node.js)
-- **Plesk → Node.js:**
-  - Node **22.12 or newer**.
-  - Application root: `techweb/hacknexus`.
-  - Document root: `techweb/hacknexus/public`.
-  - Startup file: `server/passenger.cjs`.
-- **Environment variables:**
-
-| Variable | Value |
-|---|---|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | the Supabase **session pooler** URL (port 5432) with `?sslmode=require` |
-| `DB_SCHEMA` / `DB_SSL` / `DB_POOL_MAX` | `hacknexus` / `1` / `5` |
-| `APP_ORIGIN` | `https://techastra.drmgrdu.ac.in` (the MAIN domain, which the browser uses) |
-| `BASE_PATH` | `/hacknexus` |
-| `TRUST_PROXY` | `1` |
-| `REGISTRATION_FEE` / `UPI_ID` / `UPI_PAYEE_NAME` | `1000` / `7010826253-2@ybl` / `THIRUVENKATAM V` (confirm with the organisers) |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM` / `MAIL_REPLY_TO` | the Gmail values from `hacknexus/.env` on the development laptop (never commit them) |
-
+### 2.4 Hack Nexus (inside the Techastra app)
+Hack Nexus has no Plesk site of its own. The Techastra app loads it from `techweb/hacknexus` and serves it at `/hacknexus/`.
+- **Settings:** it reads **only** the `HN_` variables in §2.3 (`HN_DATABASE_URL` → its `DATABASE_URL`, and so on). It never sees Techastra's own `DATABASE_URL` or other settings, and a `hacknexus/.env` file isn't read.
 - **Build and set up (SSH):**
 ```bash
 cd ~/techweb/hacknexus
 npm ci
-BASE_PATH=/hacknexus npm run build
+BASE_PATH=/hacknexus npm run build                       # don't run npm test after this: it rebuilds without the prefix
 export DATABASE_URL='<Supabase session URL, port 5432>' DB_SCHEMA=hacknexus DB_SSL=1
 npm run db:migrate                                       # creates the hacknexus schema and its tables
 npm run admin:create -- <organiser-username>             # prompts for a 12+ character password
 ```
 - **Lock both apps' tables away from Supabase's public API** (after both migrations): `cd ~/techweb/server && DATABASE_URL='<session URL>' npm run supabase:lockdown`. It should end with "no API access left". Run it again after any future migration.
-- Click **Restart App**.
+- **Restart** the Techastra app. Its log shows "Hack Nexus is served at /hacknexus/"; if it fails to load, the log says why, the rest of the site keeps working, and `/hacknexus` shows "temporarily unavailable".
+- **Separate app instead (optional):** Hack Nexus can still run as its own Node app (startup file `server/passenger.cjs`, the same settings without the `HN_` prefix plus `BASE_PATH=/hacknexus` and `TRUST_PROXY=1`). In that case set `HACKNEXUS_ORIGIN` to its address instead of `HACKNEXUS_EMBEDDED`. `HACKNEXUS_HOST` gives the site name when `HACKNEXUS_ORIGIN` is `http://127.0.0.1` on the same server.
 
-### 2.4b Hack Nexus without its own subdomain (use this if `hn.` can't be created)
-The main app can run Hack Nexus itself, as a background process on `127.0.0.1:3001`. It restarts it if it stops and forwards `/hacknexus` to it. There's no second Plesk site and no `hn.` DNS.
-- **Main site → Node.js → environment variables:**
-  - add `HACKNEXUS_START` = `1`;
-  - remove `HACKNEXUS_ORIGIN` and `HACKNEXUS_HOST`.
-- **Hack Nexus's settings.** Give it the §2.4 values in one of two ways:
-  - **In the Plesk panel:** add them to the main site's variables with an `HN_` prefix:
-    - `HN_DATABASE_URL` (the Supabase **session** URL, port 5432);
-    - `HN_DB_SCHEMA`=`hacknexus`, `HN_DB_SSL`=`1`, `HN_DB_POOL_MAX`=`5`;
-    - `HN_APP_ORIGIN`=`https://techastra.drmgrdu.ac.in`;
-    - `HN_REGISTRATION_FEE`, `HN_UPI_ID`, `HN_UPI_PAYEE_NAME`;
-    - `HN_SMTP_HOST`, `HN_SMTP_PORT`, `HN_SMTP_USER`, `HN_SMTP_PASS`, `HN_MAIL_FROM`, `HN_MAIL_REPLY_TO`.
-  - **Or in a file:** create `~/techweb/hacknexus/.env` with the same names without the prefix.
-  - Hack Nexus never sees the main app's own variables. `BASE_PATH` and `TRUST_PROXY` are set automatically.
-- **Build and create the organiser login (SSH):** `cd ~/techweb/hacknexus && npm ci && BASE_PATH=/hacknexus npm run build`. Then run `admin:create` as in §2.4, with `DATABASE_URL`, `DB_SCHEMA` and `DB_SSL` exported.
-- **Restart the main app.** Its log shows lines starting `[hacknexus]`. Check `https://techastra.drmgrdu.ac.in/hacknexus/api/health`.
-
-### 2.5 Mailer (`mailer.techastra.drmgrdu.ac.in` → PHP)
-- **Upload the files.** Upload the contents of `php-mailer/` to this subdomain's `httpdocs/`, so the mailer is at `https://mailer.techastra.drmgrdu.ac.in/send.php`.
-- **Create `config.php`** from `config.sample.php`:
-  - `SECRET`: the same value as `MAIL_ENDPOINT_SECRET`.
-  - `FROM`: `no-reply@techastra.drmgrdu.ac.in`.
-  - `REPLY_TO`: `techastra@drmgrdu.ac.in`.
-  - `DRY_RUN`: `false`.
-- **Mail settings:** turn on DKIM for the domain and add the SPF record Plesk suggests (details in `php-mailer/README.md`).
+### 2.5 Email (the server's own mail, no second site)
+Techastra's emails (received, approved, rejected, cancelled, resubmitted) are handed to the server's `sendmail` program. That's exactly what PHP's `mail()` does, with the same headers, so there's no SMTP account, no paid service and no PHP site. The settings are in §2.3.
+- **Check that sendmail works (SSH)**, sending to your own address:
+```bash
+ls -l /usr/sbin/sendmail
+printf 'Subject: Techastra test\n\nIt works.\n' | /usr/sbin/sendmail -i -f no-reply@techastra.drmgrdu.ac.in you@example.com
+```
+  If it's somewhere else, set `MAIL_SENDMAIL_PATH`. If nothing arrives, check Plesk → Mail → the mail queue / log, and whether the plan limits outgoing mail.
+- **Keep it out of spam:** Plesk → Websites & Domains → Mail Settings → turn on **DKIM** for `techastra.drmgrdu.ac.in`, and make sure the domain's DNS has the **SPF** and **DKIM** TXT records Plesk shows (DNS Settings). If the university IT runs the DNS, send them those records.
+- **Alternative (PHP site):** `php-mailer/` still works on any PHP site: set `MAIL_ENDPOINT_URL` / `MAIL_ENDPOINT_SECRET` and leave `MAIL_TRANSPORT` unset (see `php-mailer/README.md`).
 
 ### 2.6 Check before announcing
 - **Health checks:**

@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { db, dbSchema } from "./db.js";
 import { applyMigrations } from "./migrations.js";
-if (!process.env.DATABASE_URL)
+import { setting } from "./env.js";
+if (!setting("DATABASE_URL"))
   throw new Error("Set DATABASE_URL in .env before running the migration.");
 try {
   // On a shared database (e.g. Supabase), Hack Nexus lives in its own schema.

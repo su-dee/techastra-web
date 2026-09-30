@@ -2,12 +2,13 @@ import { Router, json } from "express";
 import { rateLimit } from "express-rate-limit";
 import { randomInt, randomUUID } from "node:crypto";
 import { membersOf } from "./members.js";
+import { setting } from "./env.js";
 
 // Organizer UPI details. Override with environment variables in production.
 export const paymentConfig = {
-  fee: Number(process.env.REGISTRATION_FEE) || 1000,
-  vpa: process.env.UPI_ID || "7010826253-2@ybl",
-  payee: process.env.UPI_PAYEE_NAME || "THIRUVENKATAM V",
+  fee: Number(setting("REGISTRATION_FEE")) || 1000,
+  vpa: setting("UPI_ID") || "7010826253-2@ybl",
+  payee: setting("UPI_PAYEE_NAME") || "THIRUVENKATAM V",
 };
 export const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
 export const PASS_PREFIX = "HACKNEXUS:";

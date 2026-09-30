@@ -1,4 +1,3 @@
-import pg from "pg";
 import { readFile } from "node:fs/promises";
 import { randomBytes, randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
@@ -60,8 +59,10 @@ async function readPassword() {
   return first;
 }
 
-const client = new pg.Client({ connectionString: await databaseUrl() });
-await client.connect();
+// Connect through db.js so DB_SCHEMA, DB_SSL etc. apply exactly as in the app.
+process.env.DATABASE_URL = await databaseUrl();
+const { db } = await import("./db.js");
+const client = await db.connect();
 try {
   await applyMigrations(client);
   if (command === "remove") {
@@ -109,5 +110,6 @@ try {
   console.error(error.message);
   process.exitCode = 1;
 } finally {
-  await client.end();
+  client.release();
+  await db.end();
 }
