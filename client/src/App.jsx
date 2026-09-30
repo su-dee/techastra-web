@@ -8,7 +8,7 @@ import { useRouteAnnouncer } from "./lib/a11y";
 
 // The landing page ships in the main bundle; every other route is its own
 // chunk, fetched the first time it's visited, so portal-only libraries
-// (recharts, jspdf, html2canvas, the QR scanner...) never load for visitors.
+// (recharts, html-to-image, the QR scanner...) never load for visitors.
 import Home from "./pages/Home";
 
 // After a deploy, an open tab still asks for the old chunk file names, which
@@ -53,6 +53,7 @@ const Login = lazyPage(loadLogin);
 const Dashboard = lazyPage(() => import("./pages/Dashboard"));
 const VerifyCertificate = lazyPage(() => import("./pages/VerifyCertificate"));
 const Committee = lazyPage(() => import("./pages/Committee"));
+const VerifyDelegate = lazyPage(() => import("./pages/VerifyDelegate"));
 const Privacy = lazyPage(() => import("./pages/Legal").then((m) => ({ default: m.Privacy })));
 const Terms = lazyPage(() => import("./pages/Legal").then((m) => ({ default: m.Terms })));
 
@@ -129,6 +130,7 @@ export default function App() {
               <Route path="/status" element={<Status />} />
               <Route path="/login" element={<Login />} />
               <Route path="/verify-certificate" element={<VerifyCertificate />} />
+              <Route path="/verify/:code" element={<VerifyDelegate />} />
               <Route path="/committee" element={<Committee />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />

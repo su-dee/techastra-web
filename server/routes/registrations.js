@@ -7,6 +7,7 @@ const { registrationIpLimiter, registrationEmailLimiter, resubmitLimiter, status
 const { logIDORAttempt, logSuspiciousActivity } = require("../middleware/securityLogger");
 const { generateRegistrationCode } = require("../utils/codes");
 const { sendReceivedEmail, sendApprovalEmail, sendRejectionEmail } = require("../utils/registrationEmails");
+const { idCardToken, isValidIdCardToken } = require("../utils/idCard");
 const {
   validateRegistration,
   checkTeamSizes,
@@ -468,6 +469,46 @@ router.get(
   }
 );
 
+/**
+ * GET /api/registrations/verify/:code?t=<token> - public: what the ID card's
+ * QR opens. Confirms the card is genuine and approved, showing only what's
+ * printed on the card plus the events. Needs the card's token (see
+ * utils/idCard.js), so registration codes can't be browsed.
+ */
+router.get("/verify/:code", statusLimiter, async (req, res) => {
+  try {
+    const code = String(req.params.code || "").trim().toUpperCase();
+    const invalid = () => res.status(404).json({ valid: false, error: "This is not a valid Techastra '26 ID card." });
+    if (!code || !isValidIdCardToken(code, String(req.query.t || ""))) return invalid();
+    const registration = await prisma.registration.findUnique({
+      where: { registrationCode: code },
+      include: { user: { select: { name: true, collegeName: true, registerNo: true } } },
+    });
+    if (!registration) return invalid();
+    if (registration.status !== "approved") {
+      return res.status(409).json({ valid: false, error: "This registration is not approved.", registrationCode: code });
+    }
+    const events = await prisma.event.findMany({
+      where: { id: { in: registration.eventIds } },
+      orderBy: { startTime: "asc" },
+      select: { name: true, startTime: true, endTime: true, venue: true },
+    });
+    res.set("Cache-Control", "no-store");
+    res.json({
+      valid: true,
+      registrationCode: code,
+      name: registration.user.name,
+      institution: registration.collegeName || registration.user.collegeName,
+      registerNo: registration.user.registerNo,
+      teamName: registration.teamName,
+      events,
+    });
+  } catch (err) {
+    console.error("Verify ID card error:", err);
+    res.status(500).json({ valid: false, error: "Couldn't verify this ID card" });
+  }
+});
+
 /** GET /api/registrations/mine - the logged-in participant's own registration (for the Dashboard/ID card). */
 router.get("/mine", requireAuth, requireRole("participant"), async (req, res) => {
   try {
@@ -476,7 +517,7 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
       include: { user: true },
     });
     if (!registration) return res.status(404).json({ error: "No registration found for this account" });
-    res.json({ registration });
+    res.json({ registration: { ...registration, idCardToken: idCardToken(registration.registrationCode) } });
   } catch (err) {
     console.error("Get my registration error:", err);
     res.status(500).json({ error: "Failed to load your registration" });
@@ -500,7 +541,7 @@ router.get("/:id", requireAuth, async (req, res) => {
       return res.status(403).json({ error: "Not authorized to view this registration" });
     }
 
-    res.json({ registration });
+    res.json({ registration: { ...registration, idCardToken: idCardToken(registration.registrationCode) } });
   } catch (err) {
     console.error("Get registration error:", err);
     res.status(500).json({ error: "Failed to load registration" });

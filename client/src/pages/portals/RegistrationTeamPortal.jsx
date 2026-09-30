@@ -6,7 +6,8 @@ import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import { Input, Textarea, Select, Label } from "../../components/ui/Input";
 import { api } from "../../lib/api";
-import IdCard from "../../components/IdCard";
+import ParticipantIDCard from "../../components/ParticipantIDCard";
+import { idCardVerifyUrl } from "../../lib/idCard";
 
 // Payment screenshots are private: fetched with the staff token and shown
 // from a blob URL. The tab is opened synchronously (inside the click) so
@@ -511,7 +512,13 @@ export default function RegistrationTeamPortal() {
               </p>
             )}
             <div className="max-w-md mx-auto">
-              <IdCard registration={createdRegistration} />
+              <ParticipantIDCard
+                name={createdRegistration.user?.name}
+                registrationNumber={createdRegistration.user?.registerNo}
+                delegateId={createdRegistration.registrationCode}
+                institution={createdRegistration.collegeName || createdRegistration.user?.collegeName}
+                qrValue={idCardVerifyUrl(createdRegistration.registrationCode, createdRegistration.idCardToken)}
+              />
             </div>
             <div className="mt-4 text-center">
               <p className="text-sm text-shade/60 mb-2">Participant can take a photo of this QR code</p>

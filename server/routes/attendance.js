@@ -115,22 +115,41 @@ router.get(
 /** POST /api/attendance/manual - manual search fallback check-in (no camera). */
 router.post("/manual", requireAuth, requireRole("coordinator", "master_admin"), async (req, res) => {
   try {
-    const { registrationId, eventId } = req.body;
+    const { registrationId, eventId } = req.body || {};
+    if (typeof registrationId !== "string" || typeof eventId !== "string" || !registrationId || !eventId) {
+      return res.status(400).json({ error: "registrationId and eventId are required" });
+    }
     if (req.user.role === "coordinator" && req.user.assignedEventId !== eventId) {
       return res.status(403).json({ error: "You are not assigned to this event" });
+    }
+
+    // Same checks as a QR scan: the registration must exist, be approved and
+    // include this event.
+    const registration = await prisma.registration.findUnique({ where: { id: registrationId }, include: { user: true } });
+    if (!registration) {
+      return res.status(404).json({ error: "No registration found" });
+    }
+    if (registration.status !== "approved") {
+      return res.status(409).json({ error: "This registration is not approved" });
+    }
+    if (!registration.eventIds.includes(eventId)) {
+      return res.status(409).json({ error: `${registration.user.name} is not registered for this event` });
     }
 
     const existing = await prisma.attendance.findUnique({
       where: { registrationId_eventId: { registrationId, eventId } },
     });
     if (existing) {
-      return res.status(409).json({ error: "Already checked in" });
+      return res.status(409).json({ error: `${registration.user.name} has already been checked in`, alreadyScanned: true, scannedAt: existing.scannedAt });
     }
 
     const attendance = await prisma.attendance.create({
       data: { registrationId, eventId, scannedBy: req.user.id },
     });
-    res.status(201).json({ attendance });
+    res.status(201).json({
+      attendance,
+      participant: { name: registration.user.name, college: registration.collegeName, code: registration.registrationCode },
+    });
   } catch (err) {
     console.error("Manual check-in error:", err);
     res.status(500).json({ error: "Failed to check in participant" });

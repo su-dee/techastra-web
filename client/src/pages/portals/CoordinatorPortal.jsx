@@ -7,6 +7,7 @@ import Modal from "../../components/ui/Modal";
 import QRScanner from "../../components/QRScanner";
 import { Select } from "../../components/ui/Input";
 import { api } from "../../lib/api";
+import { registrationCodeFromQr } from "../../lib/idCard";
 import { useAuth } from "../../context/AuthContext";
 
 const TABS = ["scan", "roster", "winners"];
@@ -49,7 +50,7 @@ export default function CoordinatorPortal() {
 
   const handleScan = async (decodedText) => {
     try {
-      const data = await api.post("/api/attendance/scan", { registrationCode: decodedText, eventId });
+      const data = await api.post("/api/attendance/scan", { registrationCode: registrationCodeFromQr(decodedText), eventId });
       toast.success(`Checked in: ${data.participant.name}`);
       loadRoster();
     } catch (err) {

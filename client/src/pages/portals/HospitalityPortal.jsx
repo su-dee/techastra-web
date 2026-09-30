@@ -6,6 +6,7 @@ import Modal from "../../components/ui/Modal";
 import QRScanner from "../../components/QRScanner";
 import { Select } from "../../components/ui/Input";
 import { api } from "../../lib/api";
+import { registrationCodeFromQr } from "../../lib/idCard";
 
 const SESSIONS = ["breakfast", "lunch", "snacks"];
 
@@ -22,7 +23,7 @@ export default function HospitalityPortal() {
 
   const handleScan = async (decodedText) => {
     try {
-      const data = await api.post("/api/food/scan", { registrationCode: decodedText, mealSession });
+      const data = await api.post("/api/food/scan", { registrationCode: registrationCodeFromQr(decodedText), mealSession });
       toast.success(`Food collected: ${data.participant.name}`);
       loadLogs();
     } catch (err) {

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
 import Button from "../components/ui/Button";
 import { Textarea, Select } from "../components/ui/Input";
-import IdCard from "../components/IdCard";
+import ParticipantIDCard from "../components/ParticipantIDCard";
+import { downloadIdCard as saveIdCard, printIdCard } from "../lib/idCardExport";
+import { idCardVerifyUrl } from "../lib/idCard";
 import ApprovalHero from "../components/dashboard/ApprovalHero";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -68,34 +68,29 @@ export default function Dashboard() {
     [events, registration]
   );
 
+  // ID card data: Registration No. = college register number, Delegate ID
+  // = registration code; the QR opens the card's verification page.
+  const cardUser = registration?.user || user;
+  const idCard = {
+    name: cardUser?.name,
+    registrationNumber: cardUser?.registerNo,
+    delegateId: registration?.registrationCode,
+    institution: registration?.collegeName || cardUser?.collegeName,
+    qrValue: idCardVerifyUrl(registration?.registrationCode, registration?.idCardToken),
+  };
   const downloadIdCard = async () => {
-    if (!cardRef.current) return;
-
-    // Wait for web fonts (Orbitron/Space Grotesk/Inter) and the logo/QR
-    // images to finish loading before snapshotting - otherwise the
-    // capture can happen mid-layout-shift and come out misaligned.
-    if (document.fonts?.ready) {
-      await document.fonts.ready;
+    try {
+      await saveIdCard(cardRef.current, idCard.name);
+    } catch {
+      toast.error("Couldn't create the ID card image. Please try again.");
     }
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-    const canvas = await html2canvas(cardRef.current, {
-      backgroundColor: "#2c2823",
-      scale: 3,
-      useCORS: true,
-      logging: false,
-      width: cardRef.current.offsetWidth,
-      height: cardRef.current.offsetHeight,
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: canvas.height >= canvas.width ? "portrait" : "landscape",
-      unit: "px",
-      format: [canvas.width, canvas.height],
-    });
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`${user?.name || "TechAstra"}-ID-Card.pdf`);
+  };
+  const printCard = async () => {
+    try {
+      await printIdCard(cardRef.current, idCard.name);
+    } catch {
+      toast.error("Couldn't prepare the ID card for printing. Please try again.");
+    }
   };
 
   const submitFeedback = async (e) => {
@@ -157,21 +152,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div>
           <h2 className="font-heading text-sm uppercase tracking-wider text-offwhite/70 mb-4">Your Digital ID Card</h2>
-          {/*
-            IdCard.jsx deliberately keeps its own gold/black scheme
-            (matches the physical/logo branding, independent of the
-            site's crimson/arc theme) and its html2canvas/jsPDF export
-            below - both untouched here per the brief, since that export
-            alignment bug was already fixed in an earlier session and
-            must not regress.
-          */}
-          <IdCard
-            ref={cardRef}
-            registration={registration || { registrationCode: "Pending sync" }}
-            user={user}
-            events={registeredEvents}
-          />
-          <Button className="w-full mt-4" onClick={downloadIdCard}>Download as PDF</Button>
+          <ParticipantIDCard ref={cardRef} {...idCard} />
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <Button onClick={downloadIdCard} disabled={!registration}>Download ID card</Button>
+            <Button variant="outline" onClick={printCard} disabled={!registration}>Print ID card</Button>
+          </div>
           <p className="text-xs text-dim mt-3 text-center">
             Show this QR at event check-in and food counters.
           </p>

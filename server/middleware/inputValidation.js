@@ -27,8 +27,8 @@ function isValidPhone(phone) {
  */
 function isValidRegistrationCode(code) {
   if (!code || typeof code !== 'string') return false;
-  // Format: TA-YYYY-XXXXX (e.g., TA-2025-00001)
-  const codeRegex = /^TA-\d{4}-\d{5}$/;
+  // Format: SYMYYYY-NNNN (e.g. SYM2026-0017) - see utils/codes.js
+  const codeRegex = /^SYM\d{4}-\d{4,6}$/i;
   return codeRegex.test(code);
 }
 
@@ -50,6 +50,15 @@ function isValidUUID(id) {
   if (!id || typeof id !== 'string') return false;
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(id);
+}
+
+/**
+ * Validates a database record id: Prisma's cuid (the ids this schema uses,
+ * e.g. "cmuftoz8i000m117x8aeorz51") or a UUID.
+ */
+function isValidRecordId(id) {
+  if (!id || typeof id !== 'string') return false;
+  return /^c[a-z0-9]{20,32}$/.test(id) || isValidUUID(id);
 }
 
 /**
@@ -142,7 +151,7 @@ function validateQRScanData(req, res, next) {
     errors.push('Invalid registration code format');
   }
   
-  if (eventId && !isValidUUID(eventId)) {
+  if (eventId && !isValidRecordId(eventId)) {
     errors.push('Invalid event ID format');
   }
   
