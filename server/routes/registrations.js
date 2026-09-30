@@ -6,7 +6,7 @@ const { upload, uploadDir, isImageFile, IMAGE_EXTS } = require("../middleware/up
 const { registrationIpLimiter, registrationEmailLimiter, resubmitLimiter, statusLimiter } = require("../middleware/rateLimiter");
 const { logIDORAttempt, logSuspiciousActivity } = require("../middleware/securityLogger");
 const { generateRegistrationCode } = require("../utils/codes");
-const { sendMail } = require("../utils/mailer");
+const { sendReceivedEmail, sendApprovalEmail, sendRejectionEmail } = require("../utils/registrationEmails");
 const {
   validateRegistration,
   checkTeamSizes,
@@ -27,52 +27,6 @@ const router = express.Router();
 
 /** Audit fields for a status change made by the signed-in staff member. */
 const reviewedBy = (req) => ({ reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() });
-
-// Symposium days, as shown on the website ("October 8, 2026 (Day 1)").
-const DAY_NUMBER = { "2026-10-08": 1, "2026-10-09": 2 };
-const IST = "Asia/Kolkata";
-
-function formatEventLine(ev) {
-  const start = new Date(ev.startTime);
-  const ymd = start.toLocaleDateString("en-CA", { timeZone: IST });
-  const date = start.toLocaleDateString("en-US", { timeZone: IST, month: "long", day: "numeric", year: "numeric" });
-  const time = (d) => new Date(d).toLocaleTimeString("en-US", { timeZone: IST, hour: "numeric", minute: "2-digit" });
-  const day = DAY_NUMBER[ymd] ? ` (Day ${DAY_NUMBER[ymd]})` : "";
-  const venue = ev.venue ? `, ${ev.venue}` : "";
-  const endYmd = new Date(ev.endTime).toLocaleDateString("en-CA", { timeZone: IST });
-  if (endYmd !== ymd && DAY_NUMBER[ymd] && DAY_NUMBER[endYmd]) {
-    // Runs across both days (Hack Nexus).
-    return `- ${ev.name}: October 8-9, 2026 (Day 1-2), ${time(ev.startTime)} (Day ${DAY_NUMBER[ymd]}) - ${time(ev.endTime)} (Day ${DAY_NUMBER[endYmd]})${venue}`;
-  }
-  return `- ${ev.name}: ${date}${day}, ${time(ev.startTime)} - ${time(ev.endTime)}${venue}`;
-}
-
-/** The approval email - the only email the portal sends automatically. */
-async function sendApprovalEmail(registration) {
-  const events = await prisma.event.findMany({
-    where: { id: { in: registration.eventIds } },
-    orderBy: { startTime: "asc" },
-  });
-  const lines = [
-    `Hi ${registration.user.name},`,
-    "",
-    `Your Techastra '26 registration (${registration.registrationCode}) has been approved. See you there!`,
-    "",
-    "Your events:",
-    ...events.map(formatEventLine),
-    "",
-    "Log in to the Techastra '26 portal to see your digital ID card, and bring it (on your phone or printed) along with your college/school ID on the day.",
-    "",
-    "For any queries, reply to this email.",
-    "",
-    "- Techastra '26 Team",
-  ];
-  return sendMail({
-    to: registration.user.email,
-    subject: `Techastra '26 registration approved - ${registration.registrationCode}`,
-    text: lines.join("\n"),
-  });
-}
 
 // Registrations that can share one mobile number (a teacher or parent may
 // register several school students) - beyond that it's treated as spam.
@@ -275,11 +229,10 @@ async function createRegistration(req, res) {
 
       // Free and cash registrations are approved on the spot, so they get the
       // approval email now (UPI ones get it when the desk approves the payment).
-      if (approvedNow) {
-        sendApprovalEmail({ ...result, user: { name: value.name, email: value.email } }).catch((err) =>
-          console.warn("Approval email error:", err.message)
-        );
-      }
+      // Paid online registrations now wait for the desk: confirm receipt.
+      const participant = { ...result, user: { name: value.name, email: value.email } };
+      if (approvedNow) sendApprovalEmail(participant);
+      else sendReceivedEmail(participant);
     } catch (err) {
       cleanupUpload();
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -436,6 +389,7 @@ router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (
     });
     removeProof(oldProof);
     res.json({ registration: { registrationCode: updated.registrationCode, status: updated.status, totalAmount: updated.totalAmount } });
+    sendReceivedEmail({ ...updated, user: registration.user }, { resubmitted: true });
   } catch (err) {
     if (req.file) fs.promises.unlink(req.file.path).catch(() => {});
     if (err.status) return res.status(err.status).json({ error: err.message });
@@ -609,6 +563,8 @@ router.patch(
       });
 
       res.json({ registration });
+      // Newly rejected: the participant is told why and how to resubmit (once).
+      if (current.status !== "rejected") sendRejectionEmail(registration);
     } catch (err) {
       console.error("Reject error:", err);
       res.status(500).json({ error: "Failed to reject registration" });
@@ -647,6 +603,9 @@ router.patch("/:id/override", requireAuth, requireRole("master_admin"), async (r
       return tx.registration.update({ where: { id: current.id }, data });
     });
     res.json({ registration });
+    // A decision the participant hasn't been told yet gets its email (once).
+    if (data.status === "approved" && current.status !== "approved") sendApprovalEmail(registration);
+    if (data.status === "rejected" && current.status !== "rejected") sendRejectionEmail(registration);
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     console.error("Override error:", err);

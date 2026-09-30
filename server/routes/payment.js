@@ -10,6 +10,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const prisma = require('../db');
+const { sendApprovalEmail } = require('../utils/registrationEmails');
 
 // Razorpay SDK
 const Razorpay = require('razorpay');
@@ -183,6 +184,8 @@ router.post('/verify', async (req, res) => {
         }
       }
     });
+
+    sendApprovalEmail(updatedRegistration);
 
     console.log('Payment verified and registration auto-approved:', {
       registrationId,

@@ -5,6 +5,8 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { exportLimiter } = require("../middleware/rateLimiter");
 const { toCsv } = require("../utils/csv");
 const { logSecurityEvent } = require("../middleware/securityLogger");
+const { applySeatChange } = require("../utils/seats");
+const { sendApprovalEmail, sendRejectionEmail } = require("../utils/registrationEmails");
 
 const router = express.Router();
 
@@ -264,28 +266,46 @@ router.get("/export/registrations.csv", exportLimiter, async (req, res) => {
   }
 });
 
-/** PATCH /api/admin/registrations/:id/waitlist-promote - move a waitlisted reg to approved if seats exist. */
+/**
+ * PATCH /api/admin/registrations/:id/waitlist-promote - approve a waiting
+ * registration. A rejected one takes its seats back first (409 if they're
+ * gone); newly approved registrations get the approval email.
+ */
 router.patch("/registrations/:id/waitlist-promote", async (req, res) => {
   try {
-    const registration = await prisma.registration.update({
-      where: { id: req.params.id },
-      data: { status: "approved", reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() },
+    const current = await prisma.registration.findUnique({ where: { id: req.params.id } });
+    if (!current) return res.status(404).json({ error: "Registration not found" });
+    if (current.status === "approved") return res.json({ registration: current, alreadyApproved: true });
+    const registration = await prisma.$transaction(async (tx) => {
+      await applySeatChange(tx, current, current.status, "approved");
+      return tx.registration.update({
+        where: { id: current.id },
+        data: { status: "approved", rejectionReason: null, reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() },
+      });
     });
     res.json({ registration });
+    sendApprovalEmail(registration);
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error("Waitlist promote error:", err);
     res.status(500).json({ error: "Failed to promote registration" });
   }
 });
 
-/** POST /api/admin/registrations/:id/refund - mark a registration as refunded/cancelled. */
+/** POST /api/admin/registrations/:id/refund - cancel a registration (refunded); its seats are released. */
 router.post("/registrations/:id/refund", async (req, res) => {
   try {
-    const registration = await prisma.registration.update({
-      where: { id: req.params.id },
-      data: { status: "rejected", rejectionReason: "Cancelled/refunded by admin", reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() },
+    const current = await prisma.registration.findUnique({ where: { id: req.params.id } });
+    if (!current) return res.status(404).json({ error: "Registration not found" });
+    const registration = await prisma.$transaction(async (tx) => {
+      await applySeatChange(tx, current, current.status, "rejected");
+      return tx.registration.update({
+        where: { id: current.id },
+        data: { status: "rejected", rejectionReason: "Cancelled/refunded by admin", reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() },
+      });
     });
     res.json({ registration });
+    if (current.status !== "rejected") sendRejectionEmail(registration, { cancelled: true });
   } catch (err) {
     console.error("Refund error:", err);
     res.status(500).json({ error: "Failed to process refund" });
