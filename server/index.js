@@ -60,12 +60,20 @@ app.use((req, res, next) => {
 
 // Hack Nexus (its own app) at /hacknexus on this domain - forwarded before
 // CORS and the body parsers so its requests pass through untouched.
-if (process.env.HACKNEXUS_ORIGIN) {
+// HACKNEXUS_START=1 runs Hack Nexus as a child process of this server (no
+// separate domain needed); otherwise HACKNEXUS_ORIGIN points at where it runs.
+const hackNexusRunner =
+  process.env.HACKNEXUS_START === "1"
+    ? require("./utils/hacknexusRunner").startHackNexus({ port: Number(process.env.HACKNEXUS_PORT || 3001) })
+    : null;
+const hackNexusOrigin = hackNexusRunner ? hackNexusRunner.origin : process.env.HACKNEXUS_ORIGIN;
+if (hackNexusOrigin) {
   const { hackNexusProxy } = require("./utils/hacknexusProxy");
   // "/hacknexus" -> "/hacknexus/" (exact path only; Express's own routing
   // treats both the same, which would loop).
   app.use((req, res, next) => (req.path === "/hacknexus" ? res.redirect(301, "/hacknexus/") : next()));
-  app.use("/hacknexus", hackNexusProxy(process.env.HACKNEXUS_ORIGIN));
+  if (hackNexusRunner) app.use("/hacknexus", hackNexusRunner.waitUntilReady);
+  app.use("/hacknexus", hackNexusProxy(hackNexusOrigin, hackNexusRunner ? undefined : process.env.HACKNEXUS_HOST));
 }
 
 // Allowed CORS origins: CLIENT_ORIGIN (comma-separated) in production. In

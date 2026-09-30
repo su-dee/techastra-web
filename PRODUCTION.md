@@ -59,6 +59,7 @@ The same checkout serves both Node apps. To update later: `cd ~/techweb && git p
 | `CLIENT_ORIGIN` | `https://techastra.drmgrdu.ac.in` |
 | `TRUST_PROXY` | `1` |
 | `HACKNEXUS_ORIGIN` | `https://hn.techastra.drmgrdu.ac.in` |
+| `HACKNEXUS_HOST` | only while `hn.techastra.drmgrdu.ac.in` has no public DNS record: set `HACKNEXUS_ORIGIN` to `http://127.0.0.1` and this to `hn.techastra.drmgrdu.ac.in`. The request then goes to the Hack Nexus site on the same server. In Plesk, turn off the HTTPS redirect for the `hn.` subdomain (Hosting Settings) so this plain-http request isn't redirected. |
 | `MAIL_ENDPOINT_URL` | `https://mailer.techastra.drmgrdu.ac.in/send.php` |
 | `MAIL_ENDPOINT_SECRET` | the same secret as in the mailer's `config.php` (below) |
 
@@ -111,6 +112,23 @@ npm run admin:create -- <organiser-username>             # prompts for a 12+ cha
 ```
 - **Lock both apps' tables away from Supabase's public API** (after both migrations): `cd ~/techweb/server && DATABASE_URL='<session URL>' npm run supabase:lockdown`. It should end with "no API access left". Run it again after any future migration.
 - Click **Restart App**.
+
+### 2.4b Hack Nexus without its own subdomain (use this if `hn.` can't be created)
+The main app can run Hack Nexus itself, as a background process on `127.0.0.1:3001`. It restarts it if it stops and forwards `/hacknexus` to it. There's no second Plesk site and no `hn.` DNS.
+- **Main site → Node.js → environment variables:**
+  - add `HACKNEXUS_START` = `1`;
+  - remove `HACKNEXUS_ORIGIN` and `HACKNEXUS_HOST`.
+- **Hack Nexus's settings.** Give it the §2.4 values in one of two ways:
+  - **In the Plesk panel:** add them to the main site's variables with an `HN_` prefix:
+    - `HN_DATABASE_URL` (the Supabase **session** URL, port 5432);
+    - `HN_DB_SCHEMA`=`hacknexus`, `HN_DB_SSL`=`1`, `HN_DB_POOL_MAX`=`5`;
+    - `HN_APP_ORIGIN`=`https://techastra.drmgrdu.ac.in`;
+    - `HN_REGISTRATION_FEE`, `HN_UPI_ID`, `HN_UPI_PAYEE_NAME`;
+    - `HN_SMTP_HOST`, `HN_SMTP_PORT`, `HN_SMTP_USER`, `HN_SMTP_PASS`, `HN_MAIL_FROM`, `HN_MAIL_REPLY_TO`.
+  - **Or in a file:** create `~/techweb/hacknexus/.env` with the same names without the prefix.
+  - Hack Nexus never sees the main app's own variables. `BASE_PATH` and `TRUST_PROXY` are set automatically.
+- **Build and create the organiser login (SSH):** `cd ~/techweb/hacknexus && npm ci && BASE_PATH=/hacknexus npm run build`. Then run `admin:create` as in §2.4, with `DATABASE_URL`, `DB_SCHEMA` and `DB_SSL` exported.
+- **Restart the main app.** Its log shows lines starting `[hacknexus]`. Check `https://techastra.drmgrdu.ac.in/hacknexus/api/health`.
 
 ### 2.5 Mailer (`mailer.techastra.drmgrdu.ac.in` → PHP)
 - **Upload the files.** Upload the contents of `php-mailer/` to this subdomain's `httpdocs/`, so the mailer is at `https://mailer.techastra.drmgrdu.ac.in/send.php`.
