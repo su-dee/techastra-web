@@ -6,7 +6,8 @@
  *    descriptions and coordinators - see eventData.js for which details
  *    (times, fees, seats) are still unconfirmed
  *  - 4 sample colleges (used indirectly via registration collegeName)
- *  - one login per staff role (+ one coordinator per event)
+ *  - with the demo data only: demo staff logins (@techastra.dev); real staff
+ *    logins come from `npm run staff:setup` (scripts/staff-setup.js)
  *  - ~14 dummy registrations spread across pending/approved/rejected
  *  - a few locked results + generated certificates for demo purposes
  *
@@ -26,15 +27,12 @@ const IS_PROD = process.env.NODE_ENV === "production";
 // Demo participants, results and certificates: on by default locally, off in
 // production unless SEED_DEMO=true is set explicitly.
 const SEED_DEMO = process.env.SEED_DEMO ? process.env.SEED_DEMO === "true" : !IS_PROD;
-// Demo participants always use this; staff use STAFF_PASSWORD when set, which
-// is required in production so the public demo password never guards a live
-// staff account.
+// Demo participants and the demo staff logins (@techastra.dev) use this
+// password, and exist only with the demo data (locally by default). Real
+// staff logins - each with its own password - come from
+// `npm run staff:setup` (scripts/staff-setup.js), locally and in production.
 const DEMO_PASSWORD = "TechAstra@2026";
-const STAFF_PASSWORD = process.env.STAFF_PASSWORD || (IS_PROD ? "" : DEMO_PASSWORD);
-if (IS_PROD && STAFF_PASSWORD.length < 12) {
-  console.error("Set STAFF_PASSWORD (at least 12 characters) to seed staff accounts in production.");
-  process.exit(1);
-}
+const STAFF_PASSWORD = process.env.STAFF_PASSWORD || DEMO_PASSWORD;
 
 const COLLEGES = [
   "Sri Venkateswara College of Engineering",
@@ -129,15 +127,18 @@ async function main() {
     rhythmRiot, hiddenFrames, verbalCombat, blitzHunt, plotTwist, teamFeud, capChaos,
   ] = events;
 
-  // 2. Staff accounts
-  const masterAdmin = await upsertStaff({ name: "Dr. HOD Admin", email: "admin@techastra.dev", role: "master_admin" });
-  const regTeam1 = await upsertStaff({ name: "Reg Desk Alpha", email: "regteam1@techastra.dev", role: "registration_team" });
-  const regTeam2 = await upsertStaff({ name: "Reg Desk Beta", email: "regteam2@techastra.dev", role: "registration_team" });
-  const hospitality = await upsertStaff({ name: "Hospitality Lead", email: "hospitality@techastra.dev", role: "hospitality" });
-  const certTeam = await upsertStaff({ name: "Certificate Desk", email: "certificates@techastra.dev", role: "certificate_team" });
+  // 2. Demo staff logins (@techastra.dev, shared demo password) - only with
+  // the demo data. Real staff logins come from `npm run staff:setup`.
+  let masterAdmin = null;
+  const coordinators = [];
+  if (SEED_DEMO) {
+  masterAdmin = await upsertStaff({ name: "Dr. HOD Admin", email: "admin@techastra.dev", role: "master_admin" });
+  await upsertStaff({ name: "Reg Desk Alpha", email: "regteam1@techastra.dev", role: "registration_team" });
+  await upsertStaff({ name: "Reg Desk Beta", email: "regteam2@techastra.dev", role: "registration_team" });
+  await upsertStaff({ name: "Hospitality Lead", email: "hospitality@techastra.dev", role: "hospitality" });
+  await upsertStaff({ name: "Certificate Desk", email: "certificates@techastra.dev", role: "certificate_team" });
 
   // One coordinator per event
-  const coordinators = [];
   for (const event of events) {
     const slug = event.name.toLowerCase().replace(/[^a-z0-9]+/g, "");
     const coordinator = await upsertStaff({
@@ -148,6 +149,7 @@ async function main() {
     });
     coordinators.push(coordinator);
     console.log(`Created coordinator for: ${event.name} (${coordinator.email})`);
+  }
   }
 
   // 2b. Combo passes (real, not demo) - matched on name so a re-run
@@ -191,7 +193,7 @@ async function main() {
   // duplicate emails / registration codes.
   if (!SEED_DEMO) {
     console.log("\nSkipping demo registrations, results and certificates (production). Set SEED_DEMO=true to include them.");
-    console.log("\nSeeding complete. Staff accounts use STAFF_PASSWORD - have each person change it after first sign-in.\n");
+    console.log("\nSeeding complete. Create the staff logins with: npm run staff:setup\n");
     return;
   }
   if (await prisma.user.findUnique({ where: { email: "arun.kumar@example.com" } })) {

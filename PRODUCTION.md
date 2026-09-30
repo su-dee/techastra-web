@@ -10,7 +10,7 @@ Deployment runbook and the standards this project is built to. Everything runs o
 | Privacy / grievance contact email | `client/src/lib/site.js` (`LEGAL.contactEmail`), both `vite.config.js` (`SECURITY_CONTACT`) |
 | Approved refund policy | `client/src/pages/Legal.jsx` (Terms), then set `LEGAL.refundPolicyConfirmed = true` |
 | Final fees, times, seats, venues, team sizes | `server/prisma/eventData.js`, then re-run the seed |
-| Staff password for seeding | Plesk env `STAFF_PASSWORD` (12+ chars); each person changes it after first sign-in |
+| Staff logins (35: admin, hospitality, certificates, desk1–5, one per event) | `npm run staff:setup` creates them with unique passwords in `server/staff-credentials.csv` + printable `staff-credentials.html` (never commit) |
 | Emails (PHP `mail()`, no SMTP) | The mailer subdomain in section 2.5, then set `MAIL_ENDPOINT_URL` and `MAIL_ENDPOINT_SECRET` |
 
 ## 2. Deploy on Plesk (techastra.drmgrdu.ac.in)
@@ -55,7 +55,6 @@ The same checkout serves both Node apps. To update later: `cd ~/techweb && git p
 | `HACKNEXUS_ORIGIN` | `https://hn.techastra.drmgrdu.ac.in` |
 | `MAIL_ENDPOINT_URL` | `https://mailer.techastra.drmgrdu.ac.in/send.php` |
 | `MAIL_ENDPOINT_SECRET` | the same secret as in the mailer's `config.php` (below) |
-| `STAFF_PASSWORD` | 12+ characters. Only used by the seed; each staff member changes it after first sign-in. |
 
 - **Build and set up (SSH).** Plesk's own Node: use the path Plesk shows, e.g. `/opt/plesk/node/22/bin`, or tick "run with this Node" in the panel.
 ```bash
@@ -64,7 +63,10 @@ npm ci                     # includes the prisma CLI (a dev dependency) needed b
 export DATABASE_URL='postgresql://…/techastra'
 npx prisma migrate deploy
 npx prisma generate
-NODE_ENV=production STAFF_PASSWORD='…' npm run seed      # events, combos, staff accounts
+NODE_ENV=production npm run seed        # events and combos (no demo data)
+# staff logins: first upload server/staff-credentials.csv from the laptop (SFTP / Plesk
+# File Manager) into ~/techweb/server/ so everyone keeps the same password, then:
+npm run staff:setup
 npm run recount:seats -- --confirm
 cd ../client
 npm ci

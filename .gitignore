@@ -17,3 +17,10 @@ server/prisma/migrations/**/migration_lock.toml.bak
 !client/public/**/*.pdf
 php-mailer/config.php
 php-mailer/mail-log.txt
+
+# Staff login passwords (server/scripts/staff-setup.js) - never commit
+server/staff-credentials.csv
+server/staff-credentials.html
+
+# Local Claude Code settings
+.claude/
