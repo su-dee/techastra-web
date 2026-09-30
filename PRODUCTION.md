@@ -15,7 +15,7 @@ Deployment runbook and the standards this project is built to. Everything runs o
 
 ## 2. Deploy on Plesk (techastra.drmgrdu.ac.in)
 
-**Layout: three sites on the Plesk plan.** One PostgreSQL server holds two databases.
+**Layout: three sites on the Plesk plan, and the database on Supabase.** Plesk needs no PostgreSQL. Both apps use one Supabase project (hosted PostgreSQL): Techastra's tables are in the `public` schema and Hack Nexus's in a `hacknexus` schema.
 
 | Site | What runs there | Why separate |
 |---|---|---|
@@ -25,9 +25,15 @@ Deployment runbook and the standards this project is built to. Everything runs o
 
 The subdomains need DNS records pointing at the Plesk server. If the university IT manages `drmgrdu.ac.in` DNS, ask them for `techastra`, `hn.techastra` and `mailer.techastra`. Turn on **Let's Encrypt SSL** for all three. The QR camera scanners need https.
 
-### 2.1 Databases (Plesk → Databases → Add database, type PostgreSQL)
-- Create two databases, `techastra` and `hacknexus`, each with its own user.
-- Note both connection strings: `postgresql://USER:PASSWORD@HOST:5432/techastra` and `postgresql://USER:PASSWORD@HOST:5432/hacknexus`.
+### 2.1 Database (Supabase)
+- **Project:** `kmosxyeszbvdpmtxasxk`, region **Mumbai (ap-south-1)**, pooler host `aws-0-ap-south-1.pooler.supabase.com`.
+- **Turn off the Data API:** Project Settings → Data API. Neither app uses it, and it could otherwise publish tables.
+- **Get the connection strings:** Connect → ORMs → Prisma. Use the **pooler** addresses (`…pooler.supabase.com`), not `db.<ref>.supabase.co`, which is IPv6-only on the free plan.
+  - **Transaction pooler (port 6543):** the Techastra app uses this at runtime, with `?pgbouncer=true&connection_limit=5&sslmode=require` on the end.
+  - **Session pooler (port 5432):** use it with `?sslmode=require` for Techastra migrations and for the Hack Nexus app.
+- **Password:** letters and digits only. `@ : / ? # %` break the address; if the password has them, reset it (Project Settings → Database).
+- **Free-plan limits:** the project **pauses after about a week without activity**; restore it from the dashboard (the paid plan never pauses). Up to 60 pooled connections, so keep the pools small (below).
+- **Check the Plesk server can reach Supabase (SSH):** `cd ~/techweb/server && DATABASE_URL='<session URL>' npm run db:check`. If it hangs, ask the host to allow outgoing connections to ports 5432/6543.
 
 ### 2.2 Code (SSH)
 ```bash
@@ -48,7 +54,7 @@ The same checkout serves both Node apps. To update later: `cd ~/techweb && git p
 | Variable | Value |
 |---|---|
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | the `techastra` connection string |
+| `DATABASE_URL` | the Supabase **transaction pooler** URL (port 6543) with `?pgbouncer=true&connection_limit=5&sslmode=require` |
 | `JWT_SECRET` | 48+ random characters: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` |
 | `CLIENT_ORIGIN` | `https://techastra.drmgrdu.ac.in` |
 | `TRUST_PROXY` | `1` |
@@ -60,9 +66,10 @@ The same checkout serves both Node apps. To update later: `cd ~/techweb && git p
 ```bash
 cd ~/techweb/server
 npm ci                     # includes the prisma CLI (a dev dependency) needed below
-export DATABASE_URL='postgresql://…/techastra'
-npx prisma migrate deploy
+# migrations need the session pooler (port 5432); everything else uses the app's URL
+DATABASE_URL='<Supabase session URL, port 5432>' npx prisma migrate deploy
 npx prisma generate
+export DATABASE_URL='<Supabase transaction URL, port 6543, ?pgbouncer=true&connection_limit=5&sslmode=require>'
 NODE_ENV=production npm run seed        # events and combos (no demo data)
 # staff logins: first upload server/staff-credentials.csv from the laptop (SFTP / Plesk
 # File Manager) into ~/techweb/server/ so everyone keeps the same password, then:
@@ -85,7 +92,8 @@ npm run build          # uses client/.env.production (same-domain API, site URL)
 | Variable | Value |
 |---|---|
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | the `hacknexus` connection string |
+| `DATABASE_URL` | the Supabase **session pooler** URL (port 5432) with `?sslmode=require` |
+| `DB_SCHEMA` / `DB_SSL` / `DB_POOL_MAX` | `hacknexus` / `1` / `5` |
 | `APP_ORIGIN` | `https://techastra.drmgrdu.ac.in` (the MAIN domain, which the browser uses) |
 | `BASE_PATH` | `/hacknexus` |
 | `TRUST_PROXY` | `1` |
@@ -97,10 +105,11 @@ npm run build          # uses client/.env.production (same-domain API, site URL)
 cd ~/techweb/hacknexus
 npm ci
 BASE_PATH=/hacknexus npm run build
-export DATABASE_URL='postgresql://…/hacknexus'
-npm run db:migrate
+export DATABASE_URL='<Supabase session URL, port 5432>' DB_SCHEMA=hacknexus DB_SSL=1
+npm run db:migrate                                       # creates the hacknexus schema and its tables
 npm run admin:create -- <organiser-username>             # prompts for a 12+ character password
 ```
+- **Lock both apps' tables away from Supabase's public API** (after both migrations): `cd ~/techweb/server && DATABASE_URL='<session URL>' npm run supabase:lockdown`. It should end with "no API access left". Run it again after any future migration.
 - Click **Restart App**.
 
 ### 2.5 Mailer (`mailer.techastra.drmgrdu.ac.in` → PHP)

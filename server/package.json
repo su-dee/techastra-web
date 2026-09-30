@@ -14,7 +14,9 @@
     "migrate:deploy": "prisma migrate deploy",
     "purge:personal-data": "node scripts/purge-personal-data.js",
     "recount:seats": "node scripts/recount-seats.js",
-    "staff:setup": "node scripts/staff-setup.js"
+    "staff:setup": "node scripts/staff-setup.js",
+    "supabase:lockdown": "node scripts/supabase-lockdown.js",
+    "db:check": "node scripts/db-check.js"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
