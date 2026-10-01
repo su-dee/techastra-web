@@ -320,7 +320,7 @@ const EVENTS = [
     venue: "CAD Lab & VOC 201",
     description: "Look closer. Spot what is concealed in every frame and piece together the picture before anyone else does.",
     coordinators: [staff("Mrs. G. Priyanka", "8072937403"), student("Mr. Dhevanathan R", "6383429727"), student("Mr. Sham Prasad", "9043595650"), student("Mr. Rithvick Sree", "7397449938")],
-    when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [2, 2],
+    when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [3, 3],
   },
   {
     name: "Verbal Combat",
@@ -396,7 +396,7 @@ const EVENTS = [
       student("Mr. Guru Prasath", "7904186779"),
       student("Mr. Venkatesh", "9110348446"),
     ],
-    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 60, team: [2, 2],
+    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 60, team: [3, 3],
   },
   {
     name: "Cap Chaos",
@@ -477,7 +477,7 @@ const EVENTS = [
     track: "AI Image Recreation Challenge",
     category: "technical",
     day: 2,
-    venue: "Communication Lab",
+    venue: "Network Lab",
     description:
       "An AI generation challenge testing memory and prompt engineering. Teams are shown a reference image for 60 seconds and must observe and remember it. Once it is hidden, they craft a prompt to recreate the image on a specified AI platform. The team with the highest overall score wins.",
     rules: {
@@ -503,7 +503,7 @@ const EVENTS = [
     track: "Imagine the Future",
     category: "technical",
     day: 2,
-    venue: "VOC 415 & VOC 416",
+    venue: "VOC 404 & VOC 406",
     description:
       "A creative innovation challenge where students turn simple craft materials into an innovative model on the theme “Imagine the Future” — an idea that solves a real-world problem in areas such as future technology, smart cities, healthcare, education, transportation, environment, safety or daily life.",
     rules: {
@@ -556,7 +556,7 @@ const EVENTS = [
     track: "Crack the Cyber Case",
     category: "technical",
     day: 2,
-    venue: "Hi-Tech Lab",
+    venue: "Communication Lab",
     description:
       "An unplugged cybersecurity case-solving challenge for school students. Each team receives a physical “Top Secret” dossier with a unique cyber-crime scenario and must analyse the evidence to identify what happened, the root cause and how it could be prevented — no computers or internet needed.",
     rules: {
@@ -583,7 +583,7 @@ const EVENTS = [
     track: "Connections",
     category: "non_technical",
     day: 2,
-    venue: "DAA Lab",
+    venue: "IBM Lab",
     description:
       "A fast-paced connection challenge that tests observation, logical thinking, creativity, teamwork and quick responses. Teams are shown images, objects, symbols, words or clues and must find the common connection and give the answer it leads to before time runs out.",
     rules: {
@@ -611,7 +611,7 @@ const EVENTS = [
     track: "Guess It!",
     category: "non_technical",
     day: 2,
-    venue: "C Programming Lab",
+    venue: "IBM Lab",
     description:
       "A fast-paced visual guessing game that tests observation, general awareness and quick thinking. Teams identify gadgets, logos, symbols, objects, tools and icons — some zoomed in, partially hidden, blurred or shown from unusual angles — within the time limit.",
     rules: {
@@ -637,7 +637,7 @@ const EVENTS = [
     track: "Create · Perform · Convince",
     category: "non_technical",
     day: 2,
-    venue: "VOC 406",
+    venue: "VOC 415 & VOC 416",
     description:
       "A live performance event that tests creativity, originality and teamwork. Each team is given a product or service and must write, plan and perform a live advertisement for it in a maximum of 3 minutes, closing with a memorable slogan, tagline or punchline.",
     rules: {
