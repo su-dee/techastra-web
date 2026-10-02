@@ -175,7 +175,7 @@ export default function RegisterForm() {
   const errorCount = Object.keys(errors).length;
 
   return (
-    <div className="max-w-xl mx-auto px-6 py-14">
+    <div className="max-w-xl mx-auto px-6 pt-6 pb-14 sm:py-14">
       <div className="page-head animate-cinematic-fade">
         <Stepper current={2} />
         <div className="kicker">Your details</div>

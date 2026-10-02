@@ -146,7 +146,10 @@ export function EventFilters({ level, onLevel, category, onCategory, days = [], 
                 title={empty ? `No ${LEVEL_LABEL[level].toLowerCase()} events on this day` : undefined}
                 onClick={() => onDay(d.id)}
               >
-                {d.label.toUpperCase()}
+                {/* Short on phones so the day chips fit one row. */}
+                <span className="sm:hidden" aria-hidden="true">{d.short.toUpperCase()}</span>
+                <span className="hidden sm:inline">{d.label.toUpperCase()}</span>
+                <span className="sr-only sm:hidden">{d.label}</span>
               </button>
             );
           })}

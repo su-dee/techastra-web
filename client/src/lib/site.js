@@ -152,8 +152,8 @@ export const CATEGORY_COORDINATORS = [
 ];
 
 export const DAYS = [
-  { id: 1, date: "2026-10-08", label: "October 8, 2026 (Day 1)", long: "Thursday, October 8, 2026 (Day 1)" },
-  { id: 2, date: "2026-10-09", label: "October 9, 2026 (Day 2)", long: "Friday, October 9, 2026 (Day 2)" },
+  { id: 1, date: "2026-10-08", label: "October 8, 2026 (Day 1)", short: "Day 1 · Oct 8", long: "Thursday, October 8, 2026 (Day 1)" },
+  { id: 2, date: "2026-10-09", label: "October 9, 2026 (Day 2)", short: "Day 2 · Oct 9", long: "Friday, October 9, 2026 (Day 2)" },
 ];
 
 // Which symposium day an event falls on: the explicit `day` field if the

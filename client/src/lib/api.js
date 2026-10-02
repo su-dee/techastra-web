@@ -33,7 +33,7 @@ async function request(path, { method = "GET", body, headers = {}, isFormData = 
 
   if (!res.ok) {
     const message = data?.error || `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw Object.assign(new Error(message), { status: res.status });
   }
 
   return data;

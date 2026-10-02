@@ -93,6 +93,8 @@ async function sendRejectionEmail(registration, { cancelled = false } = {}) {
     const site = siteUrl();
     const statusLink = site ? `${site}/status?code=${encodeURIComponent(registration.registrationCode)}` : null;
     const reason = registration.rejectionReason || "Payment could not be verified";
+    // Free (Junior) registrations have no payment to fix, refund or resubmit.
+    const paid = registration.totalAmount > 0;
     const lines = cancelled
       ? [
           `Hi ${user.name},`,
@@ -101,7 +103,9 @@ async function sendRejectionEmail(registration, { cancelled = false } = {}) {
           "",
           `Reason: ${reason}`,
           "",
-          "If you have any questions about this or about a refund, reply to this email.",
+          paid
+            ? "If you have any questions about this or about a refund, reply to this email."
+            : "If you think this is a mistake, reply to this email or use the Help Desk on the website.",
           "",
           "- Techastra '26 Team",
         ]
@@ -112,9 +116,13 @@ async function sendRejectionEmail(registration, { cancelled = false } = {}) {
           "",
           `Reason: ${reason}`,
           "",
-          "What to do next:",
-          `- Open the registration status page${statusLink ? ` (${statusLink})` : ""}, enter your registration code and email, and resubmit your payment with the correct UPI transaction ID (UTR) and screenshot. Your registration then goes back to the registration desk.`,
-          "- If you think this is a mistake, reply to this email or use the Help Desk on the website.",
+          ...(paid
+            ? [
+                "What to do next:",
+                `- Open the registration status page${statusLink ? ` (${statusLink})` : ""}, enter your registration code and email, and resubmit your payment with the correct UPI transaction ID (UTR) and screenshot. Your registration then goes back to the registration desk.`,
+                "- If you think this is a mistake, reply to this email or use the Help Desk on the website.",
+              ]
+            : ["If you think this is a mistake, reply to this email or use the Help Desk on the website."]),
           "",
           "- Techastra '26 Team",
         ];

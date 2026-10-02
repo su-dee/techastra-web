@@ -405,6 +405,39 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
 .nav__burger.is-open span:nth-child(3) { transform: translateY(-5.5px) rotate(-45deg); }
 .nav__mobile { display: none; }
 
+/* Logged-in avatar + account menu (ProfileMenu.jsx). */
+.nav__login { display: inline-flex; align-items: center; gap: 6px; }
+.nav__profile { position: relative; }
+.nav__avatar {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(201, 162, 74, 0.55); background: rgba(201, 162, 74, 0.14);
+  color: var(--amber-2); font-family: var(--mono); font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.nav__avatar:hover, .nav__avatar.is-open { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(201, 162, 74, 0.18); }
+.nav__avatar--lg { width: 44px; height: 44px; font-size: 14px; cursor: default; }
+.nav__menu {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 50; width: 280px; max-width: calc(100vw - 2 * var(--gutter));
+  border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28); overflow: hidden;
+}
+.nav__menu-head { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--line); }
+.nav__menu-name { color: var(--heading); font-size: 15px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav__menu-email { color: var(--dim); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav__menu-role {
+  display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 20px; border: 1px solid rgba(201, 162, 74, 0.45);
+  color: var(--amber-2); font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase;
+}
+.nav__menu-group { padding: 6px; }
+.nav__menu-group + .nav__menu-group { border-top: 1px solid var(--line); }
+.nav__menu-item {
+  display: block; width: 100%; padding: 10px 12px; border-radius: 8px; text-align: left;
+  color: var(--c-d3cdc2); font-size: 14px; background: transparent; border: 0; cursor: pointer;
+}
+.nav__menu-item:hover, .nav__menu-item:focus-visible { background: rgba(var(--shade), 0.06); color: var(--heading); outline: none; }
+.nav__menu-item--danger { color: rgb(var(--tw-danger)); }
+
 /* ---------- hero ---------- */
 .hero {
   position: relative; overflow: clip; margin-top: calc(-1 * var(--nav-h)); padding-top: var(--nav-h);
@@ -479,6 +512,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--sans); font-weight: 400; color: var(
 .events__filters { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .events__chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Small phones (360px): the three day chips share one row instead of two. */
+@media (max-width: 400px) {
+  .events__chips[aria-label="Day"] { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .events__chips[aria-label="Day"] .chip { padding: 9px 4px; letter-spacing: 0.03em; white-space: nowrap; text-align: center; }
+}
 /* /events: filters in one toolbar row under the intro, same for every level. */
 .events__toolbar { margin-top: 28px; }
 .events__toolbar .events__filters { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px 24px; }

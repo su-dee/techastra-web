@@ -3,9 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import EventInfo, { kickerFor, teamLabel } from "../components/EventInfo";
 import { ExternalRegisterButton } from "../components/EventBrowser";
+import JuniorNotice from "../components/JuniorNotice";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
-import { categoryOf, registrationClosed } from "../lib/site";
+import { categoryOf, levelOf, registrationClosed } from "../lib/site";
 
 // Stand-alone page for a single event (shared links / bookmarks). Same
 // content as the modal on /events, laid out as the main site's modal panel.
@@ -119,6 +120,7 @@ export default function EventDetail() {
           </div>
         )}
       </div>
+      <JuniorNotice active={levelOf(event) === "junior"} onCollege={() => navigate("/events?level=senior")} />
     </div>
   );
 }

@@ -32,7 +32,7 @@ export default function Cart() {
   );
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-14">
+    <div className="max-w-2xl mx-auto px-6 pt-6 pb-14 sm:py-14">
       <div className="page-head animate-cinematic-fade">
         <Stepper current={1} />
         <div className="kicker">Your cart</div>

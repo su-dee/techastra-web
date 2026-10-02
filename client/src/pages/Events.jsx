@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import Stepper from "../components/ui/Stepper";
 import Button from "../components/ui/Button";
 import ComboPassCard from "../components/ComboPassCard";
+import JuniorNotice from "../components/JuniorNotice";
 import { formatFee } from "../components/EventInfo";
 import { EventCard, EventFilters, EventModal, useCartToggle, useEventModal, useEvents, useLevelFilter } from "../components/EventBrowser";
 import { useCart } from "../context/CartContext";
@@ -24,6 +25,12 @@ import { LEVEL_AUDIENCE, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/
 const LEVEL_INTRO = {
   senior: "For college students, held on October 8, 2026 (Day 1) and October 9, 2026 (Day 2). Junior events for school students are registered separately.",
   junior: "For school students, all held on October 9, 2026 (Day 2). Registration is free — register individually; teams for team events are formed at the venue. Senior events for college students are registered separately.",
+};
+// Phones get one line so the event cards start on the first screen. Dates
+// are on the day filters, and the cart itself blocks overlapping events.
+const LEVEL_INTRO_SHORT = {
+  senior: "For college students · Oct 8–9. Add events to your cart, then continue.",
+  junior: "For school students · Oct 9 · Free. Register individually — teams form at the venue.",
 };
 
 export default function Events() {
@@ -70,20 +77,27 @@ export default function Events() {
 
   return (
     <>
-      <section className="section events !border-t-0 !pt-16 !pb-40">
+      <section className="section events !border-t-0 !pt-6 sm:!pt-16 !pb-40">
         <div className="wrap">
           <div className="events__head">
             <div>
               <Stepper current={1} />
-              <div className="kicker mt-6">Step 1 · Choose events</div>
+              {/* The stepper already says "Choose events" on phones. */}
+              <div className="kicker mt-6 hidden sm:block">Step 1 · Choose events</div>
               <h1 className="h2">Choose what you’ll compete in</h1>
               {/* Names the chosen level first, then what applies to it. */}
               <div className="mt-4 max-w-xl" aria-live="polite">
                 <p className="text-[22px] leading-tight font-semibold text-amber-light">{LEVEL_LABEL[level]} events</p>
-                <p className="lead mt-2">
+                <p className="lead mt-2 sm:hidden">{LEVEL_INTRO_SHORT[level]}</p>
+                <p className="lead mt-2 hidden sm:block">
                   {LEVEL_INTRO[level]} Add the events you want to your cart, then continue to your details. Events
                   that overlap in time can’t go in the same cart.
                 </p>
+                {level === "junior" && (
+                  <p className="mt-3 rounded-[10px] border border-danger/40 bg-danger/10 px-4 py-2.5 text-[14px] text-danger">
+                    School students only - registrations from college students will be rejected.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -105,7 +119,8 @@ export default function Events() {
             />
           </div>
 
-          <div className="events__count">
+          {/* On phones the tabs and intro already say this; keep only "Loading". */}
+          <div className={"events__count" + (loading ? "" : " hidden sm:block")}>
             {loading
               ? "LOADING EVENTS…"
               : `${LEVEL_LABEL[level].toUpperCase()} EVENTS · FOR ${LEVEL_AUDIENCE[level].toUpperCase()} — SHOWING ${visible.length} OF ${ofLevel.length}`}
@@ -178,6 +193,7 @@ export default function Events() {
         list={visible}
         onNavigate={modal.go}
       />
+      <JuniorNotice active={level === "junior"} onCollege={() => setLevel("senior")} />
     </>
   );
 }

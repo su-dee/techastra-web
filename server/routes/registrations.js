@@ -527,7 +527,16 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
       include: { user: true },
     });
     if (!registration) return res.status(404).json({ error: "No registration found for this account" });
-    res.json({ registration: { ...registration, idCardToken: idCardToken(registration.registrationCode) } });
+    // Event-day activity for the profile dashboard: check-ins, placings, meals.
+    const [attendance, results, meals] = await Promise.all([
+      prisma.attendance.findMany({ where: { registrationId: registration.id }, select: { eventId: true, scannedAt: true } }),
+      prisma.result.findMany({ where: { registrationId: registration.id }, select: { eventId: true, position: true } }),
+      prisma.foodLog.findMany({ where: { registrationId: registration.id }, select: { mealSession: true, collectedAt: true } }),
+    ]);
+    res.json({
+      registration: { ...registration, idCardToken: idCardToken(registration.registrationCode) },
+      activity: { attendance, results, meals },
+    });
   } catch (err) {
     console.error("Get my registration error:", err);
     res.status(500).json({ error: "Failed to load your registration" });
@@ -615,7 +624,9 @@ router.patch(
 
       res.json({ registration });
       // Newly rejected: the participant is told why and how to resubmit (once).
-      if (current.status !== "rejected") sendRejectionEmail(registration);
+      // Someone already approved was told they're in, so theirs reads as a
+      // cancellation (e.g. a college student in free Junior events).
+      if (current.status !== "rejected") sendRejectionEmail(registration, { cancelled: current.status === "approved" });
     } catch (err) {
       console.error("Reject error:", err);
       res.status(500).json({ error: "Failed to reject registration" });

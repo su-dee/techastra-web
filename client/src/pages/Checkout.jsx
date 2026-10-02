@@ -261,7 +261,7 @@ export default function Checkout() {
   const closedItem = items.find((i) => registrationClosed(i) || startedIds.has(i.id));
   if (closedItem) {
     return (
-      <div className="max-w-lg mx-auto px-6 py-14 text-center">
+      <div className="max-w-lg mx-auto px-6 pt-6 pb-14 sm:py-14 text-center">
         <div className="kicker">Registration closed</div>
         <h1 className="h2">{closedItem.name} has already started</h1>
         <p className="lead mt-3">
@@ -274,7 +274,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-6 py-14">
+    <div className="max-w-lg mx-auto px-6 pt-6 pb-14 sm:py-14">
       <div className="page-head animate-cinematic-fade">
         <Stepper current={3} />
         <div className="kicker">{free ? "Confirm" : "Payment"}</div>

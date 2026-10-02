@@ -3,9 +3,9 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { usePanels } from "../context/PanelContext";
-import { PORTAL_PATH } from "../lib/site";
 import logo from "../assets/logo-sm.webp";
 import ThemeToggle from "./ThemeToggle";
+import ProfileMenu, { PersonIcon } from "./ProfileMenu";
 
 const LINKS = [
   ["/", "Home"],
@@ -28,7 +28,7 @@ function CartIcon() {
 // Same layout as the main site's navbar (techastra-web Navbar.jsx): logo +
 // text links on the left, primary action on the right, burger menu below 900px.
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { items } = useCart();
   const { openPanel } = usePanels();
   const { pathname } = useLocation();
@@ -57,8 +57,6 @@ export default function Navbar() {
     };
   }, [pathname]);
 
-  const portal = user ? PORTAL_PATH[user.role] || "/dashboard" : null;
-
   return (
     <nav className={"nav" + (overHero ? " theme-dark" : "")} aria-label="Main">
       <div className="nav__left">
@@ -84,16 +82,10 @@ export default function Navbar() {
           {items.length > 0 && <span className="nav__cart-count">{items.length}</span>}
         </Link>
         {user ? (
-          <>
-            <button type="button" className="btn-ghost-sm nav__desktop-only" onClick={logout} data-log="nav-logout">
-              Log out
-            </button>
-            <Link to={portal} className="btn-small" data-log="nav-dashboard">
-              {user.role === "participant" ? "My Dashboard" : "Portal"}
-            </Link>
-          </>
+          <ProfileMenu />
         ) : (
-          <Link to="/login" className="btn-small" data-log="nav-login">
+          <Link to="/login" className="btn-small nav__login" data-log="nav-login">
+            <PersonIcon />
             Login
           </Link>
         )}
@@ -119,11 +111,6 @@ export default function Navbar() {
         <button type="button" onClick={() => { setOpen(false); openPanel("help"); }}>
           Help Desk
         </button>
-        {user && (
-          <button type="button" onClick={() => { setOpen(false); logout(); }}>
-            Log out
-          </button>
-        )}
       </div>
     </nav>
   );

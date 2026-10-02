@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useEffect, useRef } from "react";
-import { Routes, Route, Link, useLocation } from "react-router-dom";
+import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
+import { Routes, Route, Link, useLocation, useNavigationType } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -103,11 +103,43 @@ class PageErrorBoundary extends React.Component {
   }
 }
 
+// Open every newly visited page at its top. Without this a page keeps the
+// previous page's scroll offset, and a shorter page (cart, checkout, the
+// registration form) opens scrolled down to the footer - most visitors are
+// on phones, where that hides the whole page. Back/forward (POP) is left to
+// the browser. A link to a #section (e.g. /dashboard#id-card from the
+// account menu) scrolls to it once it renders - pages that load their data
+// first show it a moment later, so this waits up to a few seconds.
+function useScrollToTopOnNavigate(pathname) {
+  const navType = useNavigationType();
+  const { hash } = useLocation();
+  useLayoutEffect(() => {
+    if (navType === "POP" || hash) return;
+    // "instant" overrides the html { scroll-behavior: smooth } rule, so the
+    // page doesn't visibly scroll up from the footer.
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!hash) return undefined;
+    let id;
+    const deadline = Date.now() + 4000;
+    const tryScroll = () => {
+      let el = null;
+      try { el = document.querySelector(decodeURIComponent(hash)); } catch { return; }
+      if (el) el.scrollIntoView({ block: "start" });
+      else if (Date.now() < deadline) id = setTimeout(tryScroll, 100);
+    };
+    tryScroll();
+    return () => clearTimeout(id);
+  }, [pathname, hash]);
+}
+
 export default function App() {
   const { pathname } = useLocation();
   const mainRef = useRef(null);
   const announceRef = useRef(null);
   usePrefetchVisitorPages();
+  useScrollToTopOnNavigate(pathname);
   useRouteAnnouncer(pathname, mainRef, announceRef);
   return (
     <div className="page-glow min-h-screen flex flex-col">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -8,6 +8,30 @@ import { Input, Textarea, Select, Label } from "../../components/ui/Input";
 import { api } from "../../lib/api";
 import ParticipantIDCard from "../../components/ParticipantIDCard";
 import { idCardVerifyUrl } from "../../lib/idCard";
+import { levelOf } from "../../lib/site";
+
+// One tap fills the reason; the participant sees it in their email and on
+// the status page, so it should say what to fix.
+const PAYMENT_REASONS = [
+  "UTR doesn't match the payment screenshot",
+  "Payment not received",
+  "Amount paid is less than the total fee",
+  "Payment screenshot is unclear or missing",
+];
+const JUNIOR_REASON = "Junior events are for school students only - college students can't register for them";
+const OTHER_REASONS = ["Duplicate registration"];
+
+// Junior Techastra is for school students. Flag (never auto-reject) Junior
+// registrations whose institution or year of study looks like a college's.
+const COLLEGE_HINT = /\b(college|university|institute|polytechnic|engineering|deemed)\b/i;
+const looksLikeCollege = (r) =>
+  COLLEGE_HINT.test(r.collegeName || r.user?.collegeName || "") || /year/i.test(r.user?.yearOfStudy || "");
+
+const STATUS_TABS = [
+  ["pending", "Pending"],
+  ["approved", "Approved"],
+  ["rejected", "Rejected"],
+];
 
 // Payment screenshots are private: fetched with the staff token and shown
 // from a blob URL. The tab is opened synchronously (inside the click) so
@@ -31,8 +55,12 @@ async function openProof(registrationId) {
 export default function RegistrationTeamPortal() {
   const [registrations, setRegistrations] = useState([]);
   const [filter, setFilter] = useState("pending");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [rejectTarget, setRejectTarget] = useState(null);
+  // The registration an action is in flight for - its buttons lock so a
+  // double tap can't approve/reject twice (or send two emails).
+  const [busyId, setBusyId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null); // the registration being rejected
   const [reason, setReason] = useState("");
 
   const [lookupQuery, setLookupQuery] = useState("");
@@ -72,37 +100,83 @@ export default function RegistrationTeamPortal() {
       .catch((err) => console.error("Failed to load events:", err));
   }, []);
 
+  // All statuses in one request: the tabs filter locally (instant switching,
+  // live counts), and a decided registration just moves to its new tab.
   const load = () => {
     setLoading(true);
-    const query = filter ? `?status=${filter}` : "";
     api
-      .get(`/api/registrations${query}`)
+      .get("/api/registrations")
       .then((data) => setRegistrations(data.registrations || []))
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [filter]);
+  useEffect(load, []);
 
-  const approve = async (id) => {
+  const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
+  const counts = useMemo(() => {
+    const c = { pending: 0, approved: 0, rejected: 0 };
+    registrations.forEach((r) => (c[r.status] = (c[r.status] || 0) + 1));
+    return c;
+  }, [registrations]);
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return registrations.filter(
+      (r) =>
+        r.status === filter &&
+        (!q ||
+          [r.user?.name, r.user?.email, r.user?.phone, r.registrationCode, r.collegeName, r.transactionId, r.teamName]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(q)))
+    );
+  }, [registrations, filter, search]);
+
+  const isJunior = (r) => r.eventIds.some((id) => eventsById.get(id) && levelOf(eventsById.get(id)) === "junior");
+
+  // Swap in the server's copy, keeping the list-only duplicate flags.
+  const replace = (updated) =>
+    setRegistrations((list) => list.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
+
+  const approve = async (r) => {
+    setBusyId(r.id);
     try {
-      const data = await api.patch(`/api/registrations/${id}/approve`);
-      toast.success(data.alreadyApproved ? "Already approved" : "Registration approved");
-      load();
+      const data = await api.patch(`/api/registrations/${r.id}/approve`);
+      replace(data.registration);
+      toast.success(
+        data.alreadyApproved ? "Already approved" : `${r.user.name} approved${r.status === "rejected" ? " (restored)" : ""} - email sent`
+      );
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const reject = async () => {
+  const openReject = (r) => {
+    setReason(isJunior(r) && looksLikeCollege(r) ? JUNIOR_REASON : "");
+    setRejectTarget(r);
+  };
+  const closeReject = () => {
+    if (busyId) return;
+    setRejectTarget(null);
+    setReason("");
+  };
+
+  const reject = async (e) => {
+    e?.preventDefault();
+    if (!reason.trim()) return toast.error("Pick or type a reason - the participant sees it.");
+    const r = rejectTarget;
+    setBusyId(r.id);
     try {
-      await api.patch(`/api/registrations/${rejectTarget}/reject`, { reason });
-      toast.success("Registration rejected");
+      const data = await api.patch(`/api/registrations/${r.id}/reject`, { reason: reason.trim() });
+      replace(data.registration);
+      toast.success(`${r.user.name} ${r.status === "approved" ? "cancelled" : "rejected"} - email sent`);
       setRejectTarget(null);
       setReason("");
-      load();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -272,6 +346,136 @@ export default function RegistrationTeamPortal() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
       <h1 className="font-heading text-3xl font-bold mb-6">Registration Team Portal</h1>
+
+      {/* The desk's main job first: approve / reject. */}
+      <section className="mb-10" aria-label="Review registrations">
+        <h2 className="font-heading font-semibold text-xl mb-3">Review registrations</h2>
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+          <div className="flex gap-2 overflow-x-auto" role="tablist" aria-label="Registration status">
+            {STATUS_TABS.map(([key, label]) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={filter === key}
+                onClick={() => setFilter(key)}
+                className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium ${filter === key ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-shade/5 text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
+              >
+                {label} <span className="font-mono text-[12px] opacity-80">{counts[key]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 sm:ml-auto sm:w-80">
+            <Input
+              type="search"
+              aria-label="Search registrations"
+              placeholder="Search name, code, email, UTR, college"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} aria-label="Refresh list">
+              ↻
+            </Button>
+          </div>
+        </div>
+
+        {loading && registrations.length === 0 ? (
+          <p className="text-shade/50">Loading...</p>
+        ) : shown.length === 0 ? (
+          <p className="text-shade/50">{search ? `No ${filter} registrations match "${search}".` : `No ${filter} registrations.`}</p>
+        ) : (
+          <div className="space-y-3">
+            {shown.map((r) => {
+              const junior = isJunior(r);
+              const busy = busyId === r.id;
+              const regEvents = r.eventIds.map((id) => eventsById.get(id)).filter(Boolean);
+              return (
+                <Card key={r.id} className="!p-4 sm:!p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold">
+                        {r.user.name} <span className="text-dim text-sm font-mono">{r.registrationCode}</span>
+                      </p>
+                      <p className="text-sm text-shade/60 break-words">
+                        {r.user.email}
+                        {r.user.phone && <> · {r.user.phone}</>}
+                      </p>
+                      <p className="text-sm text-shade/60">
+                        {r.collegeName || r.user.collegeName}
+                        {r.user.yearOfStudy && <> · {r.user.yearOfStudy}</>}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <Badge status={r.status} />
+                      {junior && <Badge status="info">Junior</Badge>}
+                    </div>
+                  </div>
+
+                  {regEvents.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {regEvents.map((e) => (
+                        <span key={e.id} className="pill">{e.name}</span>
+                      ))}
+                      {r.teamName && <span className="pill">Team: {r.teamName}</span>}
+                    </div>
+                  )}
+
+                  <p className="text-sm text-shade/60 mt-3">
+                    {r.paymentMethod === "cash" ? "Paid in cash" : r.paymentMethod === "free" ? "Free registration" : `UTR: ${r.transactionId}`} · ₹{r.totalAmount}
+                    {r.paymentProofUrl && (
+                      <>
+                        {" · "}
+                        <button type="button" onClick={() => openProof(r.id)} className="text-cyan underline">
+                          View screenshot
+                        </button>
+                      </>
+                    )}
+                  </p>
+                  {junior && looksLikeCollege(r) && r.status !== "rejected" && (
+                    <p className="text-sm text-danger mt-1" role="note">
+                      ⚠ Junior events, but this looks like a college student - Junior is for school students only.
+                    </p>
+                  )}
+                  {r.possibleDuplicates?.length > 0 && (
+                    <p className="text-sm text-amber-light mt-1" role="note">
+                      ⚠ Possible duplicate: same register or mobile number as {r.possibleDuplicates.join(", ")}
+                    </p>
+                  )}
+                  {r.rejectionReason && <p className="text-sm text-danger mt-1">Reason: {r.rejectionReason}</p>}
+                  {r.reviewedAt && (
+                    <p className="text-xs text-dim mt-1">
+                      {r.status === "rejected" ? "Rejected" : r.status === "approved" ? "Approved" : "Updated"} by {r.reviewedByName || "staff"} ·{" "}
+                      {new Date(r.reviewedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 mt-4">
+                    {r.status === "pending" && (
+                      <>
+                        <Button size="sm" onClick={() => approve(r)} disabled={busy}>
+                          {busy ? "Saving…" : "✓ Approve"}
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => openReject(r)} disabled={busy}>
+                          ✕ Reject
+                        </Button>
+                      </>
+                    )}
+                    {r.status === "approved" && (
+                      <Button size="sm" variant="danger" className="col-span-2" onClick={() => openReject(r)} disabled={busy}>
+                        ✕ Reject / cancel registration
+                      </Button>
+                    )}
+                    {r.status === "rejected" && (
+                      <Button size="sm" variant="outline" className="col-span-2" onClick={() => approve(r)} disabled={busy}>
+                        {busy ? "Saving…" : "↺ Restore & approve"}
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Cash Registration Section */}
       <Card className="mb-8">
@@ -630,77 +834,61 @@ export default function RegistrationTeamPortal() {
         </div>
       </Card>
 
-      <div className="flex gap-3 mb-6">
-        {["pending", "approved", "rejected"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === s ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-shade/5 text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <p className="text-shade/50">Loading...</p>
-      ) : registrations.length === 0 ? (
-        <p className="text-shade/50">No {filter} registrations.</p>
-      ) : (
-        <div className="space-y-3">
-          {registrations.map((r) => (
-            <Card key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
-                <p className="text-sm text-shade/60">{r.user.email} · {r.collegeName}</p>
-                <p className="text-sm text-shade/60">
-                  {r.paymentMethod === "cash" ? "Paid in cash" : r.paymentMethod === "free" ? "Free" : `Txn ID: ${r.transactionId}`} · ₹{r.totalAmount}
-                </p>
-                {r.possibleDuplicates?.length > 0 && (
-                  <p className="text-sm text-amber-light mt-1" role="note">
-                    ⚠ Possible duplicate: same register or mobile number as {r.possibleDuplicates.join(", ")}
-                  </p>
-                )}
-                {r.paymentProofUrl && (
-                  <button type="button" onClick={() => openProof(r.id)} className="text-cyan text-sm underline">
-                    View payment screenshot
-                  </button>
-                )}
-                {r.rejectionReason && <p className="text-sm text-danger mt-1">Reason: {r.rejectionReason}</p>}
-                {r.reviewedAt && (
-                  <p className="text-xs text-dim mt-1">
-                    {r.status === "rejected" ? "Rejected" : r.status === "approved" ? "Approved" : "Updated"} by {r.reviewedByName || "staff"} ·{" "}
-                    {new Date(r.reviewedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge status={r.status} />
-                {r.status === "pending" && (
-                  <>
-                    <Button size="sm" onClick={() => approve(r.id)}>Approve</Button>
-                    <Button size="sm" variant="danger" onClick={() => setRejectTarget(r.id)}>Reject</Button>
-                  </>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Modal open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="Reject Registration">
-        <p className="text-sm text-shade/60 mb-3">
-          The participant sees this reason on the status page and can resubmit a corrected payment there. The
-          registration’s seats are released.
-        </p>
-        <Textarea
-          rows={3}
-          aria-label="Reason for rejection"
-          placeholder="Reason for rejection"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-        <Button className="w-full mt-4" variant="danger" onClick={reject}>Confirm Reject</Button>
+      <Modal
+        open={!!rejectTarget}
+        onClose={closeReject}
+        size="sm"
+        kicker={rejectTarget ? `${rejectTarget.user.name} · ${rejectTarget.registrationCode}` : undefined}
+        title={rejectTarget?.status === "approved" ? "Cancel this approved registration?" : "Reject registration"}
+      >
+        {rejectTarget && (
+          <form onSubmit={reject}>
+            {rejectTarget.status === "approved" && (
+              <p className="text-sm rounded-[10px] border border-danger/40 bg-danger/10 text-danger px-3 py-2 mb-4">
+                They’re already approved. This cancels it: their ID card stops working at check-in and food counters, and
+                they get a cancellation email.
+              </p>
+            )}
+            <p className="text-sm text-shade/60 mb-2">Reason - the participant sees this:</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {[
+                ...(isJunior(rejectTarget) ? [JUNIOR_REASON] : []),
+                ...(rejectTarget.totalAmount > 0 ? PAYMENT_REASONS : []),
+                ...OTHER_REASONS,
+              ].map((text) => (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={() => setReason(text)}
+                  aria-pressed={reason === text}
+                  className={`text-left text-[13px] px-3 py-1.5 rounded-lg border ${reason === text ? "border-danger/60 bg-danger/10 text-danger" : "border-shade/15 text-[color:var(--c-c6bfb3)] hover:border-shade/30"}`}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+            <Textarea
+              rows={2}
+              aria-label="Reason for rejection"
+              placeholder="Or type a reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={300}
+            />
+            <p className="text-xs text-dim mt-2">
+              Their seats are released.
+              {rejectTarget.totalAmount > 0 && " They can resubmit a corrected payment from the status page."}
+            </p>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <Button type="button" variant="outline" onClick={closeReject} disabled={!!busyId}>
+                Keep it
+              </Button>
+              <Button type="submit" variant="danger" disabled={!!busyId}>
+                {busyId ? "Saving…" : rejectTarget.status === "approved" ? "Cancel registration" : "Reject"}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

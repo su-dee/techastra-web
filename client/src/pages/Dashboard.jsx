@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import Card from "../components/ui/Card";
 import { Textarea, Select } from "../components/ui/Input";
 import ParticipantIDCard from "../components/ParticipantIDCard";
+import { formatDay, formatFee, formatTimeRange, teamLabel } from "../components/EventInfo";
 import { downloadIdCard as saveIdCard, printIdCard } from "../lib/idCardExport";
 import { idCardVerifyUrl } from "../lib/idCard";
+import { CATEGORY_LABEL, categoryOf } from "../lib/site";
 import ApprovalHero from "../components/dashboard/ApprovalHero";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { usePanels } from "../context/PanelContext";
 
 // One-time-per-user welcome screen: localStorage (not a query param or
 // plain in-memory state) since the requirement is "don't show this again
@@ -21,9 +27,147 @@ function welcomeSeenKey(userId) {
   return `techastra_welcome_seen_${userId}`;
 }
 
+const PLACE = { 1: "1st place", 2: "2nd place", 3: "3rd place" };
+const MEAL_LABEL = { breakfast: "Breakfast", lunch: "Lunch", snacks: "Snacks" };
+const PAY_METHOD = { upi: "UPI", razorpay: "Online", cash: "Cash" };
+
+const when = (iso) =>
+  new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
+
+function initials(name = "") {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
+}
+
+function Section({ id, title, action, children, className = "" }) {
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className={className}>
+      <div className="flex items-baseline justify-between gap-3 mb-3">
+        <h2 id={`${id}-title`} className="mono-label">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Fact({ label, wide = false, children }) {
+  return (
+    <div className={"fact" + (wide ? " col-span-2" : "")}>
+      <div className="mono-label">{label}</div>
+      <div className="break-words">{children}</div>
+    </div>
+  );
+}
+
+/** Top-of-page card: what state the registration is in and what to do next. */
+function StatusPanel({ registration, registeredEvents, email, onHelp }) {
+  const { status, rejectionReason, registrationCode, totalAmount } = registration;
+  if (status === "rejected") {
+    // Free (Junior) registrations have no payment to resubmit.
+    if (!(totalAmount > 0)) {
+      return (
+        <Card className="!border-danger/40">
+          <Badge status="rejected" />
+          <h2 className="h3 !mt-3">Your registration was not accepted</h2>
+          {rejectionReason && <p className="text-sm text-danger mt-2">Reason: {rejectionReason}</p>}
+          <button type="button" className="btn-ghost-sm mt-5" onClick={onHelp}>
+            Think this is a mistake? Ask the Help Desk
+          </button>
+        </Card>
+      );
+    }
+    return (
+      <Card className="!border-danger/40">
+        <Badge status="rejected" />
+        <h2 className="h3 !mt-3">Your registration needs a fix</h2>
+        {rejectionReason && <p className="text-sm text-danger mt-2">Reason: {rejectionReason}</p>}
+        <p className="text-sm text-soft mt-2">Correct the payment details and resubmit - your registration code stays the same.</p>
+        <Link
+          to={`/status?code=${encodeURIComponent(registrationCode)}`}
+          state={{ email }}
+          className="btn-small inline-block mt-5"
+          data-log="dashboard-fix-registration"
+        >
+          Fix and resubmit
+        </Link>
+      </Card>
+    );
+  }
+  if (status !== "approved") {
+    return (
+      <Card>
+        <Badge status="pending">Under review</Badge>
+        <h2 className="h3 !mt-3">We’re checking your payment</h2>
+        <p className="text-sm text-soft mt-2">
+          The registration desk is verifying your payment. You’ll get an email once it’s approved, and your ID card
+          will appear here.
+        </p>
+      </Card>
+    );
+  }
+  const now = Date.now();
+  const next = [...registeredEvents]
+    .filter((e) => new Date(e.endTime).getTime() > now)
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))[0];
+  return (
+    <Card glow>
+      <Badge status="approved">You’re registered</Badge>
+      {next ? (
+        <>
+          <p className="mono-label mt-4">{new Date(next.startTime).getTime() <= now ? "Happening now" : "Up next"}</p>
+          <h2 className="h3 !mt-1">{next.name}</h2>
+          <p className="text-sm text-soft mt-1">
+            {formatDay(next)} · {formatTimeRange(next)}
+            {next.venue && <> · {next.venue}</>}
+          </p>
+          <p className="text-[13px] text-dim mt-3">Show your ID card QR at the event check-in.</p>
+        </>
+      ) : (
+        <>
+          <h2 className="h3 !mt-3">Thanks for taking part</h2>
+          <p className="text-sm text-soft mt-1">Your certificates appear below once they’re issued.</p>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function EventRow({ event, attendedAt, place, approved }) {
+  const ended = new Date(event.endTime).getTime() < Date.now();
+  let state = null;
+  if (place) state = <Badge status="info">🏆 {PLACE[place] || `Position ${place}`}</Badge>;
+  else if (attendedAt) state = <Badge status="present">Checked in</Badge>;
+  else if (approved && !ended) state = <Badge>Upcoming</Badge>;
+  return (
+    <li className="card p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link to={`/events/${event.id}`} className="text-[17px] text-heading hover:text-amber-light">
+            {event.name}
+          </Link>
+          <p className="text-[13px] text-soft mt-1">
+            {formatDay(event)} · {formatTimeRange(event)}
+          </p>
+          {event.venue && <p className="text-[13px] text-dim mt-0.5">{event.venue}</p>}
+        </div>
+        {state && <div className="shrink-0">{state}</div>}
+      </div>
+      <div className="flex flex-wrap gap-2 mt-3">
+        <span className="pill">{CATEGORY_LABEL[categoryOf(event)]}</span>
+        <span className="pill">{teamLabel(event)}</span>
+      </div>
+    </li>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
+  const { openPanel } = usePanels();
   const [registration, setRegistration] = useState(null);
+  const [activity, setActivity] = useState({ attendance: [], results: [], meals: [] });
+  // loading | ready | none (no registration on this account) | error
+  const [loadState, setLoadState] = useState("loading");
   const [events, setEvents] = useState([]);
   const [certificates, setCertificates] = useState([]);
   const [feedbackEventId, setFeedbackEventId] = useState("");
@@ -31,15 +175,17 @@ export default function Dashboard() {
   const [comments, setComments] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
   const cardRef = useRef(null);
-  // The rest of the normal dashboard (ID card / certificates / feedback)
-  // scrolls into view when "VIEW MY EVENTS" is clicked from the welcome
-  // hero, per "the rest of the normal dashboard continues below it on
-  // scroll" - this ref marks where that content actually starts.
-  const dashboardContentRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
-    api.get("/api/registrations/mine").then((data) => setRegistration(data.registration)).catch(() => {});
+    api
+      .get("/api/registrations/mine")
+      .then((data) => {
+        setRegistration(data.registration);
+        if (data.activity) setActivity(data.activity);
+        setLoadState("ready");
+      })
+      .catch((err) => setLoadState(err.status === 404 ? "none" : "error"));
     api.get("/api/certificates/mine").then((data) => setCertificates(data.certificates || [])).catch(() => {});
     api.get("/api/events").then((data) => setEvents(data.events || [])).catch(() => {});
   }, [user]);
@@ -51,31 +197,40 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user || !registration) return;
     if (registration.status !== "approved") return;
-    const alreadySeen = localStorage.getItem(welcomeSeenKey(user.id)) === "1";
+    let alreadySeen = true;
+    try { alreadySeen = localStorage.getItem(welcomeSeenKey(user.id)) === "1"; } catch { /* storage unavailable */ }
     if (!alreadySeen) setShowWelcome(true);
   }, [user, registration]);
 
   const dismissWelcome = () => {
-    if (user) localStorage.setItem(welcomeSeenKey(user.id), "1");
+    try { if (user) localStorage.setItem(welcomeSeenKey(user.id), "1"); } catch { /* storage unavailable */ }
     setShowWelcome(false);
   };
 
-  // Shared between the welcome hero's feature cards and the ID card
-  // panel below - both need "the events this participant is actually
-  // registered for," computed once rather than duplicated inline twice.
+  // Shared between the welcome hero's feature cards, the events list and
+  // the feedback picker, in schedule order.
   const registeredEvents = useMemo(
-    () => events.filter((e) => registration?.eventIds?.includes?.(e.id)),
+    () =>
+      events
+        .filter((e) => registration?.eventIds?.includes?.(e.id))
+        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime)),
     [events, registration]
   );
+  const attendedAt = useMemo(() => new Map(activity.attendance.map((a) => [a.eventId, a.scannedAt])), [activity]);
+  const placeOf = useMemo(() => new Map(activity.results.map((r) => [r.eventId, r.position])), [activity]);
+  const eventName = useMemo(() => new Map(events.map((e) => [e.id, e.name])), [events]);
+
+  const approved = registration?.status === "approved";
+  const profile = registration?.user || user;
+  const team = Array.isArray(registration?.teamMembers) ? registration.teamMembers : [];
 
   // ID card data: Registration No. = college register number, Delegate ID
   // = registration code; the QR opens the card's verification page.
-  const cardUser = registration?.user || user;
   const idCard = {
-    name: cardUser?.name,
-    registrationNumber: cardUser?.registerNo,
+    name: profile?.name,
+    registrationNumber: profile?.registerNo,
     delegateId: registration?.registrationCode,
-    institution: registration?.collegeName || cardUser?.collegeName,
+    institution: registration?.collegeName || profile?.collegeName,
     qrValue: idCardVerifyUrl(registration?.registrationCode, registration?.idCardToken),
   };
   const downloadIdCard = async () => {
@@ -120,9 +275,60 @@ export default function Dashboard() {
   const handleWelcomeViewEvents = () => {
     dismissWelcome();
     requestAnimationFrame(() => {
-      dashboardContentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("my-events")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
+
+  const header = (
+    <div className="flex items-center gap-4 mb-6">
+      <div
+        aria-hidden="true"
+        className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-full border border-amber/40 bg-amber/10 text-amber-light text-xl font-heading"
+      >
+        {initials(profile?.name)}
+      </div>
+      <div className="min-w-0">
+        <p className="kicker">My dashboard</p>
+        <h1 className="text-[26px] sm:text-[32px] leading-tight text-heading truncate">Hi, {profile?.name?.split(" ")[0] || "there"}</h1>
+        {registration && (
+          <p className="text-[13px] text-soft mt-0.5">
+            <span className="font-mono tracking-[0.06em] text-heading">{registration.registrationCode}</span>
+            {(registration.collegeName || profile?.collegeName) && <> · {registration.collegeName || profile.collegeName}</>}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  if (loadState !== "ready") {
+    return (
+      <div className="max-w-xl mx-auto px-6 pt-6 pb-16 sm:py-14">
+        {header}
+        {loadState === "loading" && <div className="card h-40 animate-pulse" aria-busy="true" aria-label="Loading your dashboard" />}
+        {loadState === "none" && (
+          <Card>
+            <h2 className="h3 !mt-0">You haven’t registered for any events yet</h2>
+            <p className="text-sm text-soft mt-2">Pick your events, then come back here for your ID card and certificates.</p>
+            <Link to="/events" className="btn-small inline-block mt-5">Browse events</Link>
+          </Card>
+        )}
+        {loadState === "error" && (
+          <Card>
+            <h2 className="h3 !mt-0">Couldn’t load your dashboard</h2>
+            <p className="text-sm text-soft mt-2">Check your connection and try again.</p>
+            <button type="button" className="btn-ghost-sm mt-5" onClick={() => window.location.reload()}>Reload</button>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  const quickLinks = [
+    approved && ["#id-card", "ID card"],
+    ["#my-events", "Events"],
+    certificates.length > 0 && ["#certificates", "Certificates"],
+    ["#profile", "Profile"],
+  ].filter(Boolean);
 
   return (
     <div>
@@ -137,72 +343,169 @@ export default function Dashboard() {
       */}
       {showWelcome && (
         <ApprovalHero
-          participantName={user?.name || "Participant"}
+          participantName={profile?.name || "Participant"}
           registeredEvents={registeredEvents}
           onDownloadIdCard={handleWelcomeDownloadIdCard}
           onViewEvents={handleWelcomeViewEvents}
         />
       )}
 
-      <div ref={dashboardContentRef} className="max-w-4xl mx-auto px-6 py-14">
-        <p className="text-arc text-[11px] tracking-cinematic uppercase mb-3">My Dashboard</p>
-        <h1 className="font-serif text-3xl sm:text-4xl text-offwhite mb-2">Welcome, {user?.name}</h1>
-        <p className="text-offwhite/50 mb-10">{user?.collegeName}</p>
+      <div className="max-w-5xl mx-auto px-6 pt-6 pb-16 sm:py-14">
+        {header}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div>
-          <h2 className="font-heading text-sm uppercase tracking-wider text-offwhite/70 mb-4">Your Digital ID Card</h2>
-          <ParticipantIDCard ref={cardRef} {...idCard} />
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <Button onClick={downloadIdCard} disabled={!registration}>Download ID card</Button>
-            <Button variant="outline" onClick={printCard} disabled={!registration}>Print ID card</Button>
-          </div>
-          <p className="text-xs text-dim mt-3 text-center">
-            Show this QR at event check-in and food counters.
-          </p>
-        </div>
+        <StatusPanel registration={registration} registeredEvents={registeredEvents} email={profile?.email} onHelp={() => openPanel("help")} />
 
-        <div className="space-y-10">
-          <div>
-            <h2 className="font-heading text-sm uppercase tracking-wider text-offwhite/70 mb-4">Your Certificates</h2>
-            {certificates.length === 0 ? (
-              <p className="text-dim text-sm">No certificates issued yet. Check back after your events conclude.</p>
-            ) : (
-              <ul className="divide-y divide-crimson/10 border-t border-b border-crimson/10">
-                {certificates.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between px-1 py-3">
-                    <span className="text-sm text-offwhite/80 capitalize">{c.type} &mdash; {c.certificateCode}</span>
-                    {c.pdfUrl && (
-                      <a href={`${api.baseUrl}${c.pdfUrl}`} target="_blank" rel="noreferrer" className="text-arc text-sm hover:underline">
-                        Download
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
+        {/* Jump links - the page is long on phones. */}
+        <nav aria-label="Dashboard sections" className="flex gap-2 mt-5 -mx-6 px-6 overflow-x-auto lg:hidden">
+          {quickLinks.map(([href, label]) => (
+            <a key={href} href={href} className="chip shrink-0">{label.toUpperCase()}</a>
+          ))}
+        </nav>
+
+        {/* Phones: one column in the order below (ID card first - it's what
+            people open this page for on event day). Desktop: two columns,
+            the side column (ID card, profile, payment) on the right. The
+            column wrappers are display:contents on phones so `order` can
+            interleave their children. */}
+        <div className="flex flex-col gap-10 mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10 lg:items-start">
+          <div className="contents lg:flex lg:flex-col lg:gap-10">
+            <Section id="my-events" title={`My events · ${registeredEvents.length}`} className="order-2 lg:order-none">
+              {registeredEvents.length === 0 ? (
+                <p className="text-sm text-dim">Loading your events…</p>
+              ) : (
+                <ul className="space-y-3">
+                  {registeredEvents.map((e) => (
+                    <EventRow key={e.id} event={e} attendedAt={attendedAt.get(e.id)} place={placeOf.get(e.id)} approved={approved} />
+                  ))}
+                </ul>
+              )}
+              {(registration.teamName || team.length > 0) && (
+                <div className="card p-4 sm:p-5 mt-3">
+                  <p className="mono-label">Team</p>
+                  {registration.teamName && <p className="text-[17px] text-heading mt-1">{registration.teamName}</p>}
+                  {team.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {team.map((m, i) => (
+                        <li key={i} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="text-soft truncate">
+                            {m.name}
+                            {m.regNo && <span className="text-dim"> · {m.regNo}</span>}
+                          </span>
+                          {m.role === "lead" && <span className="pill shrink-0">LEAD</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </Section>
+
+            {(approved || certificates.length > 0) && (
+              <Section id="certificates" title="Certificates" className="order-3 lg:order-none">
+                {certificates.length === 0 ? (
+                  <p className="text-sm text-dim">Certificates are issued after your events end - they’ll appear here.</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {certificates.map((c) => (
+                      <li key={c.id} className="card p-4 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-heading truncate">{eventName.get(c.eventId) || "Techastra ’26"}</p>
+                          <p className="text-[12px] text-dim font-mono tracking-[0.06em] mt-0.5">
+                            {c.type === "winner" ? "WINNER" : "PARTICIPATION"} · {c.certificateCode}
+                          </p>
+                        </div>
+                        {c.pdfUrl && (
+                          <a href={`${api.baseUrl}${c.pdfUrl}`} target="_blank" rel="noreferrer" className="btn-ghost-sm shrink-0">
+                            Download
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+            )}
+
+            {approved && registeredEvents.length > 0 && (
+              <Section id="feedback" title="Event feedback" className="order-6 lg:order-none">
+                <form onSubmit={submitFeedback} className="card p-4 sm:p-5 space-y-3">
+                  <Select aria-label="Event to give feedback on" value={feedbackEventId} onChange={(e) => setFeedbackEventId(e.target.value)}>
+                    <option value="">Select an event</option>
+                    {registeredEvents.map((e) => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </Select>
+                  <Select aria-label="Rating" value={rating} onChange={(e) => setRating(e.target.value)}>
+                    {[5, 4, 3, 2, 1].map((n) => (
+                      <option key={n} value={n}>{n} Star{n > 1 ? "s" : ""}</option>
+                    ))}
+                  </Select>
+                  <Textarea aria-label="Comments (optional)" rows={3} placeholder="Comments (optional)" value={comments} onChange={(e) => setComments(e.target.value)} />
+                  <Button type="submit" className="w-full">Submit feedback</Button>
+                </form>
+              </Section>
             )}
           </div>
 
-          <div>
-            <h2 className="font-heading text-sm uppercase tracking-wider text-offwhite/70 mb-4">Event Feedback</h2>
-            <form onSubmit={submitFeedback} className="space-y-3">
-              <Select aria-label="Event to give feedback on" value={feedbackEventId} onChange={(e) => setFeedbackEventId(e.target.value)}>
-                <option value="">Select an event</option>
-                {events.map((e) => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
-                ))}
-              </Select>
-              <Select aria-label="Rating" value={rating} onChange={(e) => setRating(e.target.value)}>
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>{n} Star{n > 1 ? "s" : ""}</option>
-                ))}
-              </Select>
-              <Textarea aria-label="Comments (optional)" rows={3} placeholder="Comments (optional)" value={comments} onChange={(e) => setComments(e.target.value)} />
-              <Button type="submit" className="w-full">Submit Feedback</Button>
-            </form>
+          <div className="contents lg:flex lg:flex-col lg:gap-10">
+            {approved && (
+              <Section id="id-card" title="Your ID card" className="order-1 lg:order-none">
+                <div className="max-w-[360px] mx-auto lg:mx-0">
+                  <ParticipantIDCard ref={cardRef} {...idCard} />
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <Button onClick={downloadIdCard}>Download</Button>
+                    <Button variant="outline" onClick={printCard}>Print</Button>
+                  </div>
+                  <p className="text-xs text-dim mt-3 text-center">Show this QR at event check-in and food counters.</p>
+                </div>
+              </Section>
+            )}
+
+            <Section
+              id="profile"
+              title="Profile"
+              className="order-4 lg:order-none"
+              action={
+                <button type="button" className="link-cta text-[13px]" onClick={() => openPanel("help")}>
+                  Need a correction?
+                </button>
+              }
+            >
+              <div className="grid grid-cols-2 gap-2">
+                {/* Full-width facts first, so the short ones pair up two per row. */}
+                <Fact label="Name" wide>{profile?.name}</Fact>
+                <Fact label="Email" wide>{profile?.email}</Fact>
+                {(registration.collegeName || profile?.collegeName) && (
+                  <Fact label="College / school" wide>{registration.collegeName || profile.collegeName}</Fact>
+                )}
+                {profile?.department && <Fact label="Department" wide>{profile.department}</Fact>}
+                {profile?.phone && <Fact label="Mobile">{profile.phone}</Fact>}
+                {profile?.registerNo && <Fact label="Register no.">{profile.registerNo}</Fact>}
+                {profile?.course && <Fact label="Course">{profile.course}</Fact>}
+                {profile?.yearOfStudy && <Fact label="Year">{profile.yearOfStudy}</Fact>}
+              </div>
+            </Section>
+
+            <Section id="payment" title="Payment" className="order-5 lg:order-none">
+              <div className="grid grid-cols-2 gap-2">
+                <Fact label="Amount">{formatFee(registration.totalAmount)}</Fact>
+                {registration.totalAmount > 0 && <Fact label="Method">{PAY_METHOD[registration.paymentMethod] || registration.paymentMethod}</Fact>}
+                {registration.transactionId && <Fact label="UTR / transaction ID" wide><span className="font-mono text-[13px]">{registration.transactionId}</span></Fact>}
+                <Fact label="Registered on">{when(registration.createdAt)}</Fact>
+              </div>
+              {activity.meals.length > 0 && (
+                <div className="mt-4">
+                  <p className="mono-label mb-2">Meals collected</p>
+                  <div className="flex flex-wrap gap-2">
+                    {activity.meals.map((m) => (
+                      <Badge key={m.mealSession} status="collected">{MEAL_LABEL[m.mealSession] || m.mealSession}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Section>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );
