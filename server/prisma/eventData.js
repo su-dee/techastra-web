@@ -425,11 +425,12 @@ const EVENTS = [
     // Individual event, ₹50 per person (changed 2026-10-02; was teams of 4
     // at ₹100 per person, Free Fire only).
     description:
-      "A competitive e-sports tournament covering both Free Fire and BGMI. This is an individual event - register on your own. Players face off in room matches in an elimination format where every match matters and one mistake can send you out. Make smart tactical decisions to defeat your opponents and advance to the next round.",
+      "A competitive e-sports tournament covering both Free Fire and BGMI. This is an individual event - register on your own; teams are formed at random on the event day. Players face off in room matches in an elimination format where every match matters and one mistake can send you out. Make smart tactical decisions to defeat your opponents and advance to the next round.",
     rules: {
       rules: [
         "Games: Free Fire and BGMI.",
         "Individual event - register on your own.",
+        "Teams are formed at random on the event day.",
         "Room matches.",
         "Format: knockout / elimination — defeat your opponents to advance to the next round.",
       ],
