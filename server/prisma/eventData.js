@@ -418,22 +418,24 @@ const EVENTS = [
   },
   {
     name: "Clash Squad E-Sports",
-    track: "Free Fire E-Sports",
+    track: "Free Fire & BGMI E-Sports",
     category: "non_technical",
     day: 2,
     venue: "CAD Lab",
+    // Individual event, ₹50 per person (changed 2026-10-02; was teams of 4
+    // at ₹100 per person, Free Fire only).
     description:
-      "A competitive Free Fire Clash Squad room-match tournament with 4 players per team. Teams face off in an elimination format where every match matters and one mistake can send a team out. Work together, communicate effectively and make smart tactical decisions to defeat your opponents and advance to the next round.",
+      "A competitive e-sports tournament covering both Free Fire and BGMI. This is an individual event - register on your own. Players face off in room matches in an elimination format where every match matters and one mistake can send you out. Make smart tactical decisions to defeat your opponents and advance to the next round.",
     rules: {
       rules: [
-        "Game: Free Fire.",
-        "Mode: Clash Squad, room match.",
-        "4 players per team.",
-        "Format: knockout / elimination — defeat the opposing team to advance to the next round.",
+        "Games: Free Fire and BGMI.",
+        "Individual event - register on your own.",
+        "Room matches.",
+        "Format: knockout / elimination — defeat your opponents to advance to the next round.",
       ],
     },
     coordinators: [staff("Dr. S. Mohandoss", "9884974422"), student("Mr. Hamdan Arabi", "8122276912"), student("Mr. Lakshmikanth", "6374786721"), student("Mr. Praveen", "6307563967")],
-    when: [2, [9, 30], [14, 0]], fee: 100, maxSeats: 80, team: [4, 4],
+    when: [2, [9, 30], [14, 0]], fee: 50, maxSeats: 80, team: [1, 1],
   },
 
   // ===============================================================
