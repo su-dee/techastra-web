@@ -13,7 +13,7 @@
   background: #080a0bf8;
   color: #a7b69b;
   font:
-    11px/1.7 "Courier New",
+    12px/1.7 "Courier New",
     monospace;
   letter-spacing: 0.35px;
 }
@@ -50,7 +50,7 @@
   padding: 0 17px;
   background: #11170e;
   border-bottom: 1px solid #2b3424;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.8px;
   color: #94a187;
 }
@@ -78,7 +78,7 @@
 }
 .boot-chrome > #boot-state {
   color: #c2f478;
-  font-size: 7px;
+  font-size: 12px;
 }
 .boot-body {
   padding: 34px 32px 29px;
@@ -102,7 +102,7 @@
 }
 .boot-brand > span:last-child {
   font:
-    9px "Courier New",
+    12px "Courier New",
     monospace;
   color: #c2f478;
   letter-spacing: 1px;
@@ -111,7 +111,7 @@
 .boot-subtitle {
   margin-top: 7px;
   color: #718068;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 1.3px;
 }
 .boot-output {
@@ -130,7 +130,7 @@
 }
 .boot-output > p > span {
   color: #596a4b;
-  font-size: 8px;
+  font-size: 12px;
 }
 .boot-output code {
   font: inherit;
@@ -145,13 +145,13 @@
 .boot-message {
   margin-top: 10px;
   color: #738568;
-  font-size: 9px;
+  font-size: 12px;
 }
 .boot-status {
   height: 37px;
   border: 0;
   border-top: 1px solid #293322;
-  font-size: 7px;
+  font-size: 12px;
   color: #75866a;
 }
 .boot-status > span:first-child {
@@ -203,7 +203,7 @@
   }
   .boot-chrome {
     padding: 0 12px;
-    font-size: 7px;
+    font-size: 12px;
   }
   .boot-body {
     padding: 28px 20px 23px;
@@ -211,7 +211,7 @@
   }
   .boot-status {
     padding: 0 12px;
-    font-size: 6px;
+    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

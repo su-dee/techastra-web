@@ -22,7 +22,7 @@
       "id": "HN-AI-06",
       "title": "Accessibility Auditor for Campus & Civic Websites",
       "domain": "HN-AI",
-      "problem": "Most college and municipal websites fail basic accessibility standards \u2014 poor contrast, missing alt text, unlabeled form fields \u2014 locking out visually or motor-impaired users, and manual audits are slow and rarely repeated.",
+      "problem": "Most college and municipal websites fail basic accessibility standards — poor contrast, missing alt text, unlabeled form fields — locking out visually or motor-impaired users, and manual audits are slow and rarely repeated.",
       "challenge": "Build a tool that scans a given webpage (URL or uploaded HTML) and flags concrete violations with the exact element at fault, plus a ready-to-use fix for each.",
       "deliverable": "URL/HTML input, automated detection for 3 violation categories (alt text, contrast, form labels), a report listing each violation with its element and severity, and a Gemini-generated fix suggestion per violation, logged to MongoDB.",
       "stretch": "A 4th violation category (heading structure), a before/after live preview applying fixes, and a downloadable patch file."
@@ -31,9 +31,9 @@
       "id": "HN-AI-05",
       "title": "Cross-Hospital Resource Rebalancer",
       "domain": "HN-AI",
-      "problem": "Existing bed/oxygen/ventilator dashboards only show each hospital's own stock in isolation \u2014 nobody looks across hospitals in the same district to notice that Hospital A is about to run short while Hospital B has spare capacity sitting idle.",
-      "challenge": "Using a small simulated live feed (5\u20136 hospitals, one resource type e.g. oxygen cylinders, updated every few seconds), build a system that predicts which hospital will run short within the next few hours using a lightweight trend model, and simultaneously recommends a specific transfer (from which hospital, how much, by when) to prevent it \u2014 turning prediction into an actionable redistribution plan, not just a warning.",
-      "deliverable": "Simulated multi-hospital resource stream written to MongoDB \u2192 simple trend-based shortage predictor per hospital (e.g., linear depletion rate) with a visible confidence/accuracy check against held-out simulated data \u2192 dashboard showing live stock per hospital, predicted time-to-shortage, and a ranked transfer recommendation \u2192 Gemini-generated one-line justification per recommendation ('Move 40 units from B to A \u2014 B has 6hrs surplus, A depletes in 2hrs').",
+      "problem": "Existing bed/oxygen/ventilator dashboards only show each hospital's own stock in isolation — nobody looks across hospitals in the same district to notice that Hospital A is about to run short while Hospital B has spare capacity sitting idle.",
+      "challenge": "Using a small simulated live feed (5–6 hospitals, one resource type e.g. oxygen cylinders, updated every few seconds), build a system that predicts which hospital will run short within the next few hours using a lightweight trend model, and simultaneously recommends a specific transfer (from which hospital, how much, by when) to prevent it — turning prediction into an actionable redistribution plan, not just a warning.",
+      "deliverable": "Simulated multi-hospital resource stream written to MongoDB → simple trend-based shortage predictor per hospital (e.g., linear depletion rate) with a visible confidence/accuracy check against held-out simulated data → dashboard showing live stock per hospital, predicted time-to-shortage, and a ranked transfer recommendation → Gemini-generated one-line justification per recommendation ('Move 40 units from B to A — B has 6hrs surplus, A depletes in 2hrs').",
       "stretch": "Multi-resource tracking (beds + oxygen), automated distance-aware transit routing, and emergency escalation alerts."
     },
     {
@@ -113,8 +113,8 @@
       "title": "Multi-Agent Portfolio Rebalancer",
       "domain": "HN-FT",
       "problem": "Individual retail investors cannot react to live market shifts fast enough to keep their portfolio aligned with their risk tolerance, and manual rebalancing is slow, error-prone, and reactive.",
-      "challenge": "Build a council of collaborating agents \u2014 one that scrapes/streams live market data, one that evaluates the user's risk tolerance and target allocation, and one that computes and executes rebalancing trades \u2014 coordinating through MongoDB as shared state, with the council converging on a final rebalancing decision.",
-      "deliverable": "Live market data ingestion via web scraping into MongoDB \u2192 risk-tolerance agent producing a target allocation profile \u2192 rebalancing agent generating trade actions to close allocation gaps \u2192 council/coordinator logic merging all three agents' outputs into one decision \u2192 evaluation dashboard reporting decision latency and drift rebalancing accuracy per run.",
+      "challenge": "Build a council of collaborating agents — one that scrapes/streams live market data, one that evaluates the user's risk tolerance and target allocation, and one that computes and executes rebalancing trades — coordinating through MongoDB as shared state, with the council converging on a final rebalancing decision.",
+      "deliverable": "Live market data ingestion via web scraping into MongoDB → risk-tolerance agent producing a target allocation profile → rebalancing agent generating trade actions to close allocation gaps → council/coordinator logic merging all three agents' outputs into one decision → evaluation dashboard reporting decision latency and drift rebalancing accuracy per run.",
       "stretch": "What-if macro shock stress testing, historical backtesting harness, and real-time Discord/Telegram trade alerts."
     },
     {
@@ -139,27 +139,27 @@
   "faqs": [
     {
       "q": "Who is eligible to participate in HACK_NEXUS 1.0?",
-      "a": "Participation is open to all enrolled undergraduate and postgraduate students from any recognized university or college. Every squad has exactly 3 operators; inter-departmental and inter-year squads are highly encouraged."
+      "a": "Any enrolled undergraduate or postgraduate student from a recognised college or university in India can take part. Squads have 2 or 3 members, and squads from different departments or years are welcome."
     },
     {
       "q": "Can we use pre-existing codebases or templates?",
-      "a": "All core problem logic must be authored entirely during the 10-hour clean sprint. Standard open-source libraries, open UI components, and framework scaffolds (Next.js, FastAPI, Vite, etc.) are fully allowed."
+      "a": "Write all of your core problem logic during the 10-hour sprint. Open-source libraries, UI components and framework starters (such as Next.js, FastAPI or Vite) are allowed."
     },
     {
-      "q": "What physical amenities and computing hardware are provided?",
-      "a": "Dedicated team desks in the CAR Lab (2nd Floor, Anna Block, Main Campus) with high-speed internet connectivity, uninterrupted power rails, round-the-clock coffee and refreshments."
+      "q": "What is provided at the venue?",
+      "a": "Each squad gets a desk in the CAR Lab or Garuda Lab with an internet connection and power. Lunch and refreshments are provided."
     },
     {
-      "q": "How does the final pitch and valedictory evaluation operate?",
-      "a": "Each squad receives a strict 5-minute live prototype demonstration, followed by a 2-minute technical architectural Q&A with the industry panel. Working deployments on cloud qualify for track points."
+      "q": "How does the finalist round work?",
+      "a": "At the 7:30 PM code freeze, shortlisted squads are announced. They present in the finalist round on October 9 (9:30 AM – 2:00 PM, Watson Lab): a 5-minute live demo of the prototype, then a 2-minute Q&A with the industry panel. Squads are judged on innovation, technical implementation, functionality, problem-solving approach and presentation."
     },
     {
-      "q": "Will the 10-hour timer pause for lunch or refreshments?",
-      "a": "No. The 10-hour sprint timer runs continuously without stoppage throughout the hackathon.lunch and continuous refreshments will be provided."
+      "q": "Does the 10-hour clock pause for lunch?",
+      "a": "No. The sprint runs without a break from 9:30 AM to 7:30 PM. Lunch and refreshments are provided, so take breaks in turns."
     },
     {
-      "q": "What technologies can squads leverage?",
-      "a": "Squads can integrate partner technologies including Google Gemini (multimodal AI reasoning), MongoDB Atlas (vector search & operational state), Render Cloud (deployment), Web3 smart contracts, and Multi-Agent frameworks to power their solutions."
+      "q": "Which technologies can we use?",
+      "a": "Any programming language, framework, API or cloud service you have access to, for example AI APIs such as Google Gemini, databases such as MongoDB Atlas, or hosting such as Render. These are examples only, not event sponsors."
     }
   ]
 }

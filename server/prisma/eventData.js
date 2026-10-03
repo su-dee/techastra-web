@@ -103,7 +103,7 @@ const EVENTS = [
     ],
     // Day 1 is the hackathon; Day 2 (9:30-2:00, Watson Lab) is the finalist
     // round for shortlisted teams only, so it isn't part of the booked slot.
-    when: [1, [9, 30], [19, 30]], fee: 1000, feePerTeam: true, maxSeats: 60, team: [3, 3],
+    when: [1, [9, 30], [19, 30]], fee: 1000, feePerTeam: true, maxSeats: 60, team: [2, 3],
     // Registered on its own website (the Hack Nexus app, served under
     // /hacknexus on this site), not in this portal's cart.
     externalRegistration: true,

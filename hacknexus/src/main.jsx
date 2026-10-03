@@ -1,3 +1,6 @@
+import hackNexusLogo from "./assets/hacknexus-logo.webp";
+import hackNexusLogoSmall from "./assets/hacknexus-logo-sm.webp";
+import techastraLogo from "./assets/techastra-logo.webp";
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -46,7 +49,7 @@ const domains = [
   },
   {
     id: "HN-CS",
-    name: "Cybersecurity & Blockchain",
+    name: "Cybersecurity & Web3",
     short: "Cybersecurity & Web3",
     icon: ShieldCheck,
     desc: "Redefine trust. Protect what matters.",
@@ -70,14 +73,8 @@ const domainName = (id) =>
   domains.find((d) => d.id === id)?.short || id || "Undecided";
 function Brand() {
   return (
-    <a className="brand" href={to("/")} aria-label="Hack Nexus home">
-      <span className="brand-symbol">
-        N<span>↗</span>
-      </span>
-      <span>
-        HACK<span className="brand-underscore">_</span>NEXUS
-        <small>1.0 / CSE INNOVATION ALLIANCE</small>
-      </span>
+    <a className="brand" href={to("/")} aria-label="HACK_NEXUS home">
+      <img className="brand-logo" src={hackNexusLogoSmall} alt="HACK_NEXUS" width="480" height="160" />
     </a>
   );
 }
@@ -213,7 +210,7 @@ function NexusArt({ small = false }) {
             <span className="live-dot" /> THE NEXUS CORE
             <span>∞ POSSIBILITIES</span>
           </div>
-          <span className="art-coordinate">CAR LAB / ANNA BLOCK</span>
+          <span className="art-coordinate">CAR LAB & GARUDA LAB</span>
           <span className="art-note">IDEAS → IMPACT</span>
         </>
       )}
@@ -229,7 +226,7 @@ function HeroTerminal() {
       "> loading build systems ........ OK",
       "> four domains / fifteen challenges",
       "> challenge window ............ OPEN",
-      "> ₹18,000+ bounty pool ........ ARMED",
+      "> ₹18,000 prize money .......... SET",
       "> assembling the next generation",
       "✓ SYSTEM READY · OCT 08, 2026",
       "$ await your signal_",
@@ -281,7 +278,7 @@ function HeroTerminal() {
           </span>
           <span>HACK_NEXUS — SHELL_01</span>
           <span className="terminal-live">
-            <i /> LIVE
+            <i /> OCT 08
           </span>
         </div>
         <div className="terminal-content" aria-hidden="true">
@@ -374,7 +371,7 @@ function Countdown() {
   }, []);
   const left = Math.max(
     0,
-    new Date("2026-10-08T09:00:00+05:30").getTime() - now,
+    new Date("2026-10-08T09:30:00+05:30").getTime() - now,
   );
   const values = [86400000, 3600000, 60000, 1000].map((n, i) =>
     String(
@@ -397,7 +394,7 @@ function Countdown() {
       >
         {[86400000, 3600000, 60000, 1000].map((_, i) => (
           <React.Fragment key={unitNames[i]}>
-            {i > 0 && <span className="countdown-colon">:</span>}
+            {i > 0 && <span className="countdown-colon" aria-hidden="true">:</span>}
             <div>
               <FlipDigit value={values[i]} />
               <small>{["DAYS", "HOURS", "MINS", "SECS"][i]}</small>
@@ -424,7 +421,7 @@ function Header({ user, registration, onLogout }) {
     <>
       <div className="announcement">
         <span className="live-dot" /> REGISTRATIONS ARE LIVE{" "}
-        <span className="announcement-divider">/</span>
+        <span className="announcement-divider" aria-hidden="true">/</span>
         <span>OCTOBER 8–9, 2026</span>
         <a href="#register">
           YOUR NEXT BIG IDEA STARTS HERE <ArrowUpRight size={12} />
@@ -582,8 +579,10 @@ function Challenges({ onChoose }) {
               <h3>{d.name}</h3>
               <p>{d.desc}</p>
               <span className="domain-count">
-                {content.problems.filter((p) => p.domain === d.id).length}{" "}
-                CHALLENGES
+                {(() => {
+                  const n = content.problems.filter((p) => p.domain === d.id).length;
+                  return `${n} ${n === 1 ? "CHALLENGE" : "CHALLENGES"}`;
+                })()}
               </span>
             </button>
           ))}
@@ -646,41 +645,50 @@ function Challenges({ onChoose }) {
     </section>
   );
 }
+// Times and venues from the organisers' event sheet (CAR Lab & Garuda Lab on
+// Oct 8, 9:30 AM - 7:30 PM; finalist round Oct 9, 9:30 AM - 2:00 PM, Watson Lab).
 const timeline = [
   [
     "08:30 AM",
-    "REPORT & CONNECT",
+    "OCT 08 · REPORT & CHECK IN",
     "Your squad. Your starting line.",
-    "Check in, collect your hacker badge, and set up your workstation. The sprint kicks off at 9:00 AM.",
-    "Main Lobby & CSE Atrium",
+    "Check in, collect your badge, and set up your workstation. The 10-hour sprint starts at 9:30 AM.",
+    "CAR Lab & Garuda Lab",
   ],
   [
     "11:00 AM",
-    "REVIEW 01",
-    "Turn your idea into a blueprint.",
-    "Walk mentors through your problem, architecture, database schema, and plan for the sprint.",
-    "Round-Robin Review Pods",
+    "REVIEW 1",
+    "Turn your idea into a plan.",
+    "Walk the mentors through your problem, architecture, data model, and plan for the sprint.",
+    "CAR Lab & Garuda Lab",
   ],
   [
     "03:00 PM",
-    "REVIEW 02",
+    "REVIEW 2",
     "Make the pieces work together.",
-    "Demonstrate working APIs, database connections, and your first end-to-end user journey.",
-    "Lab Pods 1–12",
+    "Show working APIs, database connections, and your first end-to-end user journey.",
+    "CAR Lab & Garuda Lab",
   ],
   [
     "06:00 PM",
-    "REVIEW 03",
-    "Polish. Deploy. Get pitch-ready.",
-    "Put your live deployment, test coverage, and user experience through the final technical review.",
-    "Lab Pods 1–12",
+    "REVIEW 3",
+    "Polish and get ready to present.",
+    "Take your working prototype and user experience through the final technical review.",
+    "CAR Lab & Garuda Lab",
   ],
   [
     "07:30 PM",
-    "CODE FREEZE & FINALE",
-    "Show the world what you built.",
-    "Lock your repository and submit your final code. Finalists for evaluation will be declared, and the pitch presentation will be held on October 9th.",
-    "Main Auditorium & Audi Stage",
+    "CODE FREEZE",
+    "Submit what you built.",
+    "Lock your repository and submit your final code. The squads shortlisted for the finalist round are announced.",
+    "CAR Lab & Garuda Lab",
+  ],
+  [
+    "09:30 AM",
+    "OCT 09 · FINALIST ROUND",
+    "Present to the industry panel.",
+    "Shortlisted squads only. Each squad gives a 5-minute live demo of its prototype, followed by a 2-minute Q&A with the industry panel. Ends by 2:00 PM.",
+    "Watson Lab",
   ],
 ];
 function Timeline() {
@@ -690,35 +698,34 @@ function Timeline() {
         <div className="timeline-intro">
           <Label>03 / THE BUILD SPRINT</Label>
           <h2>
-            Every hour
+            Every hour{" "}
             <br />
-            moves you
+            moves you{" "}
             <br />
             <span>forward.</span>
           </h2>
           <p>
-            From the first spark to the final pitch.
+            From the first spark to the final pitch.{" "}
             <br />
             Your mission, checkpoint by checkpoint.
           </p>
           <div className="timeline-date">
-            <span className="live-dot" /> OCT 08, 2026{" "}
+            <span className="live-dot" /> OCT 08–09, 2026{" "}
             <span>ALL TIMES IST</span>
           </div>
           <div className="sprint-note">
             <Zap size={18} />
             <div>
-              <strong>Fuel provided. Momentum uninterrupted.</strong>
+              <strong>Lunch and refreshments are provided.</strong>
               <p>
-                Lunch, refreshments, and hot beverages are on us. The sprint
-                clock keeps running.
+                The sprint clock keeps running, so take breaks in turns.
               </p>
             </div>
           </div>
         </div>
         <div className="timeline-list">
           {timeline.map(([time, tag, title, desc, venue], i) => (
-            <div className="timeline-item" key={time}>
+            <div className="timeline-item" key={tag}>
               <span className="timeline-node">0{i + 1}</span>
               <div className="timeline-time">
                 {time}
@@ -743,7 +750,7 @@ function Prizes() {
           kicker="BUILT TO BE REWARDED"
           title="Great ideas deserve"
           accent="a grand stage."
-          description="₹18,000+ in cash. Trophies. Mentorship. And a launchpad for what comes next."
+          description="₹18,000 in cash prizes for the top three squads, chosen by an industry panel in the finalist round."
         />
         <div className="prize-grid">
           {[
@@ -780,9 +787,17 @@ function Prizes() {
                 <span>₹</span>
                 {p.amount}
               </div>
-
             </article>
           ))}
+        </div>
+        {/* Judging criteria from the organisers' event sheet. */}
+        <div className="prize-judging">
+          <h3>How squads are judged</h3>
+          <ul>
+            {["Innovation", "Technical implementation", "Functionality", "Problem-solving approach", "Presentation"].map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>
@@ -795,7 +810,7 @@ function FAQ() {
         <div>
           <Label>05 / GOOD QUESTIONS</Label>
           <h2>
-            A little clarity.
+            A little clarity.{" "}
             <br />
             <span>A lot of potential.</span>
           </h2>
@@ -1024,9 +1039,9 @@ function Registration({
   const [loading, setLoading] = useState(false),
     [checking, setChecking] = useState(false),
     [error, setError] = useState(""),
-    [domain, setDomain] = useState("");
-  // Squads are exactly 3 builders (the server enforces it too).
-  const squadSize = 3;
+    [domain, setDomain] = useState(""),
+    // Squads have 2 or 3 builders (the server enforces it too).
+    [squadSize, setSquadSize] = useState(3);
   useEffect(() => {
     if (selected) setDomain(selected.domain);
   }, [selected]);
@@ -1101,21 +1116,21 @@ function Registration({
         <div className="register-intro">
           <Label>06 / YOUR NEXT CHAPTER</Label>
           <h2>
-            Bring your squad.
+            Bring your squad.{" "}
             <br />
-            Bring your ambition.
+            Bring your ambition.{" "}
             <br />
             <span>Build your legacy.</span>
           </h2>
           <p>
-            Three builders. One shared vision.
+            Two or three builders. One shared vision.{" "}
             <br />
             Your place at HACK_NEXUS 1.0 starts here.
           </p>
           <div className="register-meta">
-            <span>08—09 OCTOBER 2026</span>
-            <span>CAR LAB / 2ND FLOOR</span>
-            <span>ANNA BLOCK / MAIN CAMPUS</span>
+            <span>08–09 OCTOBER 2026</span>
+            <span>CAR LAB & GARUDA LAB</span>
+            <span>₹1,000 PER SQUAD</span>
           </div>
           <div className="register-mark" aria-hidden="true">
             N↗
@@ -1129,7 +1144,7 @@ function Registration({
               </span>
               <Label>REGISTRATION CONFIRMED</Label>
               <h3>
-                You’re in,
+                You’re in,{" "}
                 <br />
                 {registration.team_name}.
               </h3>
@@ -1149,7 +1164,7 @@ function Registration({
                 </div>
                 <div>
                   <dt>Challenge</dt>
-                  <dd>{registration.problem_id || "Finalize at keynote"}</dd>
+                  <dd>{registration.problem_id || "Not chosen yet"}</dd>
                 </div>
                 <div>
                   <dt>Status</dt>
@@ -1244,10 +1259,16 @@ function Registration({
                     </label>
                     <label>
                       Squad size
-                      <select name="squadSize" value={squadSize} disabled aria-describedby="squad-size-note">
+                      <select
+                        name="squadSize"
+                        value={squadSize}
+                        onChange={(e) => setSquadSize(Number(e.target.value))}
+                        aria-describedby="squad-size-note"
+                      >
+                        <option value="2">2 builders</option>
                         <option value="3">3 builders</option>
                       </select>
-                      <small id="squad-size-note">Every squad has exactly 3 builders, including the lead.</small>
+                      <small id="squad-size-note">2 or 3 builders, including the lead.</small>
                     </label>
                   </div>
                   <div className="members-block">
@@ -1272,7 +1293,7 @@ function Registration({
                         )
                       }
                     >
-                      <option value="">I’ll decide at the keynote</option>
+                      <option value="">I’ll decide later</option>
                       {content.problems
                         .filter((p) => !domain || p.domain === domain)
                         .map((p) => (
@@ -1359,10 +1380,24 @@ function Footer() {
           <div>
             <Brand />
             <p>
-              With great power comes
+              With great power comes{" "}
               <br />
               great innovation.
             </p>
+            <div className="footer-parent">
+              <span className="mono">PART OF</span>
+              <img
+                src={techastraLogo}
+                alt="Techastra '26 - 18th National Level Technical Symposium"
+                width="900"
+                height="335"
+                loading="lazy"
+              />
+              <small>
+                Department of Computer Science and Engineering &amp; Department
+                of Cyber Security
+              </small>
+            </div>
           </div>
           <div>
             <span className="mono">EXPLORE</span>
@@ -1373,23 +1408,20 @@ function Footer() {
           </div>
           <div>
             <span className="mono">COORDINATORS</span>
-            <p className="footer-person">
-              Dr. F. Antony Xavier Bronson
-              <small>Faculty coordinator</small>
-            </p>
-            <p className="footer-person">
-              Sudeep Krishna S
-              <small>
-                Student coordinator · <a href="tel:91776327870">91776327870</a>
-              </small>
-            </p>
-            <p className="footer-person">
-              Kishore Kumar
-              <small>
-                Student coordinator ·{" "}
-                <a href="tel:+919499971978">+91 94999 71978</a>
-              </small>
-            </p>
+            {[
+              ["Dr. F. Antony Xavier Bronson", "Faculty coordinator", "+919841302602", "+91 98413 02602"],
+              ["Dr. M. Anand", "Faculty coordinator", "+919600686861", "+91 96006 86861"],
+              ["Sudeep Krishna", "Student coordinator", "+919176327870", "+91 91763 27870"],
+              ["Kishore Kumar", "Student coordinator", "+919499971978", "+91 94999 71978"],
+              ["Sriram", "Student coordinator", "+919363352887", "+91 93633 52887"],
+            ].map(([name, role, tel, shown]) => (
+              <p className="footer-person" key={name}>
+                {name}
+                <small>
+                  {role} · <a href={`tel:${tel}`}>{shown}</a>
+                </small>
+              </p>
+            ))}
           </div>
           <div>
             <span className="mono">LET’S CONNECT</span>
@@ -1404,14 +1436,14 @@ function Footer() {
               Follow us on Instagram <ArrowUpRight size={13} />
             </a>
             <p>
-              CAR Lab, 2nd Floor, Anna Block,
+              CAR Lab (2nd Floor, Anna Block) & Garuda Lab,{" "}
               <br />
-              Main Campus
+              Main Campus. Finalist round: Watson Lab.
             </p>
           </div>
         </div>
         <div className="footer-bottom">
-          <span>© 2026 DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING</span>
+          <span>© 2026 DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING · DEPARTMENT OF CYBER SECURITY</span>
           <div>
             <a href={to("/policies#conduct")}>Code of conduct</a>
             <a href={to("/policies#safety")}>Lab safety</a>
@@ -1474,6 +1506,33 @@ function Home({ user, authError, onLogout }) {
                 NEW IDEAS. REAL IMPACT. <span className="tiny-cross">+</span>
               </span>
             </div>
+            <div className="hero-presenter">
+              <img
+                className="presenter-logo"
+                src={techastraLogo}
+                alt="Techastra '26 - 18th National Level Technical Symposium"
+                width="900"
+                height="335"
+              />
+              <p>
+                Department of Computer Science and Engineering &amp; Department
+                of Cyber Security presents
+              </p>
+              {/* Animated emblem: entrance, a shine masked to the logo's own
+                  shape, and a soft glow behind it (all off for reduced motion). */}
+              <div className="hero-logo-wrap" style={{ "--logo-mask": `url(${hackNexusLogo})` }}>
+                <span className="hero-logo-glow" aria-hidden="true" />
+                <img
+                  className="hero-logo"
+                  src={hackNexusLogo}
+                  alt="HACK_NEXUS"
+                  width="1400"
+                  height="467"
+                  fetchpriority="high"
+                />
+                <span className="hero-logo-shine" aria-hidden="true" />
+              </div>
+            </div>
             <div className="hero-content">
               <div className="hero-copy">
                 <div className="hero-badge">
@@ -1481,14 +1540,14 @@ function Home({ user, authError, onLogout }) {
                   <span>EDITION 01</span>
                 </div>
                 <h1>
-                  Anyone can
+                  Anyone can{" "}
                   <br />
-                  wear the mask.
+                  wear the mask.{" "}
                   <br />
                   <span>Will you?</span>
                 </h1>
                 <p>
-                  10 hours. Infinite possibilities.
+                  10 hours. Infinite possibilities.{" "}
                   <br />
                   An arena for the builders, the thinkers, and the
                   <br className="desktop-break" /> ones who dare to create
@@ -1511,7 +1570,7 @@ function Home({ user, authError, onLogout }) {
               <Countdown />
               <div className="hero-bottom-note">
                 <span>
-                  A LITTLE PRESSURE.
+                  A LITTLE PRESSURE.{" "}
                   <br />A LOT OF POSSIBILITY.
                 </span>
                 <a href="#about" aria-label="Discover the event">
@@ -1526,7 +1585,7 @@ function Home({ user, authError, onLogout }) {
             {[
               ["10", "HOURS TO BUILD"],
               ["04", "TACTICAL DOMAINS"],
-              ["₹18K+", "TOTAL PRIZE POOL"],
+              ["₹18K", "TOTAL PRIZE MONEY"],
             ].map(([v, l]) => (
               <div key={l}>
                 <strong>{v}</strong>
@@ -1540,22 +1599,22 @@ function Home({ user, authError, onLogout }) {
             <Label>01 / THE ALLIANCE</Label>
             <div className="about-layout">
               <h2>
-                Ideas are everywhere.
+                Ideas are everywhere.{" "}
                 <br />
                 <span>
-                  Builders make
+                  Builders make{" "}
                   <br />
                   the difference.
                 </span>
               </h2>
               <div>
                 <p className="about-lead">
-                  A meeting point for curious minds.
+                  A meeting point for curious minds.{" "}
                   <br />A proving ground for bold ideas.
                 </p>
                 <p>
-                  HACK_NEXUS 1.0 brings student engineers, AI practitioners, and
-                  hardware tinkerers together for ten intense hours of creation.
+                  HACK_NEXUS 1.0 brings students from colleges across India
+                  together for ten hours of building, in squads of two or three.
                   Take on real-world problems and turn the “what if” into
                   something that works.
                 </p>
@@ -1575,24 +1634,6 @@ function Home({ user, authError, onLogout }) {
                   </span>
                 </div>
               </div>
-            </div>
-            <div className="alliance-strip">
-              <span className="mono">
-                ONE ALLIANCE.
-                <br />
-                SHARED AMBITION.
-              </span>
-              {[
-                ["Cyber Synth Society", "HOST & TECH ARCHITECTURE"],
-                ["IETE-SF", "TECHNICAL AFFILIATE"],
-                ["RACE × ACM", "OPERATIONS & LOGISTICS"],
-                ["ECEA", "HARDWARE & IoT"],
-              ].map(([name, role]) => (
-                <div key={name}>
-                  <strong>{name}</strong>
-                  <small>{role}</small>
-                </div>
-              ))}
             </div>
           </div>
         </section>
@@ -1776,9 +1817,9 @@ function Login({ user, onAuth }) {
         <div className="auth-manifesto">
           <Label>YOUR NEXT CHAPTER STARTS HERE</Label>
           <h1>
-            The next big thing
+            The next big thing{" "}
             <br />
-            could start
+            could start{" "}
             <br />
             <span>with you.</span>
           </h1>
@@ -1943,7 +1984,7 @@ function Policies() {
           <p>
             Respect fellow participants, mentors, staff, and shared equipment.
             Harassment, discrimination, plagiarism, or interference with other
-            teams is not permitted. Squads must contain exactly 3 enrolled
+            teams is not permitted. Squads must contain 2 or 3 enrolled
             undergraduate or postgraduate students.
           </p>
           <p>

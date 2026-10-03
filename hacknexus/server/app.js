@@ -24,8 +24,8 @@ import {
 const { problems } = JSON.parse(
   readFileSync(new URL("../src/content.json", import.meta.url)),
 );
-// Builders per squad - every new registration has exactly this many.
-export const SQUAD_SIZE = 3;
+// Builders per squad - every new registration has 2 or 3 (organisers, 3 Oct 2026).
+export const SQUAD_SIZES = [2, 3];
 const cookieName = "hn_session";
 const duration = 7 * 24 * 60 * 60 * 1000;
 const dummyHash = await hashPassword(randomBytes(20).toString("hex"));
@@ -349,10 +349,10 @@ export function createApp(
         !["HN-AI", "HN-CS", "HN-FT", "HN-X"].includes(selectedDomain)
       )
         return "Choose a target domain from the list.";
-      // Squads are exactly 3 builders (organisers, 3 Oct 2026). The database
-      // still allows 2-4, so squads registered before the change stay valid.
-      if (Number(squadSize) !== SQUAD_SIZE)
-        return `Squads must have exactly ${SQUAD_SIZE} builders.`;
+      // The database still allows 2-4, so squads registered before the
+      // change stay valid.
+      if (!SQUAD_SIZES.includes(Number(squadSize)))
+        return "Squads must have 2 or 3 builders.";
       if (typeof abstract !== "string" || abstract.length > 3000)
         return "Your big idea must be at most 3,000 characters.";
       if (

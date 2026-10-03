@@ -642,9 +642,9 @@ test("registration errors name the field that needs fixing", async () => {
   const cases = [
     [{ email: "lead@college" }, /complete lead email/],
     [{ teamName: " AB " }, /3–30 characters/],
-    [{ squadSize: 5 }, /exactly 3 builders/],
-    [{ squadSize: 2 }, /exactly 3 builders/],
-    [{ squadSize: 4 }, /exactly 3 builders/],
+    [{ squadSize: 5 }, /2 or 3 builders/],
+    [{ squadSize: 1 }, /2 or 3 builders/],
+    [{ squadSize: 4 }, /2 or 3 builders/],
     [{ domain: "HN-AI", problemId: "HN-CS-01" }, /doesn’t belong/],
     [{ conductAccepted: false }, /Code of Conduct/],
   ];

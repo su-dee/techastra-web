@@ -10,6 +10,15 @@
   let currentOutput;
   let sequence = 0;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  // The page's entrance animations wait for the loader: "hn-loading" while it
+  // may cover the page, "hn-loaded" once it's gone (see styles.css).
+  const root = document.documentElement;
+  root?.classList.add("hn-loading");
+  const removeOverlay = () => {
+    overlay.remove();
+    root?.classList.remove("hn-loading");
+    root?.classList.add("hn-loaded");
+  };
   const transcript = [
     "// loading application bundle",
     "// resolving local stylesheets",
@@ -76,7 +85,7 @@
       clearTimeout(slowTimer);
       clearInterval(characterTimer);
       if (overlay.hidden || reducedMotion.matches) {
-        overlay.remove();
+        removeOverlay();
         return;
       }
       if (currentOutput) {
@@ -90,10 +99,10 @@
       output.append(ready);
       message.textContent = "Welcome to HACK_NEXUS 1.0.";
       overlay.classList.add("boot-exit");
-      overlay.addEventListener("animationend", () => overlay.remove(), {
+      overlay.addEventListener("animationend", removeOverlay, {
         once: true,
       });
-      setTimeout(() => overlay.remove(), 850);
+      setTimeout(removeOverlay, 850);
     },
     { once: true },
   );

@@ -43,6 +43,11 @@ function boot() {
     },
   };
   elements["boot-loader"].classList.owner = elements["boot-loader"];
+  // <html>: the loader marks it "hn-loading", then "hn-loaded" once it's gone.
+  const rootClasses = new Set();
+  const documentElement = {
+    classList: { add: (n) => rootClasses.add(n), remove: (n) => rootClasses.delete(n) },
+  };
   const createElement = (tag) => ({
     children: [],
     textContent: "",
@@ -52,7 +57,7 @@ function boot() {
     },
   });
   vm.runInNewContext(script, {
-    document: { getElementById: (key) => elements[key], createElement },
+    document: { getElementById: (key) => elements[key], createElement, documentElement },
     window: {
       addEventListener: (name, fn) => listeners.set(name, fn),
       matchMedia: () => ({ matches: false }),
@@ -70,6 +75,7 @@ function boot() {
   });
   return {
     elements,
+    rootClasses,
     event: (name, event = {}) => listeners.get(name)?.(event),
     advance: (delay) => {
       for (const [key, timer] of [...timers])
@@ -83,10 +89,14 @@ function boot() {
 
 test("cached assets bypass the terminal loader", () => {
   const b = boot();
+  assert.equal(b.rootClasses.has("hn-loading"), true);
   b.event("hn:assets-ready");
   b.advance(220);
   assert.equal(b.elements["boot-loader"].hidden, true);
   assert.equal(b.elements["boot-loader"].removed, true);
+  // The page's entrance animations may start.
+  assert.equal(b.rootClasses.has("hn-loading"), false);
+  assert.equal(b.rootClasses.has("hn-loaded"), true);
 });
 
 test("pending assets show the terminal, then hand off to the website", () => {
@@ -100,6 +110,11 @@ test("pending assets show the terminal, then hand off to the website", () => {
     b.elements["boot-output"].children.at(-1).textContent,
     /all assets online/,
   );
+  // Still covered during the exit animation; handed off once it ends.
+  assert.equal(b.rootClasses.has("hn-loaded"), false);
+  b.elements["boot-loader"].handlers.get("animationend")();
+  assert.equal(b.elements["boot-loader"].removed, true);
+  assert.equal(b.rootClasses.has("hn-loaded"), true);
 });
 
 test("asset failures reveal a retry instead of leaving the terminal loading", () => {
