@@ -2,9 +2,12 @@ const crypto = require("crypto");
 const { spawn } = require("child_process");
 
 /**
- * Sends Techastra's emails with the web host's own mail system - no SMTP
- * account or paid email service. Two ways, chosen by MAIL_TRANSPORT:
+ * Sends Techastra's emails. Three ways, chosen by MAIL_TRANSPORT:
  *
+ * - "smtp": sends through an SMTP account - the techastra@drmgrdu.ac.in
+ *   Google Workspace mailbox with an app password. Needs SMTP_HOST,
+ *   SMTP_PORT (587 STARTTLS or 465 TLS), SMTP_USER and SMTP_PASS; the
+ *   sender is MAIL_FROM (default SMTP_USER), replies go to MAIL_REPLY_TO.
  * - "sendmail": hands the message to the server's sendmail program, exactly
  *   what PHP's mail() does, with the same headers as php-mailer/send.php.
  *   Needs MAIL_FROM (e.g. no-reply@techastra.drmgrdu.ac.in); optional
@@ -19,6 +22,7 @@ const { spawn } = require("child_process");
  * instead (local development).
  */
 async function sendMail({ to, subject, text }) {
+  if (process.env.MAIL_TRANSPORT === "smtp") return sendWithSmtp({ to, subject, text });
   if (process.env.MAIL_TRANSPORT === "sendmail") return sendWithSendmail({ to, subject, text });
 
   const url = process.env.MAIL_ENDPOINT_URL;
@@ -83,6 +87,79 @@ function buildMessage({ from, fromName, replyTo, to, subject, text }) {
     body,
     "",
   ].join("\n");
+}
+
+// MAIL_FROM may be a bare address or "Name <address>".
+function parseFrom(value) {
+  const m = String(value || "").trim().match(/^(?:"?([^"<]*?)"?\s*<([^>]+)>|(\S+))$/);
+  if (!m) return { name: "", address: "" };
+  return { name: (m[1] || "").trim(), address: (m[2] || m[3] || "").trim() };
+}
+
+// One transport for the whole process, so connections are pooled.
+let smtpTransport;
+function getSmtpTransport() {
+  if (!smtpTransport) {
+    const nodemailer = require("nodemailer");
+    const port = Number(process.env.SMTP_PORT || 587);
+    smtpTransport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure: port === 465,
+      requireTLS: port !== 465,
+      pool: true,
+      maxConnections: 3,
+      auth: {
+        user: process.env.SMTP_USER,
+        // Google shows app passwords as "abcd efgh ijkl mnop"; the spaces aren't part of it.
+        pass: String(process.env.SMTP_PASS || "").replace(/\s+/g, ""),
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
+    });
+  }
+  return smtpTransport;
+}
+
+async function sendWithSmtp({ to, subject, text }) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn("Email not sent: SMTP_HOST / SMTP_USER / SMTP_PASS are not all set.");
+    return { sent: false };
+  }
+  const parsed = parseFrom(process.env.MAIL_FROM || process.env.SMTP_USER);
+  const from = parsed.address;
+  const fromName = process.env.MAIL_FROM_NAME || parsed.name || "Techastra '26";
+  const replyTo = process.env.MAIL_REPLY_TO || from;
+  const recipient = String(to || "").trim();
+  if (!isAddress(from) || !isAddress(replyTo)) {
+    console.warn("Email not sent: MAIL_FROM / MAIL_REPLY_TO is not a valid address.");
+    return { sent: false };
+  }
+  if (!isAddress(recipient)) {
+    console.warn("Email not sent: invalid recipient address.");
+    return { sent: false };
+  }
+  const cleanSubject = String(subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+  const cleanText = String(text || "").replace(/\r\n?/g, "\n").slice(0, 20000);
+  if (!cleanSubject || !cleanText) {
+    console.warn(`Email to ${recipient} not sent: subject and text are required.`);
+    return { sent: false };
+  }
+  try {
+    await getSmtpTransport().sendMail({
+      from: { name: fromName.replace(/[\r\n"]/g, ""), address: from },
+      to: recipient,
+      replyTo,
+      subject: cleanSubject,
+      text: cleanText,
+      headers: { "X-Mailer": "Techastra26" },
+    });
+    return { sent: true };
+  } catch (err) {
+    console.warn(`Email to ${recipient} not sent: ${err.message}`);
+    return { sent: false };
+  }
 }
 
 function sendWithSendmail({ to, subject, text }) {

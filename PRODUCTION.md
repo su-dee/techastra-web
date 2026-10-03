@@ -11,7 +11,7 @@ Deployment runbook and the standards this project is built to. Everything runs o
 | Approved refund policy | `client/src/pages/Legal.jsx` (Terms), then set `LEGAL.refundPolicyConfirmed = true` |
 | Final fees, times, seats, venues, team sizes | `server/prisma/eventData.js`, then re-run the seed |
 | Staff logins (35: admin, hospitality, certificates, desk1–5, one per event) | `npm run staff:setup` creates them with unique passwords in `server/staff-credentials.csv` + printable `staff-credentials.html` (never commit) |
-| Emails (the server's own mail, no SMTP) | `MAIL_TRANSPORT=sendmail` and `MAIL_FROM` (section 2.5), plus DKIM/SPF for the domain |
+| Emails (techastra@drmgrdu.ac.in via Google) | `MAIL_TRANSPORT=smtp` plus the `SMTP_*` app-password settings (section 2.5) |
 
 ## 2. Deploy on Plesk (techastra.drmgrdu.ac.in)
 
@@ -19,7 +19,7 @@ Deployment runbook and the standards this project is built to. Everything runs o
 
 | Site | What runs there |
 |---|---|
-| `techastra.drmgrdu.ac.in` | **Node app** `techweb/server`. It serves the website (`client/dist`), the API, **Hack Nexus at `/hacknexus/`** (inside the same app, `HACKNEXUS_EMBEDDED=1`), and sends Techastra's emails through the server's `sendmail`, which is what PHP's `mail()` uses (`MAIL_TRANSPORT=sendmail`). |
+| `techastra.drmgrdu.ac.in` | **Node app** `techweb/server`. It serves the website (`client/dist`), the API, **Hack Nexus at `/hacknexus/`** (inside the same app, `HACKNEXUS_EMBEDDED=1`), and sends Techastra's emails from techastra@drmgrdu.ac.in through Google's SMTP (`MAIL_TRANSPORT=smtp`). |
 
 Turn on **Let's Encrypt SSL** for the domain. The QR camera scanners need https.
 
@@ -62,8 +62,11 @@ The same checkout serves both Node apps. To update later: `cd ~/techweb && git p
 | `HN_APP_ORIGIN` | `https://techastra.drmgrdu.ac.in` |
 | `HN_REGISTRATION_FEE` / `HN_UPI_ID` / `HN_UPI_PAYEE_NAME` | `1000` / `7010826253-2@ybl` / `THIRUVENKATAM V` (confirm with the organisers) |
 | `HN_SMTP_HOST` / `HN_SMTP_PORT` / `HN_SMTP_USER` / `HN_SMTP_PASS` / `HN_MAIL_FROM` / `HN_MAIL_REPLY_TO` | the Gmail values from `hacknexus/.env` on the development laptop (never commit them) |
-| `MAIL_TRANSPORT` | `sendmail` |
-| `MAIL_FROM` | `no-reply@techastra.drmgrdu.ac.in` |
+| `MAIL_TRANSPORT` | `smtp` |
+| `SMTP_HOST` / `SMTP_PORT` | `smtp.gmail.com` / `587` |
+| `SMTP_USER` | `techastra@drmgrdu.ac.in` |
+| `SMTP_PASS` | the Google **app password** for that account, from `server/.env` on the development laptop (never commit it) |
+| `MAIL_FROM` | `Techastra '26 <techastra@drmgrdu.ac.in>` |
 | `MAIL_REPLY_TO` | `techastra@drmgrdu.ac.in` |
 
 - **Build and set up (SSH).** Plesk's own Node: use the path Plesk shows, e.g. `/opt/plesk/node/22/bin`, or tick "run with this Node" in the panel.
@@ -101,15 +104,16 @@ npm run admin:create -- <organiser-username>             # prompts for a 12+ cha
 - **Restart** the Techastra app. Its log shows "Hack Nexus is served at /hacknexus/"; if it fails to load, the log says why, the rest of the site keeps working, and `/hacknexus` shows "temporarily unavailable".
 - **Separate app instead (optional):** Hack Nexus can still run as its own Node app (startup file `server/passenger.cjs`, the same settings without the `HN_` prefix plus `BASE_PATH=/hacknexus` and `TRUST_PROXY=1`). In that case set `HACKNEXUS_ORIGIN` to its address instead of `HACKNEXUS_EMBEDDED`. `HACKNEXUS_HOST` gives the site name when `HACKNEXUS_ORIGIN` is `http://127.0.0.1` on the same server.
 
-### 2.5 Email (the server's own mail, no second site)
-Techastra's emails (received, approved, rejected, cancelled, resubmitted) are handed to the server's `sendmail` program. That's exactly what PHP's `mail()` does, with the same headers, so there's no SMTP account, no paid service and no PHP site. The settings are in §2.3.
-- **Check that sendmail works (SSH)**, sending to your own address:
+### 2.5 Email (techastra@drmgrdu.ac.in via Google)
+Techastra's emails (received, approved, rejected, cancelled, resubmitted) are sent from the university's Google Workspace mailbox techastra@drmgrdu.ac.in, using an **app password** (Google account → Security → 2-Step Verification on → App passwords). Google sends them, so the Plesk server needs no SPF/DKIM of its own, and participants' replies land in the same mailbox. The settings are in §2.3. Google allows about 2,000 emails a day per account.
+- **If emails stop:** the app log shows `Email to … not sent: <reason>`. `Invalid login` means the app password was revoked or 2-Step Verification was turned off: make a new app password and update `SMTP_PASS`. A connection timeout means the host blocks outgoing port 587: try `SMTP_PORT=465`.
+- **Fallback, the server's own sendmail** (what PHP's `mail()` uses): set `MAIL_TRANSPORT=sendmail` and `MAIL_FROM=no-reply@techastra.drmgrdu.ac.in`. Check that sendmail works (SSH), sending to your own address:
 ```bash
 ls -l /usr/sbin/sendmail
 printf 'Subject: Techastra test\n\nIt works.\n' | /usr/sbin/sendmail -i -f no-reply@techastra.drmgrdu.ac.in you@example.com
 ```
   If it's somewhere else, set `MAIL_SENDMAIL_PATH`. If nothing arrives, check Plesk → Mail → the mail queue / log, and whether the plan limits outgoing mail.
-- **Keep it out of spam:** Plesk → Websites & Domains → Mail Settings → turn on **DKIM** for `techastra.drmgrdu.ac.in`, and make sure the domain's DNS has the **SPF** and **DKIM** TXT records Plesk shows (DNS Settings). If the university IT runs the DNS, send them those records.
+- **Keep sendmail out of spam:** Plesk → Websites & Domains → Mail Settings → turn on **DKIM** for `techastra.drmgrdu.ac.in`, and make sure the domain's DNS has the **SPF** and **DKIM** TXT records Plesk shows (DNS Settings). If the university IT runs the DNS, send them those records.
 - **Alternative (PHP site):** `php-mailer/` still works on any PHP site: set `MAIL_ENDPOINT_URL` / `MAIL_ENDPOINT_SECRET` and leave `MAIL_TRANSPORT` unset (see `php-mailer/README.md`).
 
 ### 2.6 Check before announcing
