@@ -125,6 +125,8 @@ app.use("/api/registrations", registrationRoutes);
 app.use("/api/registration-team", registrationTeamRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/food", foodRoutes);
+app.use("/api/kits", require("./routes/kits"));
+app.use("/api/participants", require("./routes/participants"));
 app.use("/api/results", resultRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/announcements", announcementRoutes);
@@ -213,6 +215,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`\nTechastra API listening on port ${PORT} (${isProd ? "production" : "development"})`);
+  // "Pay later": release unpaid seat holds once the payment deadline passes.
+  require("./utils/payLater").startHoldReleaser();
 });
 
 // Graceful shutdown: finish in-flight requests, then close the DB pool.

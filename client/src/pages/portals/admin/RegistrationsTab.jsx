@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import { Select } from "../../../components/ui/Input";
+import { Input, Select } from "../../../components/ui/Input";
 import { api } from "../../../lib/api";
+import ParticipantDetailsModal from "../../../components/ParticipantDetailsModal";
 
 const STATUSES = ["pending", "approved", "rejected"];
 
@@ -12,6 +13,20 @@ export default function RegistrationsTab() {
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [detailsId, setDetailsId] = useState(null); // registration whose full details are open
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return registrations.filter(
+      (r) =>
+        (statusFilter === "all" || r.status === statusFilter) &&
+        (!q ||
+          [r.user?.name, r.user?.email, r.user?.phone, r.registrationCode, r.collegeName, r.transactionId, r.teamName]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(q)))
+    );
+  }, [registrations, search, statusFilter]);
 
   const load = () => {
     setLoading(true);
@@ -101,11 +116,31 @@ export default function RegistrationsTab() {
         </Button>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <Input
+          type="search"
+          aria-label="Search registrations"
+          placeholder="Search name, code, email, phone, UTR, college"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="sm:max-w-[180px]">
+          <option value="all">All statuses ({registrations.length})</option>
+          {STATUSES.map((st) => (
+            <option key={st} value={st}>
+              {st} ({registrations.filter((r) => r.status === st).length})
+            </option>
+          ))}
+        </Select>
+      </div>
+
       {loading ? (
         <p className="text-shade/50">Loading...</p>
+      ) : shown.length === 0 ? (
+        <p className="text-shade/50">No registrations match.</p>
       ) : (
         <div className="space-y-2">
-          {registrations.map((r) => (
+          {shown.map((r) => (
             <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
@@ -117,8 +152,10 @@ export default function RegistrationsTab() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge status={r.status} />
+                {r.paymentMethod === "later" && r.status !== "approved" && <Badge status="info">Payment due</Badge>}
+                <Button size="sm" variant="outline" onClick={() => setDetailsId(r.id)}>Details</Button>
                 <Select
                   value={r.status}
                   onChange={(e) => override(r.id, e.target.value)}
@@ -135,6 +172,8 @@ export default function RegistrationsTab() {
           ))}
         </div>
       )}
+
+      <ParticipantDetailsModal registrationId={detailsId} onClose={() => setDetailsId(null)} />
     </div>
   );
 }

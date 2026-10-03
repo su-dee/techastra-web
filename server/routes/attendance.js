@@ -4,6 +4,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { scanLimiter } = require("../middleware/rateLimiter");
 const { logSuspiciousActivity, logSecurityEvent } = require("../middleware/securityLogger");
 const { validateQRScanData } = require("../middleware/inputValidation");
+const { participantDetails } = require("../utils/participantDetails");
 
 const router = express.Router();
 
@@ -43,11 +44,17 @@ router.post(
     if (!registration) {
       return res.status(404).json({ error: "No registration found for this QR code" });
     }
+    // The coordinator sees the participant's full details whatever the
+    // outcome (checked in, already in, wrong event, not approved).
     if (registration.status !== "approved") {
-      return res.status(409).json({ error: "This registration is not approved" });
+      return res.status(409).json({ error: "This registration is not approved", outcome: "not_approved", details: await participantDetails(registration) });
     }
     if (!registration.eventIds.includes(eventId)) {
-      return res.status(409).json({ error: `${registration.user.name} is not registered for this event` });
+      return res.status(409).json({
+        error: `${registration.user.name} is not registered for this event`,
+        outcome: "wrong_event",
+        details: await participantDetails(registration),
+      });
     }
 
     const existing = await prisma.attendance.findUnique({
@@ -58,16 +65,33 @@ router.post(
         error: `${registration.user.name} has already been checked in`,
         alreadyScanned: true,
         scannedAt: existing.scannedAt,
+        outcome: "already",
+        details: await participantDetails(registration),
       });
     }
 
-    const attendance = await prisma.attendance.create({
-      data: { registrationId: registration.id, eventId, scannedBy: req.user.id },
-    });
+    let attendance;
+    try {
+      attendance = await prisma.attendance.create({
+        data: { registrationId: registration.id, eventId, scannedBy: req.user.id },
+      });
+    } catch (err) {
+      // Scanned twice at once: the unique index lets only one check-in through.
+      if (err.code !== "P2002") throw err;
+      return res.status(409).json({
+        error: `${registration.user.name} has already been checked in`,
+        alreadyScanned: true,
+        outcome: "already",
+        details: await participantDetails(registration),
+      });
+    }
 
+    logSecurityEvent("participant_details_viewed", { userId: req.user.id, registrationCode, via: "attendance_scan" });
     res.status(201).json({
       attendance,
+      outcome: "checked_in",
       participant: { name: registration.user.name, college: registration.collegeName, code: registration.registrationCode },
+      details: await participantDetails(registration),
     });
   } catch (err) {
     console.error("Attendance scan error:", err);

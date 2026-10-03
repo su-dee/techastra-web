@@ -18,7 +18,7 @@ router.use(requireAuth, (req, res, next) => {
 /**
  * GET /api/registration-team/export/:eventId
  * Export all participants for a specific event as Excel (.xlsx)
- * Columns: name, email, phone, college, registerNo, team name, team members, status, transactionId, totalAmount, createdAt
+ * Columns: name, email, phone, college, registerNo, team name, team members, status, payment, transactionId, totalAmount, createdAt
  */
 router.get("/export/:eventId", exportLimiter, async (req, res) => {
   try {
@@ -88,6 +88,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
         "Team Members": teamMembersStr,
         Events: eventsStr,
         Status: reg.status || "",
+        Payment: reg.paymentMethod === "later" ? "pay later (not paid)" : reg.paymentMethod || "",
         "Transaction ID": reg.transactionId || "",
         "Total Amount": reg.totalAmount || 0,
         "Registration Date": reg.createdAt

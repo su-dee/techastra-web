@@ -255,6 +255,7 @@ router.get("/export/registrations.csv", exportLimiter, async (req, res) => {
       { label: "Team Name", value: "teamName" },
       { label: "Events", value: (r) => (r.eventIds || []).map((id) => eventMap.get(id) || id).join(" | ") },
       { label: "Total Amount", value: "totalAmount" },
+      { label: "Payment", value: (r) => (r.paymentMethod === "later" ? "pay later (not paid)" : r.paymentMethod || "") },
       { label: "Transaction ID", value: "transactionId" },
       { label: "Status", value: "status" },
       { label: "Reviewed By", value: (r) => r.reviewedByName || "" },

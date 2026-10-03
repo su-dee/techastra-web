@@ -69,8 +69,10 @@ export default function QRScanner({ onScan, active = true }) {
     // page "not come back" after scanning (it looks frozen/stuck until
     // force-reloaded, because the camera hardware lock never actually
     // let go).
+    // The scanner's own element, kept so the cleanup can still reach its
+    // <video> after React has removed it from the page.
+    const container = document.getElementById(SCANNER_ELEMENT_ID);
     const forceReleaseCamera = () => {
-      const container = document.getElementById(SCANNER_ELEMENT_ID);
       const videos = container ? container.querySelectorAll("video") : [];
       videos.forEach((video) => {
         const stream = video.srcObject;
@@ -83,7 +85,7 @@ export default function QRScanner({ onScan, active = true }) {
 
     const config = { fps: 10, qrbox: { width: 240, height: 240 } };
     const onSuccess = (decodedText) => {
-      if (pausedRef.current) return;
+      if (cancelled || pausedRef.current) return;
       pausedRef.current = true;
       onScan(decodedText);
       setTimeout(() => {
@@ -99,7 +101,9 @@ export default function QRScanner({ onScan, active = true }) {
     // no "environment" camera at all, which makes a strict facingMode
     // constraint fail (silently, in some browsers) - so we fall back to
     // whatever camera is actually available instead of erroring out.
-    html5QrCode
+    // Settles once the camera is running (or failed to start) - the cleanup
+    // waits for it, see below.
+    const started = html5QrCode
       .start({ facingMode: "environment" }, config, onSuccess, onDecodeError)
       .then(() => {
         if (!cancelled) setReady(true);
@@ -124,16 +128,22 @@ export default function QRScanner({ onScan, active = true }) {
       if (cleanedUp) return;
       cleanedUp = true;
 
-      // `stop()` is awaited BEFORE `clear()` runs (not fired in
-      // parallel, per the bug note above) so the camera track is
-      // actually released first. Either promise rejecting still falls
-      // through to `forceReleaseCamera()` in `finally`, so a stuck
-      // camera can't survive this cleanup even if the library's own
-      // promises misbehave.
-      html5QrCode
-        .stop()
+      // Wait for the camera start to settle first: stopping a scanner that
+      // is still starting fails ("not running"), and the camera would then
+      // come up anyway and keep scanning in the background with no UI
+      // (closing the scanner within a second of opening it, or React's
+      // dev-mode double mount). Then `stop()` is awaited BEFORE `clear()`
+      // (not in parallel, per the bug note above) so the camera track is
+      // released first. Both THROW synchronously (rather than rejecting)
+      // when the scanner isn't running, so they run inside the chain, where
+      // a throw is just a swallowed rejection - never a page crash. Whatever
+      // happens, `forceReleaseCamera()` runs last.
+      started
         .catch(() => {})
-        .then(() => html5QrCode.clear().catch(() => {}))
+        .then(() => html5QrCode.stop())
+        .catch(() => {})
+        .then(() => html5QrCode.clear())
+        .catch(() => {})
         .finally(forceReleaseCamera);
     };
   }, [active, onScan]);

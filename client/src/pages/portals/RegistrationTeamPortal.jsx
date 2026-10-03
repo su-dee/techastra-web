@@ -9,6 +9,8 @@ import { api } from "../../lib/api";
 import ParticipantIDCard from "../../components/ParticipantIDCard";
 import { idCardVerifyUrl } from "../../lib/idCard";
 import { levelOf } from "../../lib/site";
+import KitDesk from "./KitDesk";
+import ParticipantDetailsModal from "../../components/ParticipantDetailsModal";
 
 // One tap fills the reason; the participant sees it in their email and on
 // the status page, so it should say what to fix.
@@ -31,6 +33,7 @@ const STATUS_TABS = [
   ["pending", "Pending"],
   ["approved", "Approved"],
   ["rejected", "Rejected"],
+  ["all", "All"],
 ];
 
 // Payment screenshots are private: fetched with the staff token and shown
@@ -55,6 +58,7 @@ async function openProof(registrationId) {
 export default function RegistrationTeamPortal() {
   const [registrations, setRegistrations] = useState([]);
   const [filter, setFilter] = useState("pending");
+  const [detailsId, setDetailsId] = useState(null); // registration whose full details are open
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   // The registration an action is in flight for - its buttons lock so a
@@ -115,7 +119,7 @@ export default function RegistrationTeamPortal() {
 
   const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   const counts = useMemo(() => {
-    const c = { pending: 0, approved: 0, rejected: 0 };
+    const c = { pending: 0, approved: 0, rejected: 0, all: registrations.length };
     registrations.forEach((r) => (c[r.status] = (c[r.status] || 0) + 1));
     return c;
   }, [registrations]);
@@ -123,7 +127,7 @@ export default function RegistrationTeamPortal() {
     const q = search.trim().toLowerCase();
     return registrations.filter(
       (r) =>
-        r.status === filter &&
+        (filter === "all" || r.status === filter) &&
         (!q ||
           [r.user?.name, r.user?.email, r.user?.phone, r.registrationCode, r.collegeName, r.transactionId, r.teamName]
             .filter(Boolean)
@@ -145,6 +149,24 @@ export default function RegistrationTeamPortal() {
       toast.success(
         data.alreadyApproved ? "Already approved" : `${r.user.name} approved${r.status === "rejected" ? " (restored)" : ""} - email sent`
       );
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Pay later: the participant pays the exact amount in cash at the desk.
+  // Two taps (the second confirms), so a stray tap can't approve anyone.
+  const [confirmCashId, setConfirmCashId] = useState(null);
+  const collectCash = async (r) => {
+    if (confirmCashId !== r.id) return setConfirmCashId(r.id);
+    setConfirmCashId(null);
+    setBusyId(r.id);
+    try {
+      const data = await api.patch(`/api/registrations/${r.id}/collect-cash`, { amountCollected: r.totalAmount });
+      replace(data.registration);
+      toast.success(`₹${r.totalAmount} cash received from ${r.user.name} - approved, email sent`);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -347,6 +369,9 @@ export default function RegistrationTeamPortal() {
     <div className="max-w-6xl mx-auto px-6 py-10">
       <h1 className="font-heading text-3xl font-bold mb-6">Registration Team Portal</h1>
 
+      {/* Event day: scan ID cards and hand out the welcome kits. */}
+      <KitDesk />
+
       {/* The desk's main job first: approve / reject. */}
       <section className="mb-10" aria-label="Review registrations">
         <h2 className="font-heading font-semibold text-xl mb-3">Review registrations</h2>
@@ -381,7 +406,7 @@ export default function RegistrationTeamPortal() {
         {loading && registrations.length === 0 ? (
           <p className="text-shade/50">Loading...</p>
         ) : shown.length === 0 ? (
-          <p className="text-shade/50">{search ? `No ${filter} registrations match "${search}".` : `No ${filter} registrations.`}</p>
+          <p className="text-shade/50">{(() => { const kind = filter === "all" ? "" : `${filter} `; return search ? `No ${kind}registrations match "${search}".` : `No ${kind}registrations.`; })()}</p>
         ) : (
           <div className="space-y-3">
             {shown.map((r) => {
@@ -406,6 +431,7 @@ export default function RegistrationTeamPortal() {
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <Badge status={r.status} />
+                      {r.paymentMethod === "later" && <Badge status="info">Payment due</Badge>}
                       {junior && <Badge status="info">Junior</Badge>}
                     </div>
                   </div>
@@ -420,7 +446,14 @@ export default function RegistrationTeamPortal() {
                   )}
 
                   <p className="text-sm text-shade/60 mt-3">
-                    {r.paymentMethod === "cash" ? "Paid in cash" : r.paymentMethod === "free" ? "Free registration" : `UTR: ${r.transactionId}`} · ₹{r.totalAmount}
+                    {r.paymentMethod === "cash"
+                      ? "Paid in cash"
+                      : r.paymentMethod === "free"
+                      ? "Free registration"
+                      : r.paymentMethod === "later"
+                      ? "Pay later - not paid yet (seat blocked)"
+                      : `UTR: ${r.transactionId}`}{" "}
+                    · ₹{r.totalAmount}
                     {r.paymentProofUrl && (
                       <>
                         {" · "}
@@ -449,7 +482,20 @@ export default function RegistrationTeamPortal() {
                   )}
 
                   <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 mt-4">
-                    {r.status === "pending" && (
+                    <Button size="sm" variant="outline" className="col-span-2 sm:mr-auto" onClick={() => setDetailsId(r.id)}>
+                      View details
+                    </Button>
+                    {r.paymentMethod === "later" && r.status !== "approved" && (
+                      <Button size="sm" onClick={() => collectCash(r)} disabled={busy} className={r.status === "rejected" ? "col-span-2" : ""}>
+                        {busy ? "Saving…" : confirmCashId === r.id ? `Confirm ₹${r.totalAmount} received?` : `₹${r.totalAmount} cash received`}
+                      </Button>
+                    )}
+                    {r.status === "pending" && r.paymentMethod === "later" && (
+                      <Button size="sm" variant="danger" onClick={() => openReject(r)} disabled={busy}>
+                        ✕ Cancel hold
+                      </Button>
+                    )}
+                    {r.status === "pending" && r.paymentMethod !== "later" && (
                       <>
                         <Button size="sm" onClick={() => approve(r)} disabled={busy}>
                           {busy ? "Saving…" : "✓ Approve"}
@@ -464,7 +510,7 @@ export default function RegistrationTeamPortal() {
                         ✕ Reject / cancel registration
                       </Button>
                     )}
-                    {r.status === "rejected" && (
+                    {r.status === "rejected" && r.paymentMethod !== "later" && (
                       <Button size="sm" variant="outline" className="col-span-2" onClick={() => approve(r)} disabled={busy}>
                         {busy ? "Saving…" : "↺ Restore & approve"}
                       </Button>
@@ -890,6 +936,8 @@ export default function RegistrationTeamPortal() {
           </form>
         )}
       </Modal>
+
+      <ParticipantDetailsModal registrationId={detailsId} onClose={() => setDetailsId(null)} />
     </div>
   );
 }

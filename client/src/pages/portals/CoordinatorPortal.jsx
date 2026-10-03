@@ -5,12 +5,14 @@ import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import QRScanner from "../../components/QRScanner";
+import ParticipantDetails from "../../components/ParticipantDetails";
+import ParticipantDetailsModal from "../../components/ParticipantDetailsModal";
 import { Select } from "../../components/ui/Input";
 import { api } from "../../lib/api";
 import { registrationCodeFromQr } from "../../lib/idCard";
 import { useAuth } from "../../context/AuthContext";
 
-const TABS = ["scan", "roster", "winners"];
+const TABS = ["scan", "roster", "checked in", "winners"];
 
 export default function CoordinatorPortal() {
   const { user } = useAuth();
@@ -18,6 +20,10 @@ export default function CoordinatorPortal() {
   const [eventId, setEventId] = useState(user?.assignedEventId || "");
   const [tab, setTab] = useState("scan");
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanResult, setScanResult] = useState(null); // { outcome, message, details } after a scan
+  const [detailsId, setDetailsId] = useState(null); // roster entry whose full details are open
+  const [checkedIn, setCheckedIn] = useState(null); // [{ checkedInAt, details }] for the "checked in" tab
+  const [openCode, setOpenCode] = useState(null); // expanded entry in that list
   const [roster, setRoster] = useState([]);
   const [winners, setWinners] = useState({ 1: "", 2: "", 3: "" });
   const [locked, setLocked] = useState(false);
@@ -48,18 +54,38 @@ export default function CoordinatorPortal() {
     loadResults();
   }, [loadRoster, loadResults]);
 
-  const handleScan = async (decodedText) => {
-    try {
-      const data = await api.post("/api/attendance/scan", { registrationCode: registrationCodeFromQr(decodedText), eventId });
-      toast.success(`Checked in: ${data.participant.name}`);
-      loadRoster();
-    } catch (err) {
-      if (err.message.includes("already been checked in")) {
-        toast.error(err.message);
-      } else {
-        toast.error(err.message);
+  // Everyone checked in at this event, with their full details.
+  const loadCheckedIn = useCallback(() => {
+    if (!eventId) return;
+    api
+      .get(`/api/participants/checked-in?eventId=${encodeURIComponent(eventId)}`)
+      .then((data) => setCheckedIn(data.participants || []))
+      .catch((err) => toast.error(err.message));
+  }, [eventId]);
+  useEffect(() => {
+    if (tab === "checked in") loadCheckedIn();
+  }, [tab, loadCheckedIn]);
+
+  // A scan checks the participant in, then shows the outcome with their
+  // full details (also when they're already in, in another event, or not
+  // approved). Memoised: the scanner restarts whenever onScan changes.
+  const handleScan = useCallback(
+    async (decodedText) => {
+      setScannerOpen(false);
+      try {
+        const data = await api.post("/api/attendance/scan", { registrationCode: registrationCodeFromQr(decodedText), eventId });
+        setScanResult({ outcome: "checked_in", message: `Checked in: ${data.participant.name}`, details: data.details });
+        loadRoster();
+      } catch (err) {
+        if (err.data?.details) setScanResult({ outcome: err.data.outcome, message: err.message, details: err.data.details });
+        else toast.error(err.message);
       }
-    }
+    },
+    [eventId, loadRoster]
+  );
+  const scanNext = () => {
+    setScanResult(null);
+    setScannerOpen(true);
   };
 
   const manualCheckIn = async (registrationId) => {
@@ -111,12 +137,12 @@ export default function CoordinatorPortal() {
         <>
           <h2 className="font-heading text-xl font-semibold mb-4 text-cyan">{selectedEvent?.name}</h2>
 
-          <div className="flex gap-3 mb-6">
+          <div className="flex gap-2 mb-6 overflow-x-auto">
             {TABS.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-shade/5 text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
+                className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? "bg-[linear-gradient(100deg,#ddbb6a,#c9a24a)] text-[#2c2823] font-semibold" : "bg-shade/5 text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
               >
                 {t}
               </button>
@@ -148,6 +174,11 @@ export default function CoordinatorPortal() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge status={r.present ? "present" : "absent"} />
+                      {r.present && (
+                        <Button size="sm" variant="outline" onClick={() => setDetailsId(r.registrationId)}>
+                          Details
+                        </Button>
+                      )}
                       {!r.present && (
                         <Button size="sm" variant="outline" onClick={() => manualCheckIn(r.registrationId)}>
                           Check In
@@ -157,6 +188,54 @@ export default function CoordinatorPortal() {
                   </div>
                 ))}
               </div>
+            </Card>
+          )}
+
+          {tab === "checked in" && (
+            <Card>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="font-semibold">Checked in ({checkedIn ? checkedIn.length : "…"})</h3>
+                <Button size="sm" variant="outline" onClick={loadCheckedIn} aria-label="Refresh checked-in list">
+                  ↻
+                </Button>
+              </div>
+              {!checkedIn ? (
+                <p className="text-shade/50 text-sm">Loading…</p>
+              ) : checkedIn.length === 0 ? (
+                <p className="text-shade/50 text-sm">No one has checked in yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {checkedIn.map(({ checkedInAt, details }) => {
+                    const open = openCode === details.registrationCode;
+                    return (
+                      <div key={details.registrationCode} className="bg-shade/5 rounded-lg">
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          onClick={() => setOpenCode(open ? null : details.registrationCode)}
+                          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium">
+                              {details.person.name} {details.team.name ? `(${details.team.name})` : ""}
+                            </span>
+                            <span className="block text-xs text-shade/60">
+                              {details.registrationCode} · {details.person.phone || details.person.email} · in at{" "}
+                              {new Date(checkedInAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-shade/60 text-sm">{open ? "Hide ▲" : "Details ▼"}</span>
+                        </button>
+                        {open && (
+                          <div className="px-4 pb-4 border-t border-shade/10 pt-4">
+                            <ParticipantDetails details={details} highlightEventId={eventId} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           )}
 
@@ -205,6 +284,32 @@ export default function CoordinatorPortal() {
 
       <Modal open={scannerOpen} onClose={() => setScannerOpen(false)} title="Scan Participant QR" fullScreen>
         <QRScanner active={scannerOpen} onScan={handleScan} />
+      </Modal>
+
+      <ParticipantDetailsModal registrationId={detailsId} onClose={() => setDetailsId(null)} highlightEventId={eventId} />
+
+      <Modal open={!!scanResult} onClose={() => setScanResult(null)} title="Participant">
+        {scanResult && (
+          <div className="space-y-5">
+            <div
+              role="status"
+              className={`rounded-lg border px-4 py-3 font-semibold ${
+                scanResult.outcome === "checked_in"
+                  ? "border-success/35 bg-success/10 text-success"
+                  : "border-danger/40 bg-danger/10 text-danger"
+              }`}
+            >
+              {scanResult.outcome === "checked_in" ? "✓ " : ""}
+              {scanResult.message}
+            </div>
+            <Button variant="outline" className="w-full" onClick={scanNext}>
+              Scan next
+            </Button>
+            <div className="border-t border-shade/15 pt-5">
+              <ParticipantDetails details={scanResult.details} highlightEventId={eventId} />
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -45,6 +45,13 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [copied, setCopied] = useState(false);
+  // "Pay later": block the seats now, pay by the deadline (online from the
+  // status page, or cash at the desk). Offered while the server says it's open.
+  const [payLaterInfo, setPayLaterInfo] = useState(null); // { open, deadlineText }
+  const [payMode, setPayMode] = useState("now"); // "now" | "later"
+  useEffect(() => {
+    api.get("/api/registrations/pay-later").then(setPayLaterInfo).catch(() => setPayLaterInfo(null));
+  }, []);
   const qrRef = useRef(null);
   // UPI apps never send people back to the website, so when someone returns to
   // this tab after tapping "Pay with UPI app" we take them straight to the UTR
@@ -120,10 +127,12 @@ export default function Checkout() {
   // Junior events are free: no payment step, the registration just collects
   // the student's details and is confirmed straight away.
   const free = total === 0;
+  const canPayLater = !free && !!payLaterInfo?.open;
+  const later = canPayLater && payMode === "later";
 
   function validate() {
     const e = {};
-    if (!free) {
+    if (!free && !later) {
       const t = normalizeTxn(txn);
       if (!t) e.txn = "Enter the UPI transaction ID from your payment app.";
       else if (!UPI_TXN.test(t)) e.txn = "That doesn’t look like a UPI transaction ID. Use the 12-digit UTR / reference number, letters and digits only.";
@@ -210,10 +219,11 @@ export default function Checkout() {
     if (teamMembers) fd.append("teamMembers", JSON.stringify(teamMembers));
     fd.append("eventIds", JSON.stringify(items.map((i) => i.id)));
     fd.append("comboIds", JSON.stringify(comboIds));
-    if (!free) fd.append("transactionId", normalizeTxn(txn));
+    if (later) fd.append("payLater", "true");
+    else if (!free) fd.append("transactionId", normalizeTxn(txn));
     fd.append("consent", String(!!consent));
     fd.append("guardianConsent", String(!!guardianConsent));
-    if (!free && proof) fd.append("paymentProof", proof);
+    if (!free && !later && proof) fd.append("paymentProof", proof);
 
     setSubmitting(true);
     try {
@@ -228,6 +238,8 @@ export default function Checkout() {
       toast.success(
         free
           ? `You’re registered - your code is ${registration.registrationCode}`
+          : later
+          ? `Seat blocked - your code is ${registration.registrationCode}. Pay by ${payLaterInfo.deadlineText}.`
           : `Registration submitted - your code is ${registration.registrationCode}`
       );
       // Email travels in navigation state, not the URL (no personal data in URLs).
@@ -278,7 +290,7 @@ export default function Checkout() {
       <div className="page-head animate-cinematic-fade">
         <Stepper current={3} />
         <div className="kicker">{free ? "Confirm" : "Payment"}</div>
-        <h1 className="h2">{free ? "Confirm your registration" : "Pay by UPI"}</h1>
+        <h1 className="h2">{free ? "Confirm your registration" : later ? "Block your seat" : "Pay by UPI"}</h1>
         <p className="lead">Registering as <span className="text-heading">{draft.form.name}</span> ({draft.form.email})</p>
       </div>
 
@@ -314,7 +326,47 @@ export default function Checkout() {
         </div>
       </section>
 
-      {!free && (
+      {canPayLater && (
+        <fieldset className="card p-6 mb-5">
+          <legend className="sr-only">When do you want to pay?</legend>
+          <p className="mono-label mb-3" aria-hidden="true">When do you want to pay?</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              ["now", "Pay now", "Pay by UPI and upload the screenshot. The desk approves it, then you get your ID card."],
+              ["later", "Pay later - block my seat", `Your seat is held until ${payLaterInfo.deadlineText}. Pay online or in cash at the desk by then.`],
+            ].map(([value, title, text]) => (
+              <label
+                key={value}
+                className={`block cursor-pointer rounded-[10px] border px-4 py-3 ${payMode === value ? "border-amber/70 bg-amber/10" : "border-shade/15 hover:border-amber/40"}`}
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="pay-mode"
+                    value={value}
+                    checked={payMode === value}
+                    onChange={() => {
+                      setPayMode(value);
+                      setErrors({});
+                    }}
+                  />
+                  <span className="text-[15px] text-heading">{title}</span>
+                </span>
+                <span className="block mt-1 text-[13px] text-dim">{text}</span>
+              </label>
+            ))}
+          </div>
+          {later && (
+            <p role="status" className="mt-4 rounded-[10px] border border-amber/40 bg-amber/10 px-4 py-3 text-[14px] text-text">
+              <strong className="font-semibold text-heading">Your registration isn’t complete until you pay.</strong> Your
+              ID card with its QR code is issued only after your payment of ₹{total} is approved. Unpaid seats are released
+              after {payLaterInfo.deadlineText}.
+            </p>
+          )}
+        </fieldset>
+      )}
+
+      {!free && !later && (
       <section className="card p-6 mb-5 text-center" aria-labelledby="pay-title">
         <h2 id="pay-title" className="mono-label mb-4">1 · Pay ₹{total}</h2>
 
@@ -366,7 +418,7 @@ export default function Checkout() {
       )}
 
       <form ref={formRef} onSubmit={submit} noValidate className="card p-6 space-y-5" aria-labelledby="confirm-title">
-        <h2 id="confirm-title" className="mono-label">{free ? "Confirm your registration" : "2 · Confirm your payment"}</h2>
+        <h2 id="confirm-title" className="mono-label">{free || later ? "Confirm your registration" : "2 · Confirm your payment"}</h2>
         {free && (
           <p className="text-[15px] text-text">
             Junior Techastra events are free. Check your details, then complete your registration - there’s nothing to pay.
@@ -379,7 +431,7 @@ export default function Checkout() {
           </div>
         )}
 
-        {!free && (
+        {!free && !later && (
         <>
         {backFromApp && (
           <p role="status" className="rounded-[10px] border border-amber/40 bg-amber/10 px-4 py-3 text-[14px] text-text">
@@ -460,12 +512,14 @@ export default function Checkout() {
             Back to details
           </Link>
           <Button type="submit" size="lg" className="flex-1" disabled={submitting} aria-busy={submitting || undefined}>
-            {submitting ? "Submitting…" : free ? "Complete registration" : "Submit registration"}
+            {submitting ? "Submitting…" : free ? "Complete registration" : later ? "Block my seat" : "Submit registration"}
           </Button>
         </div>
         <p className="text-[13px] text-dim">
           {free
             ? "Your registration is confirmed straight away, and you’ll get an email with your registration code and events."
+            : later
+            ? `You’ll get an email with your registration code and how to pay. Pay ₹${total} by ${payLaterInfo.deadlineText} on the status page or at the registration desk.`
             : "The registration desk checks every payment, usually within a day. You can follow it on the status page, and you’ll get an email once it’s approved."}
         </p>
       </form>

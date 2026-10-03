@@ -133,6 +133,20 @@ model FoodLog {
   @@unique([registrationId, mealSession])
 }
 
+// Welcome kits handed out at the registration desk: one row per registration
+// (kits = everyone on it), so a second scan can't collect them again. The
+// staff name is a snapshot so it survives the account being deleted.
+model KitHandout {
+  id             String   @id @default(cuid())
+  registrationId String   @unique
+  kits           Int
+  givenById      String
+  givenByName    String
+  givenAt        DateTime @default(now())
+
+  @@index([givenAt])
+}
+
 model Result {
   id              String   @id @default(cuid())
   eventId         String

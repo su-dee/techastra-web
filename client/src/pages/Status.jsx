@@ -13,8 +13,9 @@ import { UPI_ID, upiPayLink } from "../lib/site";
 /**
  * A rejected registration can be resubmitted with a corrected payment (new
  * UTR and screenshot). The password proves it's the participant's own.
+ * With `firstPayment`, it's a "pay later" registration paying for the first time.
  */
-function Resubmit({ code, email, amount, onDone }) {
+function Resubmit({ code, email, amount, onDone, firstPayment = false }) {
   const [password, setPassword] = useState("");
   const [txn, setTxn] = useState("");
   const [file, setFile] = useState(null);
@@ -34,7 +35,7 @@ function Resubmit({ code, email, amount, onDone }) {
       fd.append("transactionId", txn.trim());
       fd.append("paymentProof", file);
       const data = await api.post("/api/registrations/resubmit", fd, { isFormData: true });
-      toast.success("Resubmitted - the registration desk will check your payment again.");
+      toast.success(firstPayment ? "Payment submitted - the registration desk will check it." : "Resubmitted - the registration desk will check your payment again.");
       onDone(data.registration);
     } catch (err) {
       setError(err.message);
@@ -45,14 +46,24 @@ function Resubmit({ code, email, amount, onDone }) {
 
   return (
     <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
-      <p className="text-sm text-soft">
-        Fix it and resubmit: pay ₹{amount} to <span className="text-heading">{UPI_ID}</span> if you haven’t paid the
-        right amount (
-        <a className="link-cta" href={upiPayLink(amount)}>
-          pay with a UPI app
-        </a>
-        ), then enter the new transaction ID and screenshot.
-      </p>
+      {firstPayment ? (
+        <p className="text-sm text-soft">
+          Pay ₹{amount} to <span className="text-heading">{UPI_ID}</span> (
+          <a className="link-cta" href={upiPayLink(amount)}>
+            pay with a UPI app
+          </a>
+          ), then enter the transaction ID (UTR) and upload the payment screenshot.
+        </p>
+      ) : (
+        <p className="text-sm text-soft">
+          Fix it and resubmit: pay ₹{amount} to <span className="text-heading">{UPI_ID}</span> if you haven’t paid the
+          right amount (
+          <a className="link-cta" href={upiPayLink(amount)}>
+            pay with a UPI app
+          </a>
+          ), then enter the new transaction ID and screenshot.
+        </p>
+      )}
       <div>
         <Label htmlFor="rs-password" required>Your password</Label>
         <Input id="rs-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -71,7 +82,7 @@ function Resubmit({ code, email, amount, onDone }) {
         </p>
       )}
       <Button type="submit" className="w-full" disabled={busy}>
-        {busy ? "Resubmitting…" : "Resubmit payment"}
+        {busy ? "Submitting…" : firstPayment ? "Submit payment" : "Resubmit payment"}
       </Button>
     </form>
   );
@@ -172,9 +183,11 @@ export default function Status() {
           >
             <div className="flex items-center justify-between mb-4">
               <span className="font-heading text-lg text-offwhite">{result.registrationCode}</span>
-              <Badge status={result.status}>{result.status}</Badge>
+              <Badge status={result.status}>{result.paymentDue ? "Payment due" : result.status}</Badge>
             </div>
-            <p className="text-sm text-soft">Total paid: ₹{result.totalAmount}</p>
+            <p className="text-sm text-soft">
+              {result.paymentDue || (result.status === "rejected" && result.paymentMethod === "later") ? "Amount due" : "Total paid"}: ₹{result.totalAmount}
+            </p>
             {result.status === "rejected" && (
               <>
                 {result.rejectionReason && <p className="text-sm text-danger mt-3">Reason: {result.rejectionReason}</p>}
@@ -194,7 +207,30 @@ export default function Status() {
                 )}
               </>
             )}
-            {result.status === "pending" && (
+            {result.status === "pending" && result.paymentDue && (
+              <>
+                <div className="mt-4 rounded-[10px] border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-text">
+                  <p className="font-semibold text-heading">
+                    Seat blocked until{" "}
+                    {new Date(result.payBy)
+                      .toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+                      .replace(/\b(am|pm)\b/, (m) => m.toUpperCase())}
+                  </p>
+                  <p className="mt-1">
+                    Your registration isn’t complete until you pay. Pay online below, or in cash at the registration desk.
+                    Your ID card with its QR code is issued once your payment is approved.
+                  </p>
+                </div>
+                <Resubmit
+                  firstPayment
+                  code={result.registrationCode}
+                  email={email.trim()}
+                  amount={result.totalAmount}
+                  onDone={(r) => setResult((prev) => ({ ...prev, ...r, paymentDue: false, paymentMethod: "upi" }))}
+                />
+              </>
+            )}
+            {result.status === "pending" && !result.paymentDue && (
               <p className="text-sm text-soft mt-3">The registration desk is checking your payment. You’ll get an email once it’s approved.</p>
             )}
             {result.status === "approved" && (

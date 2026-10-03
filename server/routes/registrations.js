@@ -21,6 +21,7 @@ const {
   isUpiTxn,
 } = require("../utils/validation");
 const { reserveSeats, reserveForRegistration, applySeatChange } = require("../utils/seats");
+const { PAY_LATER, payLaterDeadline, formatDeadline, payLaterOpen, isPaymentDue, releaseExpiredHolds } = require("../utils/payLater");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -51,7 +52,9 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
  *    Junior Techastra (participants are under 18 - DPDP Act 2023, s.9)
  *  - all events are the same level (senior or junior), no time clashes
  *  - team sizes for team events
- *  - paid registrations: a UPI transaction ID not used before, and a payment screenshot
+ *  - paid registrations: a UPI transaction ID not used before, and a payment screenshot -
+ *    or "pay later" (payLater=true, until the deadline): seats blocked, no payment yet
+ *    (utils/payLater.js)
  *  - the amount due, including combo pass prices (never trusted from the client)
  *  - seats, reserved atomically so two people can't take the last seat
  */
@@ -151,7 +154,13 @@ async function createRegistration(req, res) {
       // Free registrations (Junior Techastra) only collect the student's
       // details: no payment to verify, so they're approved straight away.
       const free = totalAmount === 0;
-      if (free || cash) {
+      // "Pay later": blocks the seats now and pays by the deadline (online or
+      // at the desk). Paid online registrations only, and only until then.
+      const payLater = !free && !cash && String(req.body.payLater) === "true";
+      if (payLater && !payLaterOpen()) {
+        return reject(400, `Pay later closed on ${formatDeadline()}. Please pay now to register.`);
+      }
+      if (free || cash || payLater) {
         value.transactionId = null;
         cleanupUpload();
         // The desk must have collected exactly what the server charges.
@@ -181,7 +190,7 @@ async function createRegistration(req, res) {
       const registrationCode = await generateRegistrationCode(prisma);
       // Payment screenshots are personal data: kept out of the public static
       // folder and served only to staff (GET /api/registrations/:id/proof).
-      const paymentProofUrl = !free && !cash && req.file ? req.file.filename : null;
+      const paymentProofUrl = !free && !cash && !payLater && req.file ? req.file.filename : null;
       const approvedNow = free || cash;
 
       const result = await prisma.$transaction(async (tx) => {
@@ -215,7 +224,7 @@ async function createRegistration(req, res) {
             totalAmount,
             transactionId: value.transactionId,
             paymentProofUrl,
-            paymentMethod: free ? "free" : cash ? "cash" : "upi",
+            paymentMethod: free ? "free" : cash ? "cash" : payLater ? PAY_LATER : "upi",
             status: approvedNow ? "approved" : "pending",
             // Free registrations have no payment to check, so they are approved
             // automatically; cash ones are approved by the desk member who took it.
@@ -233,6 +242,8 @@ async function createRegistration(req, res) {
           registrationCode: result.registrationCode,
           status: result.status,
           totalAmount: result.totalAmount,
+          paymentMethod: result.paymentMethod,
+          ...(payLater ? { payBy: payLaterDeadline().toISOString() } : {}),
         },
         // Cash: the desk tells the participant this one-time password.
         ...(cash ? { temporaryPassword: req.generatedPassword } : {}),
@@ -241,9 +252,10 @@ async function createRegistration(req, res) {
       // Free and cash registrations are approved on the spot, so they get the
       // approval email now (UPI ones get it when the desk approves the payment).
       // Paid online registrations now wait for the desk: confirm receipt.
+      // Pay later: the seat is blocked - say how and by when to pay.
       const participant = { ...result, user: { name: value.name, email: value.email } };
       if (approvedNow) sendApprovalEmail(participant);
-      else sendReceivedEmail(participant);
+      else sendReceivedEmail(participant, payLater ? { payBy: formatDeadline() } : {});
     } catch (err) {
       cleanupUpload();
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -335,6 +347,10 @@ router.get("/status", statusLimiter, async (req, res) => {
       rejectionReason: registration.rejectionReason,
       totalAmount: registration.totalAmount,
       createdAt: registration.createdAt,
+      paymentMethod: registration.paymentMethod,
+      // Pay later: seats blocked, nothing paid yet - the page offers "Pay now".
+      paymentDue: isPaymentDue(registration),
+      payBy: isPaymentDue(registration) ? payLaterDeadline().toISOString() : null,
     });
   } catch (err) {
     console.error("Status check error:", err);
@@ -342,12 +358,18 @@ router.get("/status", statusLimiter, async (req, res) => {
   }
 });
 
+/** GET /api/registrations/pay-later - whether "pay later" is still offered, and its deadline. */
+router.get("/pay-later", (req, res) => {
+  res.json({ open: payLaterOpen(), deadline: payLaterDeadline().toISOString(), deadlineText: formatDeadline() });
+});
+
 /**
  * POST /api/registrations/resubmit - a rejected participant sends a new UPI
  * transaction ID and screenshot (multipart: code, email, password,
  * transactionId, paymentProof). Proves ownership with the code, email and
  * password; the registration goes back to "pending" for the desk and takes
- * its seats again.
+ * its seats again. Also how a "pay later" registration pays online: it is
+ * already pending with its seats held, and now has a payment to check.
  */
 router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (req, res) => {
   const reject = (status, error) => {
@@ -365,7 +387,8 @@ router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (
     // One message for every mismatch, so this can't be used to probe accounts.
     const ok = registration && (await bcrypt.compare(password, registration.user.passwordHash || ""));
     if (!ok) return reject(401, "The code, email or password doesn't match a registration.");
-    if (registration.status !== "rejected") return reject(409, "Only a rejected registration can be resubmitted.");
+    const payingLater = isPaymentDue(registration);
+    if (registration.status !== "rejected" && !payingLater) return reject(409, "Only a rejected registration can be resubmitted.");
 
     if (!isUpiTxn(transactionId)) return reject(400, "Enter the UPI transaction ID (UTR) from your payment app - the 12-digit reference number.");
     if (!req.file) return reject(400, "Upload a screenshot of your UPI payment's success screen.");
@@ -384,11 +407,13 @@ router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (
 
     const oldProof = registration.paymentProofUrl;
     const updated = await prisma.$transaction(async (tx) => {
-      await reserveForRegistration(tx, registration);
+      // A pay-later registration still holds its seats; a rejected one takes them again.
+      if (!payingLater) await reserveForRegistration(tx, registration);
       return tx.registration.update({
         where: { id: registration.id },
         data: {
           status: "pending",
+          paymentMethod: "upi",
           transactionId,
           paymentProofUrl: req.file.filename,
           rejectionReason: null,
@@ -400,7 +425,8 @@ router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (
     });
     removeProof(oldProof);
     res.json({ registration: { registrationCode: updated.registrationCode, status: updated.status, totalAmount: updated.totalAmount } });
-    sendReceivedEmail({ ...updated, user: registration.user }, { resubmitted: true });
+    // Paying a pay-later registration is its first payment, not a resubmission.
+    sendReceivedEmail({ ...updated, user: registration.user }, { resubmitted: !payingLater });
   } catch (err) {
     if (req.file) fs.promises.unlink(req.file.path).catch(() => {});
     if (err.status) return res.status(err.status).json({ error: err.message });
@@ -413,6 +439,9 @@ router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (
 /** GET /api/registrations - registration_team/master_admin: list all, filterable by status. */
 router.get("/", requireAuth, requireRole("registration_team", "master_admin"), async (req, res) => {
   try {
+    // The desk's list is always current: unpaid holds past the deadline are
+    // released first (the timer in utils/payLater.js may not have run yet).
+    await releaseExpiredHolds();
     const { status } = req.query;
     const registrations = await prisma.registration.findMany({
       where: status ? { status } : undefined,
@@ -578,6 +607,11 @@ router.patch(
       if (!current) return res.status(404).json({ error: "Registration not found" });
       // Already approved: nothing to change, and no second email.
       if (current.status === "approved") return res.json({ registration: current, alreadyApproved: true });
+      // Pay later and not paid yet: take the cash (collect-cash) or wait for
+      // their online payment - never approve with nothing paid.
+      if (current.paymentMethod === PAY_LATER) {
+        return res.status(409).json({ error: `No payment yet - collect ₹${current.totalAmount} in cash (Cash received) or wait for their online payment.` });
+      }
 
       const registration = await prisma.$transaction(async (tx) => {
         // Approving a rejected registration takes its seats back first.
@@ -598,6 +632,47 @@ router.patch(
       if (err.status) return res.status(err.status).json({ error: err.message });
       console.error("Approve error:", err);
       res.status(500).json({ error: "Failed to approve registration" });
+    }
+  }
+);
+
+/**
+ * PATCH /api/registrations/:id/collect-cash { amountCollected } - a "pay
+ * later" participant pays in cash at the registration desk: approved on the
+ * spot (ID card and approval email follow). Also works after the deadline
+ * released the seat, if seats remain. The amount must be exactly what's due.
+ */
+router.patch(
+  "/:id/collect-cash",
+  requireAuth,
+  requireRole("registration_team", "master_admin"),
+  async (req, res) => {
+    try {
+      const current = await prisma.registration.findUnique({ where: { id: req.params.id }, include: { user: true } });
+      if (!current) return res.status(404).json({ error: "Registration not found" });
+      if (current.paymentMethod !== PAY_LATER || current.status === "approved") {
+        return res.status(409).json({ error: "Only an unpaid pay-later registration can be paid in cash here." });
+      }
+      if (Number(req.body?.amountCollected) !== current.totalAmount) {
+        return res.status(400).json({ error: `Collect ₹${current.totalAmount} for this registration (entered: ₹${Number(req.body?.amountCollected) || 0}).` });
+      }
+      const registration = await prisma.$transaction(async (tx) => {
+        // Only one desk can take the money: the row must still be unpaid.
+        const { count } = await tx.registration.updateMany({
+          where: { id: current.id, paymentMethod: PAY_LATER, status: { not: "approved" } },
+          data: { status: "approved", paymentMethod: "cash", rejectionReason: null, ...reviewedBy(req) },
+        });
+        if (!count) throw Object.assign(new Error("This registration was just paid at another desk."), { status: 409 });
+        // A seat released at the deadline is taken again (409 if the event is full).
+        await applySeatChange(tx, current, current.status, "approved");
+        return tx.registration.findUnique({ where: { id: current.id }, include: { user: true } });
+      });
+      res.json({ registration });
+      sendApprovalEmail(registration).catch((err) => console.warn("Approval email error:", err.message));
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      console.error("Collect cash error:", err);
+      res.status(500).json({ error: "Failed to record the cash payment" });
     }
   }
 );

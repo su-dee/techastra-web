@@ -1,7 +1,8 @@
 /**
  * The automatic emails:
  *  - received: when a paid registration is submitted (or a rejected one is
- *    resubmitted) and is waiting for the registration desk;
+ *    resubmitted) and is waiting for the registration desk - or, for "pay
+ *    later", that the seat is blocked and how to pay by the deadline;
  * and, sent once when the desk (or an admin) decides a registration:
  *  - approval: whenever it becomes approved - the desk's Approve, an admin
  *    override or waitlist promotion, a cash or free registration, or a
@@ -95,7 +96,26 @@ async function sendRejectionEmail(registration, { cancelled = false } = {}) {
     const reason = registration.rejectionReason || "Payment could not be verified";
     // Free (Junior) registrations have no payment to fix, refund or resubmit.
     const paid = registration.totalAmount > 0;
-    const lines = cancelled
+    // A "pay later" hold released at the deadline: nothing was paid, so it's
+    // "pay now if you still want to come", not "fix your payment".
+    const releasedHold = registration.paymentMethod === "later" && !cancelled;
+    const lines = releasedHold
+      ? [
+          `Hi ${user.name},`,
+          "",
+          `The seat blocked for your Techastra '26 registration (${registration.registrationCode}) has been released.`,
+          "",
+          `Reason: ${reason}`,
+          "",
+          "You can still take part while seats remain:",
+          `- Pay ₹${registration.totalAmount} online: open the registration status page${statusLink ? ` (${statusLink})` : ""}, enter your registration code and email, and submit your UPI transaction ID (UTR) and payment screenshot. The registration desk then checks it.`,
+          "- Or pay in cash at the registration desk on the event day.",
+          "",
+          "For any queries, reply to this email.",
+          "",
+          "- Techastra '26 Team",
+        ]
+      : cancelled
       ? [
           `Hi ${user.name},`,
           "",
@@ -128,7 +148,9 @@ async function sendRejectionEmail(registration, { cancelled = false } = {}) {
         ];
     return await sendMail({
       to: user.email,
-      subject: cancelled
+      subject: releasedHold
+        ? `Techastra '26 seat released - ${registration.registrationCode}`
+        : cancelled
         ? `Techastra '26 registration cancelled - ${registration.registrationCode}`
         : `Techastra '26 registration not approved - ${registration.registrationCode}`,
       text: lines.join("\n"),
@@ -142,9 +164,11 @@ async function sendRejectionEmail(registration, { cancelled = false } = {}) {
 /**
  * Sends the "we received your registration" email for a paid registration
  * waiting for the desk: the code, events, amount and UTR, and what happens
- * next. With `resubmitted`, it confirms a resubmitted payment. Never throws.
+ * next. With `resubmitted`, it confirms a resubmitted payment. With
+ * `payBy` (the deadline, e.g. "7 Oct, 11:59 PM"), it's a "pay later"
+ * registration: the seat is blocked until then, and how to pay. Never throws.
  */
-async function sendReceivedEmail(registration, { resubmitted = false } = {}) {
+async function sendReceivedEmail(registration, { resubmitted = false, payBy = null } = {}) {
   try {
     const user = await participantOf(registration);
     if (!user?.email) return { sent: false };
@@ -154,6 +178,35 @@ async function sendReceivedEmail(registration, { resubmitted = false } = {}) {
     });
     const site = siteUrl();
     const statusLink = site ? `${site}/status?code=${encodeURIComponent(registration.registrationCode)}` : null;
+    if (payBy) {
+      const lines = [
+        `Hi ${user.name},`,
+        "",
+        `Thank you for registering for Techastra '26 - your seat is blocked until ${payBy}.`,
+        "",
+        `Registration code: ${registration.registrationCode}`,
+        `Amount due: ₹${registration.totalAmount}`,
+        "",
+        "Your events:",
+        ...events.map(formatEventLine),
+        "",
+        `Your registration is not complete until you pay. Pay ₹${registration.totalAmount} by ${payBy}, either:`,
+        `- Online: open the registration status page${statusLink ? ` (${statusLink})` : ""}, enter your registration code and email, and submit your UPI transaction ID (UTR) and payment screenshot. The registration desk then checks it.`,
+        "- Or in cash at the registration desk.",
+        "",
+        "Your digital ID card (with its QR code) is issued only after your payment is approved - you'll get an email then.",
+        `If you don't pay by ${payBy}, your seat is released for other participants.`,
+        "",
+        "Keep your registration code - you'll need it to pay and to check your status. For any queries, reply to this email.",
+        "",
+        "- Techastra '26 Team",
+      ];
+      return await sendMail({
+        to: user.email,
+        subject: `Techastra '26 seat blocked - pay by ${payBy} - ${registration.registrationCode}`,
+        text: lines.join("\n"),
+      });
+    }
     const lines = [
       `Hi ${user.name},`,
       "",
