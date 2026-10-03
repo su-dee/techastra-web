@@ -21,7 +21,7 @@ const {
   isUpiTxn,
 } = require("../utils/validation");
 const { reserveSeats, reserveForRegistration, applySeatChange } = require("../utils/seats");
-const { PAY_LATER, payLaterDeadline, formatDeadline, payLaterOpen, isPaymentDue, releaseExpiredHolds } = require("../utils/payLater");
+const { PAY_LATER, holdEndsAt, formatWhen, isPaymentDue, releaseExpiredHolds } = require("../utils/payLater");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -53,8 +53,8 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
  *  - all events are the same level (senior or junior), no time clashes
  *  - team sizes for team events
  *  - paid registrations: a UPI transaction ID not used before, and a payment screenshot -
- *    or "pay later" (payLater=true, until the deadline): seats blocked, no payment yet
- *    (utils/payLater.js)
+ *    or "pay later" (payLater=true): seats blocked until the first event starts, no
+ *    payment yet (utils/payLater.js)
  *  - the amount due, including combo pass prices (never trusted from the client)
  *  - seats, reserved atomically so two people can't take the last seat
  */
@@ -154,12 +154,10 @@ async function createRegistration(req, res) {
       // Free registrations (Junior Techastra) only collect the student's
       // details: no payment to verify, so they're approved straight away.
       const free = totalAmount === 0;
-      // "Pay later": blocks the seats now and pays by the deadline (online or
-      // at the desk). Paid online registrations only, and only until then.
+      // "Pay later": blocks the seats now and pays before the first event
+      // starts (online or at the desk). Paid online registrations only.
       const payLater = !free && !cash && String(req.body.payLater) === "true";
-      if (payLater && !payLaterOpen()) {
-        return reject(400, `Pay later closed on ${formatDeadline()}. Please pay now to register.`);
-      }
+      const payBy = payLater ? holdEndsAt(events) : null;
       if (free || cash || payLater) {
         value.transactionId = null;
         cleanupUpload();
@@ -243,7 +241,7 @@ async function createRegistration(req, res) {
           status: result.status,
           totalAmount: result.totalAmount,
           paymentMethod: result.paymentMethod,
-          ...(payLater ? { payBy: payLaterDeadline().toISOString() } : {}),
+          ...(payLater ? { payBy: payBy.toISOString() } : {}),
         },
         // Cash: the desk tells the participant this one-time password.
         ...(cash ? { temporaryPassword: req.generatedPassword } : {}),
@@ -255,7 +253,7 @@ async function createRegistration(req, res) {
       // Pay later: the seat is blocked - say how and by when to pay.
       const participant = { ...result, user: { name: value.name, email: value.email } };
       if (approvedNow) sendApprovalEmail(participant);
-      else sendReceivedEmail(participant, payLater ? { payBy: formatDeadline() } : {});
+      else sendReceivedEmail(participant, payLater ? { payBy: formatWhen(payBy) } : {});
     } catch (err) {
       cleanupUpload();
       if (err.status) return res.status(err.status).json({ error: err.message });
@@ -341,6 +339,12 @@ router.get("/status", statusLimiter, async (req, res) => {
       return res.status(404).json({ error: "No registration matches that code and email" });
     }
 
+    // Pay later: seats blocked, nothing paid yet - the page offers "Pay now"
+    // and says the seat is held until the first event starts.
+    const paymentDue = isPaymentDue(registration);
+    const payBy = paymentDue
+      ? holdEndsAt(await prisma.event.findMany({ where: { id: { in: registration.eventIds } }, select: { startTime: true } }))
+      : null;
     res.json({
       registrationCode: registration.registrationCode,
       status: registration.status,
@@ -348,19 +352,13 @@ router.get("/status", statusLimiter, async (req, res) => {
       totalAmount: registration.totalAmount,
       createdAt: registration.createdAt,
       paymentMethod: registration.paymentMethod,
-      // Pay later: seats blocked, nothing paid yet - the page offers "Pay now".
-      paymentDue: isPaymentDue(registration),
-      payBy: isPaymentDue(registration) ? payLaterDeadline().toISOString() : null,
+      paymentDue,
+      payBy: payBy ? payBy.toISOString() : null,
     });
   } catch (err) {
     console.error("Status check error:", err);
     res.status(500).json({ error: "Failed to check status" });
   }
-});
-
-/** GET /api/registrations/pay-later - whether "pay later" is still offered, and its deadline. */
-router.get("/pay-later", (req, res) => {
-  res.json({ open: payLaterOpen(), deadline: payLaterDeadline().toISOString(), deadlineText: formatDeadline() });
 });
 
 /**
@@ -439,7 +437,7 @@ router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (
 /** GET /api/registrations - registration_team/master_admin: list all, filterable by status. */
 router.get("/", requireAuth, requireRole("registration_team", "master_admin"), async (req, res) => {
   try {
-    // The desk's list is always current: unpaid holds past the deadline are
+    // The desk's list is always current: unpaid holds whose event has started are
     // released first (the timer in utils/payLater.js may not have run yet).
     await releaseExpiredHolds();
     const { status } = req.query;
@@ -562,9 +560,21 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
       prisma.result.findMany({ where: { registrationId: registration.id }, select: { eventId: true, position: true } }),
       prisma.foodLog.findMany({ where: { registrationId: registration.id }, select: { mealSession: true, collectedAt: true } }),
     ]);
+    // Their events' WhatsApp groups - only once approved, and only their events.
+    const whatsappGroups =
+      registration.status === "approved"
+        ? (
+            await prisma.event.findMany({
+              where: { id: { in: registration.eventIds }, whatsappUrl: { not: null } },
+              select: { id: true, name: true, whatsappUrl: true },
+              orderBy: { startTime: "asc" },
+            })
+          ).map((e) => ({ eventId: e.id, name: e.name, url: e.whatsappUrl }))
+        : [];
     res.json({
       registration: { ...registration, idCardToken: idCardToken(registration.registrationCode) },
       activity: { attendance, results, meals },
+      whatsappGroups,
     });
   } catch (err) {
     console.error("Get my registration error:", err);
@@ -639,8 +649,8 @@ router.patch(
 /**
  * PATCH /api/registrations/:id/collect-cash { amountCollected } - a "pay
  * later" participant pays in cash at the registration desk: approved on the
- * spot (ID card and approval email follow). Also works after the deadline
- * released the seat, if seats remain. The amount must be exactly what's due.
+ * spot (ID card and approval email follow). Also works after the event's
+ * start released the seat, if seats remain. The amount must be exactly what's due.
  */
 router.patch(
   "/:id/collect-cash",
@@ -663,7 +673,7 @@ router.patch(
           data: { status: "approved", paymentMethod: "cash", rejectionReason: null, ...reviewedBy(req) },
         });
         if (!count) throw Object.assign(new Error("This registration was just paid at another desk."), { status: 409 });
-        // A seat released at the deadline is taken again (409 if the event is full).
+        // A seat released when the event started is taken again (409 if full).
         await applySeatChange(tx, current, current.status, "approved");
         return tx.registration.findUnique({ where: { id: current.id }, include: { user: true } });
       });

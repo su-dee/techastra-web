@@ -40,7 +40,7 @@ try {
   const registration = await request("/registrations", {
     teamName,
     email: "qa@example.invalid",
-    squadSize: 4,
+    squadSize: 3,
     abstract: "Disposable integration test",
     conductAccepted: true,
   });
@@ -76,7 +76,7 @@ try {
         await request("/registrations", {
           teamName: name,
           email: "qa@example.invalid",
-          squadSize: 2,
+          squadSize: 3,
           conductAccepted: true,
         })
       ).status,

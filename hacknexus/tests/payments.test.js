@@ -47,14 +47,8 @@ const squadMembers = [
   {
     fullName: "Third Builder",
     email: "third@example.invalid",
-    phone: "9333333335",
+    phone: "09333333335",
     college: "ECE College",
-  },
-  {
-    fullName: "Fourth Builder",
-    email: "fourth@example.invalid",
-    phone: "09333333336",
-    college: "IT College",
   },
 ];
 const savedMembers = [
@@ -78,13 +72,6 @@ const savedMembers = [
     email: "third@example.invalid",
     phone: "9333333335",
     college: "ECE College",
-  },
-  {
-    position: 4,
-    fullName: "Fourth Builder",
-    email: "fourth@example.invalid",
-    phone: "9333333336",
-    college: "IT College",
   },
 ];
 const origin = "http://localhost:5173";
@@ -111,7 +98,7 @@ async function squad(username, mobile, teamName, members) {
     {
       teamName,
       email: `${username}@example.invalid`,
-      squadSize: 4,
+      squadSize: 3,
       conductAccepted: true,
       members,
     },
@@ -175,7 +162,7 @@ test("registering emails the squad lead a link to complete payment", () => {
     to: "pay_lead@example.invalid",
     teamName: "Paying Squad",
     registrationId: registrations[0].registrationId,
-    squadSize: 4,
+    squadSize: 3,
     domain: null,
     challenge: null,
     fee: 1000,
@@ -213,7 +200,7 @@ test("member details are validated, returned, and editable by the lead", async (
     send("put", "/api/registrations/me/members", { members }, cookie);
   const bad = async (members, pattern) =>
     assert.match((await put(members).expect(400)).body.error, pattern);
-  await bad(squadMembers.slice(0, 3), /all 4 squad members/);
+  await bad(squadMembers.slice(0, 2), /all 3 squad members/);
   await bad(
     squadMembers.map((m, i) => (i === 2 ? { ...m, phone: "12345" } : m)),
     /^Member 3: .*mobile/,
@@ -228,7 +215,7 @@ test("member details are validated, returned, and editable by the lead", async (
   );
   await bad(
     squadMembers.map((m, i) =>
-      i === 3 ? { ...m, email: "third@example.invalid" } : m,
+      i === 2 ? { ...m, email: "second@example.invalid" } : m,
     ),
     /different email/,
   );
@@ -250,7 +237,7 @@ test("member details are validated, returned, and editable by the lead", async (
     phone: `944444444${i}`,
   }));
   const added = await put(others, otherCookie).expect(200);
-  assert.equal(added.body.members.length, 4);
+  assert.equal(added.body.members.length, 3);
   assert.equal(added.body.members[0].email, "other_lead@example.invalid");
   // Registration rejects incomplete member lists up front.
   const signup = await send("post", "/api/auth/signup", {
@@ -263,13 +250,13 @@ test("member details are validated, returned, and editable by the lead", async (
     {
       teamName: "Member Check",
       email: "member_check@example.invalid",
-      squadSize: 2,
+      squadSize: 3,
       conductAccepted: true,
       members: squadMembers.slice(0, 1),
     },
     cookieOf(signup),
   ).expect(400);
-  assert.match(res.body.error, /all 2 squad members/);
+  assert.match(res.body.error, /all 3 squad members/);
   await send("get", "/api/registrations/me", undefined, cookieOf(signup))
     .expect(200)
     .then((r) => assert.equal(r.body.registration, null));
@@ -303,7 +290,7 @@ test("payment submission is validated and cannot be duplicated", async () => {
     to: "pay_lead@example.invalid",
     teamName: "Paying Squad",
     registrationId: received.registrationId,
-    squadSize: 4,
+    squadSize: 3,
     transactionId: "512345678901",
     amount: 1000,
     members: savedMembers,
@@ -402,7 +389,7 @@ test("admins review payments with the screenshot, then verify to issue the pass"
     to: "pay_lead@example.invalid",
     teamName: "Paying Squad",
     registrationId: approvals[0].registrationId,
-    squadSize: 4,
+    squadSize: 3,
     transactionId: "512345678901",
     amount: 1000,
     members: savedMembers,
@@ -496,7 +483,7 @@ test("scanning the ID card QR checks the squad in once", async () => {
     adminCookie,
   ).expect(200);
   assert.equal(attendance.body.totals.checked_in, 1);
-  assert.equal(attendance.body.totals.people, 4);
+  assert.equal(attendance.body.totals.people, 3);
 });
 
 test("admins can add check-in volunteers who can only scan", async () => {
@@ -649,13 +636,15 @@ test("registration errors name the field that needs fixing", async () => {
   const base = {
     teamName: "Clear Errors",
     email: "lead@college.edu",
-    squadSize: 2,
+    squadSize: 3,
     conductAccepted: true,
   };
   const cases = [
     [{ email: "lead@college" }, /complete lead email/],
     [{ teamName: " AB " }, /3–30 characters/],
-    [{ squadSize: 5 }, /2, 3, or 4/],
+    [{ squadSize: 5 }, /exactly 3 builders/],
+    [{ squadSize: 2 }, /exactly 3 builders/],
+    [{ squadSize: 4 }, /exactly 3 builders/],
     [{ domain: "HN-AI", problemId: "HN-CS-01" }, /doesn’t belong/],
     [{ conductAccepted: false }, /Code of Conduct/],
   ];

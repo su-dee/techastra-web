@@ -679,7 +679,7 @@ const timeline = [
     "07:30 PM",
     "CODE FREEZE & FINALE",
     "Show the world what you built.",
-    "Lock your repository, deliver a 3-minute live pitch, and celebrate the builders taking the podium.",
+    "Lock your repository and submit your final code. Finalists for evaluation will be declared, and the pitch presentation will be held on October 9th.",
     "Main Auditorium & Audi Stage",
   ],
 ];
@@ -751,32 +751,16 @@ function Prizes() {
               rank: "02",
               name: "First runner-up",
               amount: "5,000",
-              perks: [
-                "Fast-track partner interviews",
-                "Incubator & venture guidance",
-                "Certificate of Technical Excellence",
-              ],
             },
             {
               rank: "01",
               name: "Grand champion",
               amount: "10,000",
-              perks: [
-                "The HACK_NEXUS 1.0 Trophy",
-                "Patent filing & IP advisory",
-                "Technology incubator fast-track",
-                "Exclusive partner mentorship",
-              ],
             },
             {
               rank: "03",
               name: "Second runner-up",
               amount: "3,000",
-              perks: [
-                "Recognition for technical design",
-                "Real-world innovation honors",
-                "Certificate of Technical Merit",
-              ],
             },
           ].map((p) => (
             <article
@@ -796,13 +780,7 @@ function Prizes() {
                 <span>₹</span>
                 {p.amount}
               </div>
-              <div className="prize-divider" />
-              {p.perks.map((perk) => (
-                <p key={perk}>
-                  <Plus size={13} />
-                  {perk}
-                </p>
-              ))}
+
             </article>
           ))}
         </div>
@@ -1046,8 +1024,9 @@ function Registration({
   const [loading, setLoading] = useState(false),
     [checking, setChecking] = useState(false),
     [error, setError] = useState(""),
-    [domain, setDomain] = useState(""),
-    [squadSize, setSquadSize] = useState(2);
+    [domain, setDomain] = useState("");
+  // Squads are exactly 3 builders (the server enforces it too).
+  const squadSize = 3;
   useEffect(() => {
     if (selected) setDomain(selected.domain);
   }, [selected]);
@@ -1129,7 +1108,7 @@ function Registration({
             <span>Build your legacy.</span>
           </h2>
           <p>
-            Two to four builders. One shared vision.
+            Three builders. One shared vision.
             <br />
             Your place at HACK_NEXUS 1.0 starts here.
           </p>
@@ -1264,21 +1243,16 @@ function Registration({
                       </select>
                     </label>
                     <label>
-                      Squad size <span>*</span>
-                      <select
-                        name="squadSize"
-                        value={squadSize}
-                        onChange={(e) => setSquadSize(Number(e.target.value))}
-                      >
-                        <option value="2">2 builders</option>
+                      Squad size
+                      <select name="squadSize" value={squadSize} disabled aria-describedby="squad-size-note">
                         <option value="3">3 builders</option>
-                        <option value="4">4 builders</option>
                       </select>
+                      <small id="squad-size-note">Every squad has exactly 3 builders, including the lead.</small>
                     </label>
                   </div>
                   <div className="members-block">
                     <p className="members-title">
-                      Squad members <span>{squadSize} of 4</span>
+                      Squad members <span>{squadSize} builders</span>
                     </p>
                     {Array.from({ length: squadSize }, (_, i) => (
                       <MemberFields key={i} index={i} />
@@ -1553,8 +1527,6 @@ function Home({ user, authError, onLogout }) {
               ["10", "HOURS TO BUILD"],
               ["04", "TACTICAL DOMAINS"],
               ["₹18K+", "TOTAL PRIZE POOL"],
-              ["400+", "OPERATORS"],
-              ["50+", "HARDWARE MENTORS"],
             ].map(([v, l]) => (
               <div key={l}>
                 <strong>{v}</strong>
@@ -1971,7 +1943,7 @@ function Policies() {
           <p>
             Respect fellow participants, mentors, staff, and shared equipment.
             Harassment, discrimination, plagiarism, or interference with other
-            teams is not permitted. Squads must contain 2–4 enrolled
+            teams is not permitted. Squads must contain exactly 3 enrolled
             undergraduate or postgraduate students.
           </p>
           <p>

@@ -103,7 +103,7 @@ const EVENTS = [
     ],
     // Day 1 is the hackathon; Day 2 (9:30-2:00, Watson Lab) is the finalist
     // round for shortlisted teams only, so it isn't part of the booked slot.
-    when: [1, [9, 30], [19, 30]], fee: 1000, feePerTeam: true, maxSeats: 60, team: [2, 4],
+    when: [1, [9, 30], [19, 30]], fee: 1000, feePerTeam: true, maxSeats: 60, team: [3, 3],
     // Registered on its own website (the Hack Nexus app, served under
     // /hacknexus on this site), not in this portal's cart.
     externalRegistration: true,
@@ -745,6 +745,25 @@ const EVENTS = [
   },
 ];
 
+/**
+ * Each event's WhatsApp group (organisers, 3 Oct 2026). Shared only with the
+ * event's approved participants - approval email and dashboard - never in
+ * the public events list. Invite links only (tracking query removed).
+ */
+const WHATSAPP_GROUPS = {
+  "Code Rescue": "https://chat.whatsapp.com/KeynkmoQrYG2zgrvtWv4SX",
+  "Pen Your Vision": "https://chat.whatsapp.com/GwAMWDzTCUo7CZWjhbHNjT",
+  "Trial of Truth": "https://chat.whatsapp.com/KTb0kZGsTiQ837se55G8dl",
+  "Cap Chaos": "https://chat.whatsapp.com/GZavvAJcLWT9iNKWtGwgYg",
+  "Verbal Combat": "https://chat.whatsapp.com/KdaEfwghJ3d24JPrqw5wVm",
+  "Hidden Frames": "https://chat.whatsapp.com/CYxT1CQ1c4q0x4t5y98XMQ",
+  "Blitz Hunt": "https://chat.whatsapp.com/EZYIDxt12OA3Odgl8n1ZEu",
+  "Plot Twist": "https://chat.whatsapp.com/GHPHg42wWku70d7NGmZlpS",
+  "Clash Squad E-Sports": "https://chat.whatsapp.com/KvESqt3hIHN2bHmgmVNAxD",
+  "Team Feud": "https://chat.whatsapp.com/H7OX9x7HO5qIP08UiB0Hmt",
+  "Rhythm Riot": "https://chat.whatsapp.com/LYLaOqZ7Urr98ueAWRBZiR",
+};
+
 /** Event rows in the shape prisma.event.create() expects. */
 function buildEvents() {
   return EVENTS.map((e) => {
@@ -764,6 +783,8 @@ function buildEvents() {
       externalRegistration: !!e.externalRegistration,
       // Only when set here, so re-seeding keeps a link entered in Admin → Events.
       ...(e.registrationUrl ? { registrationUrl: e.registrationUrl } : {}),
+      // Likewise: only when listed above, so a group link set in Admin → Events stays.
+      ...(WHATSAPP_GROUPS[e.name] ? { whatsappUrl: WHATSAPP_GROUPS[e.name] } : {}),
       maxSeats: e.maxSeats,
       isTeamEvent: maxTeamSize > 1,
       minTeamSize,
@@ -843,4 +864,4 @@ const COMBOS = [
   },
 ];
 
-module.exports = { buildEvents, COMBOS, COMBO_PRICE };
+module.exports = { buildEvents, COMBOS, COMBO_PRICE, WHATSAPP_GROUPS };

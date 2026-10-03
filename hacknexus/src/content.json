@@ -139,7 +139,7 @@
   "faqs": [
     {
       "q": "Who is eligible to participate in HACK_NEXUS 1.0?",
-      "a": "Participation is open to all enrolled undergraduate and postgraduate students from any recognized university or college. Inter-departmental and inter-year squads consisting of 2 to 4 operators are highly encouraged."
+      "a": "Participation is open to all enrolled undergraduate and postgraduate students from any recognized university or college. Every squad has exactly 3 operators; inter-departmental and inter-year squads are highly encouraged."
     },
     {
       "q": "Can we use pre-existing codebases or templates?",
@@ -147,15 +147,15 @@
     },
     {
       "q": "What physical amenities and computing hardware are provided?",
-      "a": "Dedicated team pod desks in the CAR Lab (2nd Floor, Anna Block, Main Campus) with high-speed Gigabit LAN, uninterrupted power rails, external secondary monitors, round-the-clock coffee and refreshments, and on-site faculty & mentor access."
+      "a": "Dedicated team desks in the CAR Lab (2nd Floor, Anna Block, Main Campus) with high-speed internet connectivity, uninterrupted power rails, round-the-clock coffee and refreshments."
     },
     {
       "q": "How does the final pitch and valedictory evaluation operate?",
-      "a": "Each squad receives a strict 3-minute live prototype demonstration projected in the main auditorium, followed by a 2-minute technical architectural Q&A with the industry panel. Working deployments on cloud qualify for track points."
+      "a": "Each squad receives a strict 5-minute live prototype demonstration, followed by a 2-minute technical architectural Q&A with the industry panel. Working deployments on cloud qualify for track points."
     },
     {
       "q": "Will the 10-hour timer pause for lunch or refreshments?",
-      "a": "No. The 10-hour sprint timer runs continuously without stoppage throughout the hackathon. High-energy lunch and continuous refreshments will be catered directly on-site, and squads should stagger meal breaks internally to preserve development velocity."
+      "a": "No. The 10-hour sprint timer runs continuously without stoppage throughout the hackathon.lunch and continuous refreshments will be provided."
     },
     {
       "q": "What technologies can squads leverage?",

@@ -1,15 +1,23 @@
 const express = require("express");
 const prisma = require("../db");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth, requireRole, optionalAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
+// The WhatsApp group link goes only to an event's approved participants (and
+// the master admin, who edits it) - never into the public event list.
+const publicEvent = (e, req) => {
+  if (req.user?.role === "master_admin") return e;
+  const { whatsappUrl, ...rest } = e; // eslint-disable-line no-unused-vars
+  return rest;
+};
+
 /** GET /api/events - public list of all events (for the Events page timetable). */
-router.get("/", async (req, res) => {
+router.get("/", optionalAuth, async (req, res) => {
   try {
     const events = await prisma.event.findMany({ orderBy: { startTime: "asc" } });
     const withAvailability = events.map((e) => ({
-      ...e,
+      ...publicEvent(e, req),
       seatsAvailable: Math.max(e.maxSeats - e.seatsTaken, 0),
     }));
     res.json({ events: withAvailability });
@@ -20,11 +28,11 @@ router.get("/", async (req, res) => {
 });
 
 /** GET /api/events/:id - single event detail (incl. rulebook). */
-router.get("/:id", async (req, res) => {
+router.get("/:id", optionalAuth, async (req, res) => {
   try {
     const event = await prisma.event.findUnique({ where: { id: req.params.id } });
     if (!event) return res.status(404).json({ error: "Event not found" });
-    res.json({ event: { ...event, seatsAvailable: Math.max(event.maxSeats - event.seatsTaken, 0) } });
+    res.json({ event: { ...publicEvent(event, req), seatsAvailable: Math.max(event.maxSeats - event.seatsTaken, 0) } });
   } catch (err) {
     console.error("Get event error:", err);
     res.status(500).json({ error: "Failed to load event" });
@@ -60,6 +68,14 @@ function eventFields(body) {
       return { error: "Registration link must be a full web address starting with https://, or a path on this site starting with /" };
     }
     data.registrationUrl = url || null;
+  }
+  if (body.whatsappUrl !== undefined) {
+    // A WhatsApp group invite; tracking parameters (?s=...&p=...) are dropped.
+    const url = String(body.whatsappUrl || "").trim().split(/[?#]/)[0];
+    if (url && !/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(url)) {
+      return { error: "WhatsApp group link must look like https://chat.whatsapp.com/AbCdEf..." };
+    }
+    data.whatsappUrl = url || null;
   }
   for (const k of ["startTime", "endTime"]) {
     if (data[k] && Number.isNaN(data[k].getTime())) return { error: `Invalid ${k}` };

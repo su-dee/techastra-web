@@ -28,8 +28,8 @@ const postgres = new EmbeddedPostgres({
   persistent: true,
   authMethod: "scram-sha-256",
   postgresFlags: ["-h", "127.0.0.1", "-k", root],
-  onLog: () => {},
-  onError: () => {},
+  onLog: () => { },
+  onError: () => { },
 });
 let initialized = true;
 try {
@@ -77,5 +77,5 @@ if (process.argv.includes("--with-app")) {
     "Use npm run dev:local to launch PostgreSQL and the website together.",
   );
   // Keep the database running; embedded-postgres handles graceful process exit.
-  setInterval(() => {}, 60_000);
+  setInterval(() => { }, 60_000);
 }

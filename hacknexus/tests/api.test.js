@@ -36,7 +36,7 @@ test("optional domain is saved as NULL and team names cannot be reused by anothe
   const body = {
     teamName: "  Optional   Squad  ",
     email: "optional@example.invalid",
-    squadSize: 2,
+    squadSize: 3,
     conductAccepted: true,
   };
   const created = await post("/api/registrations", body, ownerCookie).expect(
@@ -92,7 +92,7 @@ test("a selected challenge supplies its domain when the optional domain is blank
     {
       teamName: "Challenge Squad",
       email: "challenge@example.invalid",
-      squadSize: 2,
+      squadSize: 3,
       domain: "",
       problemId: "HN-X-02",
       conductAccepted: true,

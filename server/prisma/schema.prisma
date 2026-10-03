@@ -54,6 +54,9 @@ model Event {
   // portal links out to registrationUrl and never takes it in the cart.
   externalRegistration Boolean @default(false)
   registrationUrl      String?
+  // The event's WhatsApp group invite. Only approved participants of the
+  // event get it (approval email, dashboard) - never in the public list.
+  whatsappUrl          String?
   maxSeats      Int
   seatsTaken    Int      @default(0)
   isTeamEvent   Boolean  @default(false)

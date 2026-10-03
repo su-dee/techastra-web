@@ -16,7 +16,8 @@
     "recount:seats": "node scripts/recount-seats.js",
     "staff:setup": "node scripts/staff-setup.js",
     "supabase:lockdown": "node scripts/supabase-lockdown.js",
-    "db:check": "node scripts/db-check.js"
+    "db:check": "node scripts/db-check.js",
+    "whatsapp:set": "node scripts/set-whatsapp-groups.js"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",

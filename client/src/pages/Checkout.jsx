@@ -45,13 +45,9 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [copied, setCopied] = useState(false);
-  // "Pay later": block the seats now, pay by the deadline (online from the
-  // status page, or cash at the desk). Offered while the server says it's open.
-  const [payLaterInfo, setPayLaterInfo] = useState(null); // { open, deadlineText }
+  // "Pay later": block the seats now, pay before the first event starts
+  // (online from the status page, or cash at the desk).
   const [payMode, setPayMode] = useState("now"); // "now" | "later"
-  useEffect(() => {
-    api.get("/api/registrations/pay-later").then(setPayLaterInfo).catch(() => setPayLaterInfo(null));
-  }, []);
   const qrRef = useRef(null);
   // UPI apps never send people back to the website, so when someone returns to
   // this tab after tapping "Pay with UPI app" we take them straight to the UTR
@@ -127,7 +123,15 @@ export default function Checkout() {
   // Junior events are free: no payment step, the registration just collects
   // the student's details and is confirmed straight away.
   const free = total === 0;
-  const canPayLater = !free && !!payLaterInfo?.open;
+  // The seat is held until the earliest event in the cart starts (the server
+  // releases it then if it's still unpaid).
+  const firstStart = items.length ? new Date(Math.min(...items.map((i) => new Date(i.startTime).getTime()))) : null;
+  const holdUntil = firstStart
+    ? firstStart
+        .toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+        .replace(/\b(am|pm)\b/, (m) => m.toUpperCase())
+    : "";
+  const canPayLater = !free && !!firstStart;
   const later = canPayLater && payMode === "later";
 
   function validate() {
@@ -239,7 +243,7 @@ export default function Checkout() {
         free
           ? `You’re registered - your code is ${registration.registrationCode}`
           : later
-          ? `Seat blocked - your code is ${registration.registrationCode}. Pay by ${payLaterInfo.deadlineText}.`
+          ? `Seat blocked - your code is ${registration.registrationCode}. Pay before ${holdUntil}.`
           : `Registration submitted - your code is ${registration.registrationCode}`
       );
       // Email travels in navigation state, not the URL (no personal data in URLs).
@@ -333,7 +337,7 @@ export default function Checkout() {
           <div className="grid gap-3 sm:grid-cols-2">
             {[
               ["now", "Pay now", "Pay by UPI and upload the screenshot. The desk approves it, then you get your ID card."],
-              ["later", "Pay later - block my seat", `Your seat is held until ${payLaterInfo.deadlineText}. Pay online or in cash at the desk by then.`],
+              ["later", "Pay later - block my seat", `Your seat is held until your first event starts (${holdUntil}). Pay online or in cash at the desk before then.`],
             ].map(([value, title, text]) => (
               <label
                 key={value}
@@ -360,7 +364,7 @@ export default function Checkout() {
             <p role="status" className="mt-4 rounded-[10px] border border-amber/40 bg-amber/10 px-4 py-3 text-[14px] text-text">
               <strong className="font-semibold text-heading">Your registration isn’t complete until you pay.</strong> Your
               ID card with its QR code is issued only after your payment of ₹{total} is approved. Unpaid seats are released
-              after {payLaterInfo.deadlineText}.
+              when the event starts ({holdUntil}).
             </p>
           )}
         </fieldset>
@@ -519,7 +523,7 @@ export default function Checkout() {
           {free
             ? "Your registration is confirmed straight away, and you’ll get an email with your registration code and events."
             : later
-            ? `You’ll get an email with your registration code and how to pay. Pay ₹${total} by ${payLaterInfo.deadlineText} on the status page or at the registration desk.`
+            ? `You’ll get an email with your registration code and how to pay. Pay ₹${total} before ${holdUntil} on the status page or at the registration desk.`
             : "The registration desk checks every payment, usually within a day. You can follow it on the status page, and you’ll get an email once it’s approved."}
         </p>
       </form>

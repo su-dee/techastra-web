@@ -10,36 +10,43 @@ const { sendRejectionEmail } = require("./registrationEmails");
  * online (status page: UTR + screenshot, checked by the desk like any UPI
  * payment) or in cash at the registration desk (approved on the spot).
  *
- * Unpaid holds are released at PAY_LATER_DEADLINE: they become "rejected"
- * (seats freed) with an email. A released registration can still pay online
- * or at the desk later, while seats remain.
+ * The seat is held until the registration's first event starts. An unpaid
+ * hold is then released: it becomes "rejected" (seats freed) with an email.
+ * The desk can still take cash for it afterwards, while seats remain.
  */
-const DEFAULT_DEADLINE = "2026-10-07T23:59:00+05:30";
 const PAY_LATER = "later";
 
-function payLaterDeadline() {
-  const d = new Date(process.env.PAY_LATER_DEADLINE || DEFAULT_DEADLINE);
-  return Number.isNaN(d.getTime()) ? new Date(DEFAULT_DEADLINE) : d;
+/** When a hold on these events ends: the earliest event start. */
+function holdEndsAt(events) {
+  const starts = events.map((e) => new Date(e.startTime).getTime()).filter(Number.isFinite);
+  return starts.length ? new Date(Math.min(...starts)) : null;
 }
 
-/** "7 Oct, 11:59 PM" in IST, for messages and emails. */
-function formatDeadline(d = payLaterDeadline()) {
-  return d
+/** "8 Oct, 9:30 AM" in IST, for messages and emails. */
+function formatWhen(d) {
+  return new Date(d)
     .toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
     .replace(/\b(am|pm)\b/, (m) => m.toUpperCase());
 }
 
-const payLaterOpen = (now = new Date()) => now < payLaterDeadline();
-
 /** Seats blocked, nothing paid yet. */
 const isPaymentDue = (registration) => registration.status === "pending" && registration.paymentMethod === PAY_LATER;
 
-/** Releases every unpaid hold once the deadline has passed. Returns how many. */
+/** Releases every unpaid hold whose first event has started. Returns how many. */
 async function releaseExpiredHolds(now = new Date()) {
-  if (payLaterOpen(now)) return 0;
   const due = await prisma.registration.findMany({ where: { status: "pending", paymentMethod: PAY_LATER } });
+  if (!due.length) return 0;
+  const events = await prisma.event.findMany({
+    where: { id: { in: [...new Set(due.flatMap((r) => r.eventIds))] } },
+    select: { id: true, name: true, startTime: true },
+  });
+  const byId = new Map(events.map((e) => [e.id, e]));
   let released = 0;
   for (const reg of due) {
+    const regEvents = reg.eventIds.map((id) => byId.get(id)).filter(Boolean);
+    const endsAt = holdEndsAt(regEvents);
+    if (!endsAt || endsAt > now) continue;
+    const first = regEvents.find((e) => new Date(e.startTime).getTime() === endsAt.getTime());
     try {
       const updated = await prisma.$transaction(async (tx) => {
         // Re-check inside the transaction: it may have been paid meanwhile.
@@ -47,9 +54,9 @@ async function releaseExpiredHolds(now = new Date()) {
           where: { id: reg.id, status: "pending", paymentMethod: PAY_LATER },
           data: {
             status: "rejected",
-            rejectionReason: `Seat released: payment not received by ${formatDeadline()}`,
+            rejectionReason: `Seat released: payment not received before ${first ? first.name : "your event"} started (${formatWhen(endsAt)})`,
             reviewedById: null,
-            reviewedByName: "Automatic (payment deadline)",
+            reviewedByName: "Automatic (event started, not paid)",
             reviewedAt: now,
           },
         });
@@ -65,12 +72,12 @@ async function releaseExpiredHolds(now = new Date()) {
       console.error(`Releasing unpaid hold ${reg.registrationCode} failed:`, err.message);
     }
   }
-  if (released) console.log(`Released ${released} unpaid pay-later registration(s) after the deadline.`);
+  if (released) console.log(`Released ${released} unpaid pay-later registration(s) whose event has started.`);
   return released;
 }
 
-/** Checks for expired holds now and every few minutes (and on demand from routes). */
-function startHoldReleaser(intervalMs = 5 * 60 * 1000) {
+/** Checks for expired holds now and every minute (and on demand from routes). */
+function startHoldReleaser(intervalMs = 60 * 1000) {
   const run = () => releaseExpiredHolds().catch((err) => console.error("Hold releaser error:", err.message));
   run();
   const timer = setInterval(run, intervalMs);
@@ -78,4 +85,4 @@ function startHoldReleaser(intervalMs = 5 * 60 * 1000) {
   return timer;
 }
 
-module.exports = { PAY_LATER, payLaterDeadline, formatDeadline, payLaterOpen, isPaymentDue, releaseExpiredHolds, startHoldReleaser };
+module.exports = { PAY_LATER, holdEndsAt, formatWhen, isPaymentDue, releaseExpiredHolds, startHoldReleaser };

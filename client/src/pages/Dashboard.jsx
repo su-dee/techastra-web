@@ -133,7 +133,7 @@ function StatusPanel({ registration, registeredEvents, email, onHelp }) {
   );
 }
 
-function EventRow({ event, attendedAt, place, approved }) {
+function EventRow({ event, attendedAt, place, approved, whatsappUrl }) {
   const ended = new Date(event.endTime).getTime() < Date.now();
   let state = null;
   if (place) state = <Badge status="info">🏆 {PLACE[place] || `Position ${place}`}</Badge>;
@@ -157,6 +157,17 @@ function EventRow({ event, attendedAt, place, approved }) {
         <span className="pill">{CATEGORY_LABEL[categoryOf(event)]}</span>
         <span className="pill">{teamLabel(event)}</span>
       </div>
+      {whatsappUrl && (
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-small inline-block mt-4 !py-2.5 text-center w-full sm:w-auto"
+          data-log="dashboard-join-whatsapp"
+        >
+          Join the {event.name} WhatsApp group ↗
+        </a>
+      )}
     </li>
   );
 }
@@ -166,6 +177,7 @@ export default function Dashboard() {
   const { openPanel } = usePanels();
   const [registration, setRegistration] = useState(null);
   const [activity, setActivity] = useState({ attendance: [], results: [], meals: [] });
+  const [whatsappGroups, setWhatsappGroups] = useState([]); // [{ eventId, name, url }] - approved only
   // loading | ready | none (no registration on this account) | error
   const [loadState, setLoadState] = useState("loading");
   const [events, setEvents] = useState([]);
@@ -183,6 +195,7 @@ export default function Dashboard() {
       .then((data) => {
         setRegistration(data.registration);
         if (data.activity) setActivity(data.activity);
+        setWhatsappGroups(data.whatsappGroups || []);
         setLoadState("ready");
       })
       .catch((err) => setLoadState(err.status === 404 ? "none" : "error"));
@@ -375,7 +388,14 @@ export default function Dashboard() {
               ) : (
                 <ul className="space-y-3">
                   {registeredEvents.map((e) => (
-                    <EventRow key={e.id} event={e} attendedAt={attendedAt.get(e.id)} place={placeOf.get(e.id)} approved={approved} />
+                    <EventRow
+                      key={e.id}
+                      event={e}
+                      attendedAt={attendedAt.get(e.id)}
+                      place={placeOf.get(e.id)}
+                      approved={approved}
+                      whatsappUrl={approved ? whatsappGroups.find((g) => g.eventId === e.id)?.url : undefined}
+                    />
                   ))}
                 </ul>
               )}

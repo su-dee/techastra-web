@@ -9,7 +9,7 @@ import { api } from "../../../lib/api";
 const EMPTY_FORM = {
   name: "", description: "", track: "", level: "senior", category: "technical", startTime: "", endTime: "",
   fee: "", maxSeats: "", isTeamEvent: false, minTeamSize: 1, maxTeamSize: 1,
-  venue: "", rulebook: "", externalRegistration: false, registrationUrl: "",
+  venue: "", rulebook: "", externalRegistration: false, registrationUrl: "", whatsappUrl: "",
 };
 
 function toLocalInput(iso) {
@@ -91,6 +91,7 @@ export default function EventsTab() {
               <p className="text-sm text-shade/60">
                 {ev.level === "junior" ? "Junior" : "Senior"} · {ev.category === "non_technical" ? "Non-Technical" : "Technical"} · ₹{ev.fee} · {ev.seatsTaken}/{ev.maxSeats} seats · {new Date(ev.startTime).toLocaleString()}
                 {ev.externalRegistration && ` · Own website${ev.registrationUrl ? "" : " (link not set)"}`}
+                {ev.whatsappUrl && " · WhatsApp group ✓"}
               </p>
             </div>
             <div className="flex gap-2">
@@ -190,6 +191,19 @@ export default function EventsTab() {
               <p className="text-xs text-shade/60 mt-1">Leave empty to show “Registration link coming soon”.</p>
             </div>
           )}
+          <div>
+            <Label htmlFor="whatsappUrl">WhatsApp group link</Label>
+            <Input
+              id="whatsappUrl"
+              type="url"
+              placeholder="https://chat.whatsapp.com/..."
+              value={form.whatsappUrl || ""}
+              onChange={(e) => update("whatsappUrl", e.target.value)}
+            />
+            <p className="text-xs text-shade/60 mt-1">
+              Sent only to this event’s approved participants (approval email and their dashboard). Leave empty if there’s no group.
+            </p>
+          </div>
           <div>
             <Label htmlFor="rulebook">Rulebook</Label>
             <Textarea id="rulebook" rows={4} value={form.rulebook || ""} onChange={(e) => update("rulebook", e.target.value)} />
