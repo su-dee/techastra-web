@@ -11,6 +11,19 @@ import { idCardVerifyUrl } from "../../lib/idCard";
 import { levelOf } from "../../lib/site";
 import KitDesk from "./KitDesk";
 import ParticipantDetailsModal from "../../components/ParticipantDetailsModal";
+import ParticipantsTable from "../../components/ParticipantsTable";
+
+// Table (laptop) or cards (phone) for the registrations list - remembered per browser.
+const VIEW_KEY = "techastra_desk_view";
+function initialView() {
+  try {
+    const saved = localStorage.getItem(VIEW_KEY);
+    if (saved === "table" || saved === "cards") return saved;
+  } catch {
+    /* storage blocked */
+  }
+  return typeof window !== "undefined" && window.innerWidth >= 1024 ? "table" : "cards";
+}
 
 // One tap fills the reason; the participant sees it in their email and on
 // the status page, so it should say what to fix.
@@ -59,6 +72,15 @@ export default function RegistrationTeamPortal() {
   const [registrations, setRegistrations] = useState([]);
   const [filter, setFilter] = useState("pending");
   const [detailsId, setDetailsId] = useState(null); // registration whose full details are open
+  const [view, setView] = useState(initialView);
+  const chooseView = (v) => {
+    setView(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* storage blocked - the choice just isn't remembered */
+    }
+  };
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   // The registration an action is in flight for - its buttons lock so a
@@ -366,7 +388,7 @@ export default function RegistrationTeamPortal() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <div className={`${view === "table" ? "max-w-[1500px]" : "max-w-6xl"} mx-auto px-6 py-10`}>
       <h1 className="font-heading text-3xl font-bold mb-6">Registration Team Portal</h1>
 
       {/* Event day: scan ID cards and hand out the welcome kits. */}
@@ -401,12 +423,79 @@ export default function RegistrationTeamPortal() {
               ↻
             </Button>
           </div>
+          <div className="flex rounded-lg border border-shade/15 p-0.5 self-start" role="group" aria-label="List layout">
+            {[
+              ["table", "Table"],
+              ["cards", "Cards"],
+            ].map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => chooseView(v)}
+                className={`px-3 py-1.5 rounded-md text-sm ${view === v ? "bg-shade/10 text-heading font-medium" : "text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {loading && registrations.length === 0 ? (
           <p className="text-shade/50">Loading...</p>
         ) : shown.length === 0 ? (
           <p className="text-shade/50">{(() => { const kind = filter === "all" ? "" : `${filter} `; return search ? `No ${kind}registrations match "${search}".` : `No ${kind}registrations.`; })()}</p>
+        ) : view === "table" ? (
+          <ParticipantsTable
+            rows={shown}
+            eventsById={eventsById}
+            onDetails={setDetailsId}
+            renderFlags={(r) => (
+              <>
+                {isJunior(r) && <span className="block text-xs text-amber-light">Junior</span>}
+                {isJunior(r) && looksLikeCollege(r) && r.status !== "rejected" && (
+                  <span className="block text-xs text-danger" title="Junior events, but this looks like a college student">⚠ looks like college</span>
+                )}
+                {r.possibleDuplicates?.length > 0 && (
+                  <span className="block text-xs text-amber-light" title={`Same register or mobile number as ${r.possibleDuplicates.join(", ")}`}>
+                    ⚠ possible duplicate
+                  </span>
+                )}
+                {r.paymentProofUrl && (
+                  <button type="button" onClick={() => openProof(r.id)} className="block text-xs text-cyan underline">
+                    View screenshot
+                  </button>
+                )}
+              </>
+            )}
+            renderActions={(r) => {
+              const busy = busyId === r.id;
+              return (
+                <>
+                  {r.paymentMethod === "later" && r.status !== "approved" && (
+                    <Button size="sm" onClick={() => collectCash(r)} disabled={busy}>
+                      {busy ? "…" : confirmCashId === r.id ? `Confirm ₹${r.totalAmount}?` : `₹${r.totalAmount} cash`}
+                    </Button>
+                  )}
+                  {r.status === "pending" && r.paymentMethod !== "later" && (
+                    <Button size="sm" onClick={() => approve(r)} disabled={busy}>
+                      {busy ? "…" : "✓ Approve"}
+                    </Button>
+                  )}
+                  {r.status !== "rejected" && (
+                    <Button size="sm" variant="danger" onClick={() => openReject(r)} disabled={busy}>
+                      {r.status === "approved" ? "Cancel" : r.paymentMethod === "later" ? "Cancel hold" : "✕ Reject"}
+                    </Button>
+                  )}
+                  {r.status === "rejected" && r.paymentMethod !== "later" && (
+                    <Button size="sm" variant="outline" onClick={() => approve(r)} disabled={busy}>
+                      {busy ? "…" : "↺ Restore"}
+                    </Button>
+                  )}
+                </>
+              );
+            }}
+          />
         ) : (
           <div className="space-y-3">
             {shown.map((r) => {

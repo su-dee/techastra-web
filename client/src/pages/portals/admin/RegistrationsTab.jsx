@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
-import Badge from "../../../components/ui/Badge";
 import { Input, Select } from "../../../components/ui/Input";
 import { api } from "../../../lib/api";
 import ParticipantDetailsModal from "../../../components/ParticipantDetailsModal";
+import ParticipantsTable from "../../../components/ParticipantsTable";
 
 const STATUSES = ["pending", "approved", "rejected"];
 
@@ -16,6 +15,11 @@ export default function RegistrationsTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [detailsId, setDetailsId] = useState(null); // registration whose full details are open
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    api.get("/api/events").then((d) => setEvents(d.events || [])).catch(() => {});
+  }, []);
+  const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     return registrations.filter(
@@ -139,38 +143,27 @@ export default function RegistrationsTab() {
       ) : shown.length === 0 ? (
         <p className="text-shade/50">No registrations match.</p>
       ) : (
-        <div className="space-y-2">
-          {shown.map((r) => (
-            <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold">{r.user.name} <span className="text-dim text-sm">({r.registrationCode})</span></p>
-                <p className="text-sm text-shade/60">{r.user.email} · {r.collegeName} · ₹{r.totalAmount}</p>
-                {r.reviewedAt && (
-                  <p className="text-xs text-dim mt-1">
-                    {r.status === "rejected" ? "Rejected" : r.status === "approved" ? "Approved" : "Updated"} by {r.reviewedByName || "staff"} ·{" "}
-                    {new Date(r.reviewedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge status={r.status} />
-                {r.paymentMethod === "later" && r.status !== "approved" && <Badge status="info">Payment due</Badge>}
-                <Button size="sm" variant="outline" onClick={() => setDetailsId(r.id)}>Details</Button>
-                <Select
-                  value={r.status}
-                  onChange={(e) => override(r.id, e.target.value)}
-                  className="max-w-[140px]"
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </Select>
-                <Button size="sm" variant="outline" onClick={() => promoteWaitlist(r.id)}>Promote</Button>
-                <Button size="sm" variant="danger" onClick={() => refund(r.id)}>Refund</Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <ParticipantsTable
+          rows={shown}
+          eventsById={eventsById}
+          onDetails={setDetailsId}
+          renderActions={(r) => (
+            <>
+              <Select
+                aria-label={`Override status for ${r.registrationCode}`}
+                value={r.status}
+                onChange={(e) => override(r.id, e.target.value)}
+                className="!py-1 !text-[13px] max-w-[120px]"
+              >
+                {STATUSES.map((st) => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </Select>
+              <Button size="sm" variant="outline" onClick={() => promoteWaitlist(r.id)}>Promote</Button>
+              <Button size="sm" variant="danger" onClick={() => refund(r.id)}>Refund</Button>
+            </>
+          )}
+        />
       )}
 
       <ParticipantDetailsModal registrationId={detailsId} onClose={() => setDetailsId(null)} />

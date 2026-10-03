@@ -30,7 +30,7 @@ export default function AdminPortal() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
+    <div className={`${tab === "registrations" ? "max-w-[1500px]" : "max-w-7xl"} mx-auto px-6 py-10`}>
       <h1 className="font-heading text-3xl font-bold mb-6">Master Admin Portal</h1>
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
