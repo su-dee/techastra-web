@@ -762,6 +762,8 @@ const WHATSAPP_GROUPS = {
   "Clash Squad E-Sports": "https://chat.whatsapp.com/KvESqt3hIHN2bHmgmVNAxD",
   "Team Feud": "https://chat.whatsapp.com/H7OX9x7HO5qIP08UiB0Hmt",
   "Rhythm Riot": "https://chat.whatsapp.com/LYLaOqZ7Urr98ueAWRBZiR",
+  "Prompt Arena": "https://chat.whatsapp.com/LOZTTg5PWlHDtKcieTOVvO",
+  "Pixel Protocol": "https://chat.whatsapp.com/EkOVaR1GDX19IxQyQCzKUi",
 };
 
 /** Event rows in the shape prisma.event.create() expects. */
