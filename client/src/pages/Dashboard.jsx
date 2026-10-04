@@ -62,7 +62,7 @@ function Fact({ label, wide = false, children }) {
 }
 
 /** Top-of-page card: what state the registration is in and what to do next. */
-function StatusPanel({ registration, registeredEvents, email, onHelp }) {
+function StatusPanel({ registration, email, onHelp }) {
   const { status, rejectionReason, registrationCode, totalAmount } = registration;
   if (status === "rejected") {
     // Free (Junior) registrations have no payment to resubmit.
@@ -107,38 +107,123 @@ function StatusPanel({ registration, registeredEvents, email, onHelp }) {
       </Card>
     );
   }
-  const now = Date.now();
-  const next = [...registeredEvents]
-    .filter((e) => new Date(e.endTime).getTime() > now)
-    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))[0];
+  return null; // approved: see TodayPanel
+}
+
+const clock = (iso) => new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+const istDay = (t) => new Date(t).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+/** "Starts in 45 min", "Starts in 3 h 20 min", "Tomorrow, 9:30 am", "In 3 days". */
+function startsIn(event, now) {
+  const mins = Math.round((new Date(event.startTime).getTime() - now) / 60000);
+  if (mins <= 0) return "Happening now";
+  if (mins < 60) return `Starts in ${mins} min`;
+  if (mins < 6 * 60) return `Starts in ${Math.floor(mins / 60)} h${mins % 60 ? ` ${mins % 60} min` : ""}`;
+  const days = Math.round((new Date(istDay(event.startTime)) - new Date(istDay(now))) / 86400000);
+  if (days === 0) return `Today, ${clock(event.startTime)}`;
+  if (days === 1) return `Tomorrow, ${clock(event.startTime)}`;
+  return `In ${days} days`;
+}
+
+/**
+ * The top of an approved participant's dashboard: the event that's on now
+ * or next (countdown, place, check-in, WhatsApp group), the team, and
+ * progress so far. Check-in is per registration: scanning one ID card
+ * checks in the whole team.
+ */
+function TodayPanel({ registration, registeredEvents, attendedAt, whatsappGroups, certificateCount, mealCount }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const next = registeredEvents.find((e) => new Date(e.endTime).getTime() > now);
+  const members = Array.isArray(registration.teamMembers) ? registration.teamMembers.filter((m) => m?.name) : [];
+  const isTeam = members.length > 1;
+  const nextIn = next && attendedAt.get(next.id);
+  const whatsapp = next && whatsappGroups.find((g) => g.eventId === next.id)?.url;
+  const checkedInCount = registeredEvents.filter((e) => attendedAt.has(e.id)).length;
+
   return (
     <Card glow>
-      <Badge status="approved">You’re registered</Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge status="approved">You’re registered</Badge>
+        {isTeam && (
+          <span className="pill">
+            {registration.teamName ? `Team ${registration.teamName}` : "Your team"} · {members.length}
+          </span>
+        )}
+      </div>
+
       {next ? (
-        <>
-          <p className="mono-label mt-4">{new Date(next.startTime).getTime() <= now ? "Happening now" : "Up next"}</p>
-          <h2 className="h3 !mt-1">{next.name}</h2>
-          <p className="text-sm text-soft mt-1">
+        <div className="mt-5">
+          <p className="kicker">{startsIn(next, now)}</p>
+          <h2 className="text-[24px] sm:text-[28px] leading-tight text-heading mt-1.5">{next.name}</h2>
+          <p className="text-sm text-soft mt-1.5">
             {formatDay(next)} · {formatTimeRange(next)}
             {next.venue && <> · {next.venue}</>}
           </p>
-          <p className="text-[13px] text-dim mt-3">Show your ID card QR at the event check-in.</p>
-        </>
+          {nextIn ? (
+            <p className="text-sm text-success mt-3">
+              ✓ {isTeam ? "Your team is" : "You’re"} checked in · {clock(nextIn)}
+            </p>
+          ) : (
+            <p className="text-[13px] text-dim mt-3">
+              Show your ID card QR at the event check-in.{isTeam && " One scan checks in your whole team."}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-5">
+            <a href="#id-card" className="btn-small !py-2.5" data-log="dashboard-show-id-card">Show my ID card</a>
+            {whatsapp && (
+              <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="btn-ghost-sm !py-2.5" data-log="dashboard-hero-whatsapp">
+                WhatsApp group ↗
+              </a>
+            )}
+          </div>
+        </div>
       ) : (
-        <>
-          <h2 className="h3 !mt-3">Thanks for taking part</h2>
+        <div className="mt-5">
+          <h2 className="h3 !mt-0">Thanks for taking part</h2>
           <p className="text-sm text-soft mt-1">Your certificates appear below once they’re issued.</p>
-        </>
+        </div>
       )}
+
+      {isTeam && (
+        <div className="mt-6">
+          <p className="mono-label mb-2">Team</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {members.map((m, i) => (
+              <li key={`${m.name}-${i}`} className="pill">
+                {m.name}
+                {m.role === "lead" && <span className="opacity-60"> · lead</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <dl className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-shade/10">
+        {[
+          ["Checked in", `${checkedInCount} / ${registeredEvents.length}`],
+          ["Certificates", certificateCount],
+          ["Meals", mealCount],
+        ].map(([label, value]) => (
+          <div key={label}>
+            <dt className="mono-label">{label}</dt>
+            <dd className="text-[20px] text-heading mt-1 tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </Card>
   );
 }
 
-function EventRow({ event, attendedAt, place, approved, whatsappUrl, choice }) {
+function EventRow({ event, attendedAt, place, approved, whatsappUrl, choice, isTeam }) {
   const ended = new Date(event.endTime).getTime() < Date.now();
   let state = null;
   if (place) state = <Badge status="info">🏆 {PLACE[place] || `Position ${place}`}</Badge>;
-  else if (attendedAt) state = <Badge status="present">Checked in</Badge>;
+  else if (attendedAt) state = <Badge status="present">{isTeam ? "Team in" : "Checked in"} · {clock(attendedAt)}</Badge>;
   else if (approved && !ended) state = <Badge>Upcoming</Badge>;
   return (
     <li className="card p-4 sm:p-5">
@@ -234,6 +319,13 @@ export default function Dashboard() {
   const attendedAt = useMemo(() => new Map(activity.attendance.map((a) => [a.eventId, a.scannedAt])), [activity]);
   const placeOf = useMemo(() => new Map(activity.results.map((r) => [r.eventId, r.position])), [activity]);
   const eventName = useMemo(() => new Map(events.map((e) => [e.id, e.name])), [events]);
+  // My events under a heading per day ("October 8, 2026 (Day 1)"), in schedule order.
+  const eventDays = useMemo(() => {
+    const days = new Map();
+    for (const e of registeredEvents) days.set(formatDay(e), [...(days.get(formatDay(e)) || []), e]);
+    return [...days];
+  }, [registeredEvents]);
+  const teamSize = Array.isArray(registration?.teamMembers) ? registration.teamMembers.filter((m) => m?.name).length : 1;
 
   const approved = registration?.status === "approved";
   const profile = registration?.user || user;
@@ -382,7 +474,18 @@ export default function Dashboard() {
       <div className="max-w-5xl mx-auto px-6 pt-6 pb-16 sm:py-14">
         {header}
 
-        <StatusPanel registration={registration} registeredEvents={registeredEvents} email={profile?.email} onHelp={() => openPanel("help")} />
+        {approved ? (
+          <TodayPanel
+            registration={registration}
+            registeredEvents={registeredEvents}
+            attendedAt={attendedAt}
+            whatsappGroups={whatsappGroups}
+            certificateCount={certificates.length}
+            mealCount={activity.meals.length}
+          />
+        ) : (
+          <StatusPanel registration={registration} email={profile?.email} onHelp={() => openPanel("help")} />
+        )}
 
         {/* Jump links - the page is long on phones. */}
         <nav aria-label="Dashboard sections" className="flex gap-2 mt-5 -mx-6 px-6 overflow-x-auto lg:hidden">
@@ -402,19 +505,27 @@ export default function Dashboard() {
               {registeredEvents.length === 0 ? (
                 <p className="text-sm text-dim">Loading your events…</p>
               ) : (
-                <ul className="space-y-3">
-                  {registeredEvents.map((e) => (
-                    <EventRow
-                      key={e.id}
-                      event={e}
-                      attendedAt={attendedAt.get(e.id)}
-                      place={placeOf.get(e.id)}
-                      approved={approved}
-                      choice={registration.eventChoices?.[e.id]}
-                      whatsappUrl={approved ? whatsappGroups.find((g) => g.eventId === e.id)?.url : undefined}
-                    />
+                <div className="space-y-6">
+                  {eventDays.map(([day, list]) => (
+                    <div key={day}>
+                      {eventDays.length > 1 && <h3 className="text-[13px] text-soft mb-2">{day}</h3>}
+                      <ul className="space-y-3">
+                        {list.map((e) => (
+                          <EventRow
+                            key={e.id}
+                            event={e}
+                            attendedAt={attendedAt.get(e.id)}
+                            place={placeOf.get(e.id)}
+                            approved={approved}
+                            isTeam={teamSize > 1}
+                            choice={registration.eventChoices?.[e.id]}
+                            whatsappUrl={approved ? whatsappGroups.find((g) => g.eventId === e.id)?.url : undefined}
+                          />
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
               <TeamCard registration={registration} onSaved={(teamMembers) => setRegistration((r) => ({ ...r, teamMembers }))} />
             </Section>
