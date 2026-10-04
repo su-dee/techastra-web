@@ -9,6 +9,21 @@ const { participantDetails } = require("../utils/participantDetails");
 const router = express.Router();
 
 /**
+ * Attendance is one row per registration, so one scan of the lead's ID card
+ * checks in the whole team. Who that covers: the team (or the participant)
+ * as a label for messages, and every member's name (lead first).
+ */
+function teamOf(registration) {
+  const members = Array.isArray(registration.teamMembers)
+    ? registration.teamMembers.filter((m) => m && m.name).map((m) => ({ name: m.name, role: m.role === "lead" ? "lead" : "member" }))
+    : [];
+  if (!members.length) members.push({ name: registration.user.name, role: "lead" });
+  const who = members.length > 1 ? registration.teamName || `${registration.user.name}'s team` : registration.user.name;
+  const label = members.length > 1 ? `${who} (all ${members.length} members)` : who;
+  return { name: registration.teamName || null, who, label, members };
+}
+
+/**
  * POST /api/attendance/scan
  * Coordinator scans a participant's registration QR (registrationCode) at
  * their assigned event. Blocks duplicate check-ins for the same event.
@@ -51,7 +66,7 @@ router.post(
     }
     if (!registration.eventIds.includes(eventId)) {
       return res.status(409).json({
-        error: `${registration.user.name} is not registered for this event`,
+        error: `${teamOf(registration).who} is not registered for this event`,
         outcome: "wrong_event",
         details: await participantDetails(registration),
       });
@@ -62,10 +77,11 @@ router.post(
     });
     if (existing) {
       return res.status(409).json({
-        error: `${registration.user.name} has already been checked in`,
+        error: `${teamOf(registration).label} already checked in`,
         alreadyScanned: true,
         scannedAt: existing.scannedAt,
         outcome: "already",
+        team: teamOf(registration),
         details: await participantDetails(registration),
       });
     }
@@ -79,9 +95,10 @@ router.post(
       // Scanned twice at once: the unique index lets only one check-in through.
       if (err.code !== "P2002") throw err;
       return res.status(409).json({
-        error: `${registration.user.name} has already been checked in`,
+        error: `${teamOf(registration).label} already checked in`,
         alreadyScanned: true,
         outcome: "already",
+        team: teamOf(registration),
         details: await participantDetails(registration),
       });
     }
@@ -91,6 +108,7 @@ router.post(
       attendance,
       outcome: "checked_in",
       participant: { name: registration.user.name, college: registration.collegeName, code: registration.registrationCode },
+      team: teamOf(registration),
       details: await participantDetails(registration),
     });
   } catch (err) {
@@ -125,11 +143,20 @@ router.get(
         name: r.user.name,
         college: r.collegeName,
         teamName: r.teamName,
+        // Everyone on the registration (lead first): checked in together.
+        members: teamOf(r).members,
         choice: r.eventChoices?.[eventId] || null,
         present: attendedIds.has(r.id),
       }));
+      const people = (rows) => rows.reduce((n, r) => n + r.members.length, 0);
 
-      res.json({ roster, presentCount: attendedIds.size, totalCount: registrations.length });
+      res.json({
+        roster,
+        presentCount: roster.filter((r) => r.present).length,
+        totalCount: registrations.length,
+        presentPeople: people(roster.filter((r) => r.present)),
+        totalPeople: people(roster),
+      });
     } catch (err) {
       console.error("Roster error:", err);
       res.status(500).json({ error: "Failed to load roster" });
@@ -158,14 +185,14 @@ router.post("/manual", requireAuth, requireRole("coordinator", "master_admin"), 
       return res.status(409).json({ error: "This registration is not approved" });
     }
     if (!registration.eventIds.includes(eventId)) {
-      return res.status(409).json({ error: `${registration.user.name} is not registered for this event` });
+      return res.status(409).json({ error: `${teamOf(registration).who} is not registered for this event` });
     }
 
     const existing = await prisma.attendance.findUnique({
       where: { registrationId_eventId: { registrationId, eventId } },
     });
     if (existing) {
-      return res.status(409).json({ error: `${registration.user.name} has already been checked in`, alreadyScanned: true, scannedAt: existing.scannedAt });
+      return res.status(409).json({ error: `${teamOf(registration).label} already checked in`, alreadyScanned: true, scannedAt: existing.scannedAt });
     }
 
     const attendance = await prisma.attendance.create({
@@ -174,6 +201,7 @@ router.post("/manual", requireAuth, requireRole("coordinator", "master_admin"), 
     res.status(201).json({
       attendance,
       participant: { name: registration.user.name, college: registration.collegeName, code: registration.registrationCode },
+      team: teamOf(registration),
     });
   } catch (err) {
     console.error("Manual check-in error:", err);

@@ -14,6 +14,29 @@ import { useAuth } from "../../context/AuthContext";
 
 const TABS = ["scan", "roster", "checked in", "winners"];
 
+// One scan of the lead's ID card checks in everyone on the registration.
+// The team's members (lead first) from a roster row or scan details.
+const membersOf = (r) => (r.members?.length ? r.members : [{ name: r.name, role: "lead" }]);
+const teamTitle = (r) => (r.teamName ? r.teamName : membersOf(r).length > 1 ? `${r.name}'s team` : r.name);
+
+/** Every member's name as a chip, ticked when they're checked in. */
+function MemberChips({ members, present }) {
+  return (
+    <ul className="flex flex-wrap gap-1.5" aria-label="Team members">
+      {members.map((m, i) => (
+        <li
+          key={`${m.name}-${i}`}
+          className={`rounded-full border px-2.5 py-0.5 text-[13px] ${present ? "border-success/35 bg-success/10 text-success" : "border-shade/15 bg-shade/5 text-shade/70"}`}
+        >
+          {present && "✓ "}
+          {m.name}
+          {m.role === "lead" && members.length > 1 && <span className="opacity-70"> (lead)</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function CoordinatorPortal() {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
@@ -74,7 +97,7 @@ export default function CoordinatorPortal() {
       setScannerOpen(false);
       try {
         const data = await api.post("/api/attendance/scan", { registrationCode: registrationCodeFromQr(decodedText), eventId });
-        setScanResult({ outcome: "checked_in", message: `Checked in: ${data.participant.name}`, details: data.details });
+        setScanResult({ outcome: "checked_in", message: `Checked in: ${data.team?.label || data.participant.name}`, details: data.details });
         loadRoster();
       } catch (err) {
         if (err.data?.details) setScanResult({ outcome: err.data.outcome, message: err.message, details: err.data.details });
@@ -115,6 +138,14 @@ export default function CoordinatorPortal() {
   };
 
   const selectedEvent = events.find((e) => e.id === eventId);
+  const present = roster.filter((r) => r.present);
+  const rosterById = new Map(roster.map((r) => [r.registrationId, r]));
+  const people = (rows) => rows.reduce((n, r) => n + membersOf(r).length, 0);
+  const hasTeams = roster.some((r) => membersOf(r).length > 1);
+  // "4 / 10 teams · 11 / 27 people" for team events, "4 / 10 present" otherwise.
+  const presentSummary = hasTeams
+    ? `${present.length} / ${roster.length} teams · ${people(present)} / ${people(roster)} people present`
+    : `${present.length} / ${roster.length} present`;
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
@@ -153,9 +184,8 @@ export default function CoordinatorPortal() {
             <Card>
               <p className="text-shade/60 mb-4">Scan a participant's QR code to check them in.</p>
               <Button onClick={() => setScannerOpen(true)}>Open Scanner</Button>
-              <p className="text-sm text-shade/50 mt-4">
-                Present: {roster.filter((r) => r.present).length} / {roster.length}
-              </p>
+              {hasTeams && <p className="text-sm text-shade/60 mt-3">Scanning any team member’s ID card checks in the whole team.</p>}
+              <p className="text-sm text-shade/50 mt-4">{presentSummary}</p>
             </Card>
           )}
 
@@ -163,16 +193,21 @@ export default function CoordinatorPortal() {
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Present / Absent List</h3>
-                <span className="text-sm text-shade/50">{roster.filter((r) => r.present).length} / {roster.length} present</span>
+                <span className="text-sm text-shade/50">{presentSummary}</span>
               </div>
               <div className="space-y-2">
                 {roster.map((r) => (
-                  <div key={r.registrationId} className="flex items-center justify-between bg-shade/5 rounded-lg px-4 py-2">
-                    <div>
-                      <p className="text-sm font-medium">{r.name} {r.teamName ? `(${r.teamName})` : ""}{r.choice && <span className="ml-2 pill">{r.choice}</span>}</p>
+                  <div key={r.registrationId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-shade/5 rounded-lg px-4 py-3">
+                    <div className="min-w-0 space-y-1.5">
+                      <p className="text-sm font-medium">
+                        {teamTitle(r)}
+                        {membersOf(r).length > 1 && <span className="text-shade/50 font-normal"> · {membersOf(r).length} members</span>}
+                        {r.choice && <span className="ml-2 pill">{r.choice}</span>}
+                      </p>
+                      {membersOf(r).length > 1 && <MemberChips members={membersOf(r)} present={r.present} />}
                       <p className="text-xs text-shade/50">{r.registrationCode} · {r.college}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Badge status={r.present ? "present" : "absent"} />
                       {r.present && (
                         <Button size="sm" variant="outline" onClick={() => setDetailsId(r.registrationId)}>
@@ -194,7 +229,9 @@ export default function CoordinatorPortal() {
           {tab === "checked in" && (
             <Card>
               <div className="flex items-center justify-between gap-3 mb-4">
-                <h3 className="font-semibold">Checked in ({checkedIn ? checkedIn.length : "…"})</h3>
+                <h3 className="font-semibold">
+                  Checked in ({checkedIn ? (hasTeams ? `${checkedIn.length} teams · ${checkedIn.reduce((n, c) => n + c.details.team.size, 0)} people` : checkedIn.length) : "…"})
+                </h3>
                 <Button size="sm" variant="outline" onClick={loadCheckedIn} aria-label="Refresh checked-in list">
                   ↻
                 </Button>
@@ -215,10 +252,13 @@ export default function CoordinatorPortal() {
                           onClick={() => setOpenCode(open ? null : details.registrationCode)}
                           className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
                         >
-                          <span className="min-w-0">
+                          <span className="min-w-0 space-y-1">
                             <span className="block text-sm font-medium">
-                              {details.person.name} {details.team.name ? `(${details.team.name})` : ""}
+                              {details.team.size > 1 ? `${details.team.name || `${details.person.name}'s team`} · ${details.team.size} members` : details.person.name}
                             </span>
+                            {details.team.size > 1 && (
+                              <span className="block text-[13px] text-success">✓ {details.team.members.map((m) => m.name).join(", ")}</span>
+                            )}
                             <span className="block text-xs text-shade/60">
                               {details.registrationCode} · {details.person.phone || details.person.email} · in at{" "}
                               {new Date(checkedInAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
@@ -249,7 +289,7 @@ export default function CoordinatorPortal() {
                       .sort((a, b) => a.position - b.position)
                       .map((r) => (
                         <div key={r.id} className="bg-shade/5 rounded-lg px-4 py-2 text-sm">
-                          #{r.position} — {roster.find((p) => p.registrationId === r.registrationId)?.name || r.registrationId}
+                          #{r.position} — {rosterById.has(r.registrationId) ? teamTitle(rosterById.get(r.registrationId)) : r.registrationId}
                         </div>
                       ))}
                   </div>
@@ -268,7 +308,7 @@ export default function CoordinatorPortal() {
                         <option value="">Select participant/team</option>
                         {roster.filter((r) => r.present).map((r) => (
                           <option key={r.registrationId} value={r.registrationId}>
-                            {r.teamName || r.name}
+                            {teamTitle(r)}
                           </option>
                         ))}
                       </Select>
@@ -302,6 +342,14 @@ export default function CoordinatorPortal() {
               {scanResult.outcome === "checked_in" ? "✓ " : ""}
               {scanResult.message}
             </div>
+            {(scanResult.outcome === "checked_in" || scanResult.outcome === "already") && scanResult.details?.team.size > 1 && (
+              <div>
+                <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-dim mb-2">
+                  {scanResult.details.team.name ? `Team ${scanResult.details.team.name}` : "Team"} · checked in together
+                </p>
+                <MemberChips members={scanResult.details.team.members} present />
+              </div>
+            )}
             <Button variant="outline" className="w-full" onClick={scanNext}>
               Scan next
             </Button>

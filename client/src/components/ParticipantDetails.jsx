@@ -33,6 +33,8 @@ function Section({ title, children }) {
 export default function ParticipantDetails({ details, highlightEventId }) {
   if (!details) return null;
   const { person, team, events, payment, meals, kit } = details;
+  // Check-in is per registration: the whole team is in once anyone's card is scanned.
+  const hereAt = events.find((e) => e.id === highlightEventId)?.checkedInAt;
   return (
     <div className="space-y-5 text-sm">
       <div className="flex items-start justify-between gap-3">
@@ -61,6 +63,7 @@ export default function ParticipantDetails({ details, highlightEventId }) {
 
       {team.members.length > 1 && (
         <Section title={team.name ? `Team ${team.name} (${team.size})` : `Team (${team.size})`}>
+          {hereAt && <p className="text-success mb-1.5">✓ Whole team checked in at {time(hereAt)}</p>}
           <ul className="space-y-1">
             {team.members.map((m, i) => (
               <li key={`${m.name}-${i}`} className="flex justify-between gap-3">
