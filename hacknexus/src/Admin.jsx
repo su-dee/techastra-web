@@ -27,6 +27,7 @@ import {
 } from "./adminShared.jsx";
 import Payments from "./AdminPayments.jsx";
 import CheckIn from "./AdminCheckin.jsx";
+import Meals from "./AdminMeals.jsx";
 import AdminTeam, { roleLabels } from "./AdminTeam.jsx";
 import "./admin.css";
 import { to, BASE } from "./base.js";
@@ -36,13 +37,16 @@ const allTabs = [
   ["registrations", "Registrations"],
   ["payments", "Payments"],
   ["checkin", "Check-in"],
+  ["meals", "Food"],
   ["accounts", "Accounts"],
   ["admins", "Admins"],
   ["activity", "Activity"],
 ];
-// Check-in volunteers only see the scanner.
+// Check-in volunteers only see the scanners (check-in and food).
 const tabsFor = (role) =>
-  role === "admin" ? allTabs : allTabs.filter(([id]) => id === "checkin");
+  role === "admin"
+    ? allTabs
+    : allTabs.filter(([id]) => id === "checkin" || id === "meals");
 const actionLabels = {
   update_registration: "Updated registration",
   delete_registration: "Deleted registration",
@@ -52,6 +56,7 @@ const actionLabels = {
   export_csv: "Exported CSV",
   verify_payment: "Verified payment",
   reject_payment: "Rejected payment",
+  meal_given: "Gave meal",
   approval_email_sent: "Emailed approval to lead",
   approval_email_failed: "Approval email failed",
   rejection_email_sent: "Emailed rejection to lead",
@@ -1098,6 +1103,7 @@ export default function Admin() {
           <Payments onExpired={onExpired} initialStatus={paymentStatus} />
         )}
         {current === "checkin" && <CheckIn onExpired={onExpired} />}
+        {current === "meals" && <Meals onExpired={onExpired} />}
         {current === "admins" && <AdminTeam me={admin} onExpired={onExpired} />}
         {current === "registrations" && (
           <Registrations

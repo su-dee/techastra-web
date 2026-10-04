@@ -4,6 +4,7 @@ import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import { hashPassword, verifyPassword, tokenHash } from "./auth.js";
 import { newPassCode, parsePassCode, paymentReference } from "./payments.js";
 import { membersOf } from "./members.js";
+import { MEALS, mealById } from "./meals.js";
 
 export const ADMIN_COOKIE = "hn_admin";
 export const STATUSES = ["pending", "approved", "waitlisted", "rejected"];
@@ -26,7 +27,13 @@ const registrationColumns =
 const registrationFrom =
   "registrations r JOIN users u ON u.id=r.user_id LEFT JOIN payments p ON p.registration_id=r.id";
 // Scanners (check-in volunteers) may only use these routes.
-const scannerRoutes = new Set(["/me", "/attendance", "/attendance/scan"]);
+const scannerRoutes = new Set([
+  "/me",
+  "/attendance",
+  "/attendance/scan",
+  "/meals",
+  "/meals/scan",
+]);
 const sorts = {
   newest: "r.created_at DESC",
   oldest: "r.created_at ASC",
@@ -246,7 +253,7 @@ export function createAdminRouter(
       ? next()
       : res
           .status(403)
-          .json({ error: "Check-in volunteers can only use the scanner." }),
+          .json({ error: "Check-in volunteers can only use the check-in and food scanners." }),
   );
   router.get("/me", (req, res) => res.json({ admin: req.admin }));
 
@@ -679,13 +686,12 @@ export function createAdminRouter(
   });
 
   // --- Attendance (admins and scanners) ---------------------------------
-  router.post("/attendance/scan", async (req, res) => {
-    // Accepts a scanned QR or the code typed from the card.
-    const code = parsePassCode(req.body.code);
+  // The squad on a scanned ID card (a QR or the code typed from the card),
+  // if it may be admitted: { squad } or { status, error }.
+  async function admittedSquad(rawCode) {
+    const code = parsePassCode(rawCode);
     if (!code)
-      return res
-        .status(400)
-        .json({ error: "This is not a HACK_NEXUS ID card QR code." });
+      return { status: 400, error: "This is not a HACK_NEXUS ID card QR code." };
     const found = await db.query(
       `SELECT r.id,r.team_name,r.squad_size,r.domain,r.problem_id,r.status,r.checked_in_at,r.checked_in_by,u.username,p.status AS payment_status
        FROM registrations r JOIN users u ON u.id=r.user_id LEFT JOIN payments p ON p.registration_id=r.id
@@ -694,17 +700,23 @@ export function createAdminRouter(
     );
     const squad = found.rows[0];
     if (!squad)
-      return res.status(404).json({
+      return {
+        status: 404,
         error: "Invalid or revoked ID card. Send the squad to the help desk.",
-      });
+      };
     if (squad.payment_status !== "verified")
-      return res
-        .status(409)
-        .json({ error: "Payment for this squad is not verified." });
+      return { status: 409, error: "Payment for this squad is not verified." };
     if (squad.status !== "approved")
-      return res.status(409).json({
+      return {
+        status: 409,
         error: `This squad is ${squad.status}, not approved. Send them to the help desk.`,
-      });
+      };
+    return { squad };
+  }
+
+  router.post("/attendance/scan", async (req, res) => {
+    const { squad, status, error } = await admittedSquad(req.body.code);
+    if (!squad) return res.status(status).json({ error });
     if (squad.checked_in_at) return res.json({ result: "already", squad });
     const updated = await db.query(
       "UPDATE registrations SET checked_in_at=NOW(),checked_in_by=$2,updated_at=NOW() WHERE id=$1 AND checked_in_at IS NULL RETURNING checked_in_at,checked_in_by",
@@ -737,6 +749,58 @@ export function createAdminRouter(
       ),
     ]);
     res.json({ recent: recent.rows, totals: totals.rows[0] });
+  });
+
+  // --- Food counter (admins and scanners) ---------------------------------
+  // Each squad collects each meal once, for all its members.
+  router.post("/meals/scan", async (req, res) => {
+    const meal = mealById(req.body.meal);
+    if (!meal) return res.status(400).json({ error: "Choose the meal first." });
+    const { squad, status, error } = await admittedSquad(req.body.code);
+    if (!squad) return res.status(status).json({ error });
+    const given = await db.query(
+      `INSERT INTO meal_handouts (registration_id,meal,people,given_by) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (registration_id,meal) DO NOTHING RETURNING given_at,given_by,people`,
+      [squad.id, meal.id, squad.squad_size, req.admin.username],
+    );
+    if (!given.rows[0]) {
+      // Already collected (or another counter scanned it at the same moment).
+      const first = await db.query(
+        "SELECT given_at,given_by,people FROM meal_handouts WHERE registration_id=$1 AND meal=$2",
+        [squad.id, meal.id],
+      );
+      return res.json({ result: "already", meal, squad, handout: first.rows[0] });
+    }
+    await audit(req, "meal_given", "registration", squad.id, {
+      team: squad.team_name,
+      meal: meal.label,
+    });
+    res.json({ result: "given", meal, squad, handout: given.rows[0] });
+  });
+
+  router.get("/meals", async (req, res) => {
+    const [counts, expected, recent] = await Promise.all([
+      db.query(
+        "SELECT meal, COUNT(*)::int AS squads, COALESCE(SUM(people),0)::int AS people FROM meal_handouts GROUP BY meal",
+      ),
+      db.query(
+        "SELECT COUNT(*)::int AS squads, COALESCE(SUM(r.squad_size),0)::int AS people FROM registrations r JOIN payments p ON p.registration_id=r.id AND p.status='verified' WHERE r.status='approved'",
+      ),
+      db.query(
+        `SELECT m.meal,m.people,m.given_at,m.given_by,r.team_name FROM meal_handouts m JOIN registrations r ON r.id=m.registration_id
+         ORDER BY m.given_at DESC LIMIT 20`,
+      ),
+    ]);
+    const byMeal = new Map(counts.rows.map((c) => [c.meal, c]));
+    res.json({
+      meals: MEALS.map((m) => ({
+        ...m,
+        squads: byMeal.get(m.id)?.squads || 0,
+        people: byMeal.get(m.id)?.people || 0,
+      })),
+      expected: expected.rows[0],
+      recent: recent.rows.map((r) => ({ ...r, label: mealById(r.meal)?.label || r.meal })),
+    });
   });
 
   // --- Admin accounts -----------------------------------------------------

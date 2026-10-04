@@ -109,7 +109,7 @@ export default function AdminTeam({ me, onExpired }) {
               Role
               <select name="role" defaultValue="scanner">
                 <option value="scanner">
-                  Check-in volunteer (scanner only)
+                  Check-in volunteer (check-in and food scanners only)
                 </option>
                 <option value="admin">Full admin</option>
               </select>

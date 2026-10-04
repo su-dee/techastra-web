@@ -6,6 +6,7 @@ const files = [
   "005_members.sql",
   "006_passwords.sql",
   "007_short_pass_codes.sql",
+  "008_meals.sql",
 ];
 export async function applyMigrations(db) {
   // Versioned SQL is additive/idempotent and preserves existing registrations.

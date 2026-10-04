@@ -486,6 +486,31 @@ test("scanning the ID card QR checks the squad in once", async () => {
   assert.equal(attendance.body.totals.people, 3);
 });
 
+test("the food counter gives each meal once per squad", async () => {
+  await send("post", "/api/admin/meals/scan", { code: passQr, meal: "pizza" }, adminCookie).expect(400);
+  const first = await send("post", "/api/admin/meals/scan", { code: passQr, meal: "d1_lunch" }, adminCookie).expect(200);
+  assert.equal(first.body.result, "given");
+  assert.equal(first.body.squad.team_name, "Paying Squad");
+  assert.equal(first.body.handout.people, 3);
+  assert.equal(first.body.handout.given_by, "lead_admin");
+  const again = await send("post", "/api/admin/meals/scan", { code: passQr, meal: "d1_lunch" }, adminCookie).expect(200);
+  assert.equal(again.body.result, "already");
+  assert.equal(again.body.handout.given_by, "lead_admin");
+  // Check-in volunteers can run the food counter too; another meal is separate.
+  // (Few requests here: the whole file shares the API's 100-a-minute limit.)
+  await send("post", "/api/admin/admins", { username: "food_1", password: "food counter pass", role: "scanner" }, adminCookie).expect(201);
+  const counter = cookieOf(
+    await send("post", "/api/admin/login", { username: "food_1", password: "food counter pass" }).expect(200),
+  );
+  const third = await send("post", "/api/admin/meals/scan", { code: passQr, meal: "d2_lunch" }, counter).expect(200);
+  assert.equal(third.body.result, "given");
+  const summary = await send("get", "/api/admin/meals", undefined, counter).expect(200);
+  const lunch = summary.body.meals.find((m) => m.id === "d1_lunch");
+  assert.deepEqual([lunch.squads, lunch.people], [1, 3]);
+  assert.equal(summary.body.recent[0].label, "Day 2 · Lunch (finalists)");
+  assert.ok(summary.body.expected.squads >= 1);
+});
+
 test("admins can add check-in volunteers who can only scan", async () => {
   await send(
     "post",
