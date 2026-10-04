@@ -116,6 +116,7 @@ export default function ParticipantsTable({ rows, eventsById, onDetails, renderA
                   <div className="flex flex-col items-start gap-1">
                     <Badge status={r.status} />
                     {r.paymentMethod === "later" && r.status !== "approved" && <Badge status="info">Payment due</Badge>}
+                    {r.onSpot && <Badge status="info">On-spot</Badge>}
                   </div>
                   {r.reviewedByName && <span className="block text-xs text-dim mt-1">by {r.reviewedByName}</span>}
                 </td>

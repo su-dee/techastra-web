@@ -8,7 +8,7 @@ import { api } from "../../../lib/api";
 
 const EMPTY_FORM = {
   name: "", description: "", track: "", level: "senior", category: "technical", startTime: "", endTime: "",
-  fee: "", maxSeats: "", isTeamEvent: false, minTeamSize: 1, maxTeamSize: 1,
+  fee: "", maxSeats: "", onSpotSeats: 0, isTeamEvent: false, minTeamSize: 1, maxTeamSize: 1,
   venue: "", rulebook: "", externalRegistration: false, registrationUrl: "", whatsappUrl: "",
 };
 
@@ -89,7 +89,7 @@ export default function EventsTab() {
             <div>
               <p className="font-semibold">{ev.name}</p>
               <p className="text-sm text-shade/60">
-                {ev.level === "junior" ? "Junior" : "Senior"} · {ev.category === "non_technical" ? "Non-Technical" : "Technical"} · ₹{ev.fee} · {ev.seatsTaken}/{ev.maxSeats} seats · {new Date(ev.startTime).toLocaleString()}
+                {ev.level === "junior" ? "Junior" : "Senior"} · {ev.category === "non_technical" ? "Non-Technical" : "Technical"} · ₹{ev.fee} · {ev.seatsTaken}/{ev.maxSeats} seats{ev.onSpotSeats > 0 ? ` (${ev.onSpotSeats} on-spot)` : ""} · {new Date(ev.startTime).toLocaleString()}
                 {ev.externalRegistration && ` · Own website${ev.registrationUrl ? "" : " (link not set)"}`}
                 {ev.whatsappUrl && " · WhatsApp group ✓"}
               </p>
@@ -148,7 +148,7 @@ export default function EventsTab() {
               <Input id="endTime" type="datetime-local" required value={form.endTime} onChange={(e) => update("endTime", e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="fee">Fee (₹)</Label>
               <Input id="fee" type="number" required value={form.fee} onChange={(e) => update("fee", e.target.value)} />
@@ -157,7 +157,22 @@ export default function EventsTab() {
               <Label htmlFor="maxSeats">Max Seats</Label>
               <Input id="maxSeats" type="number" required value={form.maxSeats} onChange={(e) => update("maxSeats", e.target.value)} />
             </div>
+            <div className="col-span-2 sm:col-span-1">
+              <Label htmlFor="onSpotSeats">On-spot seats</Label>
+              <Input
+                id="onSpotSeats"
+                type="number"
+                min="0"
+                aria-describedby="onSpotSeats-hint"
+                value={form.onSpotSeats ?? 0}
+                onChange={(e) => update("onSpotSeats", e.target.value)}
+              />
+            </div>
           </div>
+          <p id="onSpotSeats-hint" className="text-[13px] text-shade/60 -mt-2">
+            On-spot seats are kept for walk-ups who register through the desk’s on-spot QR on the day. Online registration
+            can fill only Max Seats minus these. 0 keeps no seats back.
+          </p>
           <label className="flex items-center gap-2 text-sm text-shade/70">
             <input type="checkbox" checked={!!form.isTeamEvent} onChange={(e) => update("isTeamEvent", e.target.checked)} />
             Team Event

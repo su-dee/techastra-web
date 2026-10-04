@@ -253,4 +253,4 @@ async function sendReceivedEmail(registration, { resubmitted = false, payBy = nu
   }
 }
 
-module.exports = { sendReceivedEmail, sendApprovalEmail, sendRejectionEmail };
+module.exports = { sendReceivedEmail, sendApprovalEmail, sendRejectionEmail, siteUrl };

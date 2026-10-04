@@ -6,8 +6,8 @@ const { upload, uploadDir, isImageFile, IMAGE_EXTS } = require("../middleware/up
 const { registrationIpLimiter, registrationEmailLimiter, resubmitLimiter, statusLimiter } = require("../middleware/rateLimiter");
 const { logIDORAttempt, logSuspiciousActivity } = require("../middleware/securityLogger");
 const { generateRegistrationCode } = require("../utils/codes");
-const { sendReceivedEmail, sendApprovalEmail, sendRejectionEmail } = require("../utils/registrationEmails");
-const { idCardToken, isValidIdCardToken } = require("../utils/idCard");
+const { sendReceivedEmail, sendApprovalEmail, sendRejectionEmail, siteUrl } = require("../utils/registrationEmails");
+const { idCardToken, isValidIdCardToken, istDate, onSpotToken, isValidOnSpotToken } = require("../utils/idCard");
 const {
   validateRegistration,
   checkTeamSizes,
@@ -65,6 +65,9 @@ async function createRegistration(req, res) {
     // Walk-up cash registrations come from the desk (POST /cash below): paid
     // in person, so no UTR or screenshot, and approved on the spot.
     const cash = !!req.cashDesk;
+    // On the spot: the desk's cash form, or the website opened from the
+    // desk's on-spot QR (today's token). These may use the on-spot seats.
+    const onSpot = cash || isValidOnSpotToken(String(req.body?.onSpotToken || ""));
     const cleanupUpload = () => req.file && fs.promises.unlink(req.file.path).catch(() => {});
     const reject = (status, error, extra) => {
       cleanupUpload();
@@ -164,7 +167,8 @@ async function createRegistration(req, res) {
       const free = totalAmount === 0;
       // "Pay later": blocks the seats now and pays before the first event
       // starts (online or at the desk). Paid online registrations only.
-      const payLater = !free && !cash && String(req.body.payLater) === "true";
+      // On-spot website registrations always pay in cash at the desk.
+      const payLater = !free && !cash && (onSpot || String(req.body.payLater) === "true");
       const payBy = payLater ? holdEndsAt(events) : null;
       if (free || cash || payLater) {
         value.transactionId = null;
@@ -202,7 +206,7 @@ async function createRegistration(req, res) {
       const result = await prisma.$transaction(async (tx) => {
         // A team takes one seat in a team event; in an individual event every
         // member is a separate participant (utils/seats.js).
-        await reserveSeats(tx, events, teamSize);
+        await reserveSeats(tx, events, teamSize, { online: !onSpot });
 
         const user = await tx.user.create({
           data: {
@@ -227,6 +231,7 @@ async function createRegistration(req, res) {
             teamName: value.teamName,
             teamMembers: value.teamMembers || undefined,
             eventChoices: picked.choices || undefined,
+            onSpot,
             collegeName: value.collegeName,
             totalAmount,
             transactionId: value.transactionId,
@@ -250,6 +255,7 @@ async function createRegistration(req, res) {
           status: result.status,
           totalAmount: result.totalAmount,
           paymentMethod: result.paymentMethod,
+          onSpot: result.onSpot,
           ...(payLater ? { payBy: payBy.toISOString() } : {}),
         },
         // Cash: the desk tells the participant this one-time password.
@@ -415,7 +421,7 @@ router.post("/resubmit", upload.single("paymentProof"), resubmitLimiter, async (
     const oldProof = registration.paymentProofUrl;
     const updated = await prisma.$transaction(async (tx) => {
       // A pay-later registration still holds its seats; a rejected one takes them again.
-      if (!payingLater) await reserveForRegistration(tx, registration);
+      if (!payingLater) await reserveForRegistration(tx, registration, { online: !registration.onSpot });
       return tx.registration.update({
         where: { id: registration.id },
         data: {
@@ -592,6 +598,17 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
 });
 
 /**
+ * GET /api/registrations/onspot-link - the link for the desk's on-spot
+ * registration QR. It works only today (India time): registrations made
+ * through it may use the events' on-spot seats and pay in cash at the desk.
+ */
+router.get("/onspot-link", requireAuth, requireRole("registration_team", "master_admin"), (req, res) => {
+  const site = siteUrl();
+  if (!site) return res.status(500).json({ error: "CLIENT_ORIGIN is not set, so the on-spot link can't be made." });
+  res.json({ url: `${site}/events?onspot=${onSpotToken()}`, validOn: istDate() });
+});
+
+/**
  * PATCH /api/registrations/mine/team-members - the team lead adds or
  * corrects their members' department and year of study.
  * Body: { members: [{ department, yearOfStudy }] } in the team's order.
@@ -657,8 +674,9 @@ router.patch(
       }
 
       const registration = await prisma.$transaction(async (tx) => {
-        // Approving a rejected registration takes its seats back first.
-        await applySeatChange(tx, current, current.status, "approved");
+        // Approving a rejected registration takes its seats back first (staff
+        // may use on-spot seats too).
+        await applySeatChange(tx, current, current.status, "approved", { online: false });
         return tx.registration.update({
           where: { id: current.id },
           data: { status: "approved", rejectionReason: null, ...reviewedBy(req) },
@@ -706,8 +724,9 @@ router.patch(
           data: { status: "approved", paymentMethod: "cash", rejectionReason: null, ...reviewedBy(req) },
         });
         if (!count) throw Object.assign(new Error("This registration was just paid at another desk."), { status: 409 });
-        // A seat released when the event started is taken again (409 if full).
-        await applySeatChange(tx, current, current.status, "approved");
+        // A seat released when the event started is taken again (409 if full);
+        // the desk may use on-spot seats.
+        await applySeatChange(tx, current, current.status, "approved", { online: false });
         return tx.registration.findUnique({ where: { id: current.id }, include: { user: true } });
       });
       res.json({ registration });
@@ -779,7 +798,7 @@ router.patch("/:id/override", requireAuth, requireRole("master_admin"), async (r
     if (!current) return res.status(404).json({ error: "Registration not found" });
     const registration = await prisma.$transaction(async (tx) => {
       // Moving in or out of "rejected" releases or re-takes the seats.
-      if (data.status) await applySeatChange(tx, current, current.status, data.status);
+      if (data.status) await applySeatChange(tx, current, current.status, data.status, { online: false });
       return tx.registration.update({ where: { id: current.id }, data });
     });
     res.json({ registration });

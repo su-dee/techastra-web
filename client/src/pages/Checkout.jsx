@@ -11,6 +11,8 @@ import { QRCodeCanvas } from "qrcode.react";
 import { UPI_ID, upiPayLink, registrationClosed } from "../lib/site";
 import { formatFee } from "../components/EventInfo";
 import { computeTotal } from "../lib/pricing";
+import { eventsPath, confirmOnSpot, getOnSpotToken, clearOnSpot } from "../lib/onSpot";
+import OnSpotBanner from "../components/OnSpotBanner";
 
 // Same rules as the server (server/utils/validation.js).
 const UPI_TXN = /^[A-Z0-9]{10,35}$/;
@@ -48,6 +50,8 @@ export default function Checkout() {
   // "Pay later": block the seats now, pay before the first event starts
   // (online from the status page, or cash at the desk).
   const [payMode, setPayMode] = useState("now"); // "now" | "later"
+  // On-spot registration (the desk's QR, lib/onSpot.js): cash at the desk only.
+  const [onSpot, setOnSpot] = useState(() => !!getOnSpotToken());
   const qrRef = useRef(null);
   // UPI apps never send people back to the website, so when someone returns to
   // this tab after tapping "Pay with UPI app" we take them straight to the UTR
@@ -107,8 +111,11 @@ export default function Checkout() {
   const [startedIds, setStartedIds] = useState(null);
   useEffect(() => {
     api
-      .get("/api/events")
-      .then((data) => setStartedIds(new Set((data.events || []).filter(registrationClosed).map((e) => e.id))))
+      .get(eventsPath())
+      .then((data) => {
+        setOnSpot(confirmOnSpot(data));
+        setStartedIds(new Set((data.events || []).filter(registrationClosed).map((e) => e.id)));
+      })
       .catch(() => setStartedIds(new Set()));
   }, []);
 
@@ -132,7 +139,8 @@ export default function Checkout() {
         .replace(/\b(am|pm)\b/, (m) => m.toUpperCase())
     : "";
   const canPayLater = !free && !!firstStart;
-  const later = canPayLater && payMode === "later";
+  // On the spot the seat is held the same way and paid in cash at the desk.
+  const later = canPayLater && (onSpot || payMode === "later");
 
   function validate() {
     const e = {};
@@ -224,6 +232,7 @@ export default function Checkout() {
     fd.append("eventIds", JSON.stringify(items.map((i) => i.id)));
     fd.append("comboIds", JSON.stringify(comboIds));
     if (draft.eventChoices) fd.append("eventChoices", JSON.stringify(draft.eventChoices));
+    if (onSpot) fd.append("onSpotToken", getOnSpotToken());
     if (later) fd.append("payLater", "true");
     else if (!free) fd.append("transactionId", normalizeTxn(txn));
     fd.append("consent", String(!!consent));
@@ -234,6 +243,7 @@ export default function Checkout() {
     try {
       const { registration } = await api.post("/api/registrations", fd, { isFormData: true });
       clearDraft();
+      clearOnSpot();
       try {
         sessionStorage.removeItem(UPI_OPENED);
       } catch {
@@ -243,6 +253,8 @@ export default function Checkout() {
       toast.success(
         free
           ? `You’re registered - your code is ${registration.registrationCode}`
+          : onSpot && later
+          ? `Registered - your code is ${registration.registrationCode}. Pay ₹${total} in cash at the registration desk.`
           : later
           ? `Seat blocked - your code is ${registration.registrationCode}. Pay before ${holdUntil}.`
           : `Registration submitted - your code is ${registration.registrationCode}`
@@ -295,7 +307,7 @@ export default function Checkout() {
       <div className="page-head animate-cinematic-fade">
         <Stepper current={3} />
         <div className="kicker">{free ? "Confirm" : "Payment"}</div>
-        <h1 className="h2">{free ? "Confirm your registration" : later ? "Block your seat" : "Pay by UPI"}</h1>
+        <h1 className="h2">{free || onSpot ? "Confirm your registration" : later ? "Block your seat" : "Pay by UPI"}</h1>
         <p className="lead">Registering as <span className="text-heading">{draft.form.name}</span> ({draft.form.email})</p>
       </div>
 
@@ -334,7 +346,20 @@ export default function Checkout() {
         </div>
       </section>
 
-      {canPayLater && (
+      {onSpot && <OnSpotBanner className="mb-5" />}
+
+      {canPayLater && onSpot && (
+        <section className="card p-6 mb-5" aria-labelledby="cash-title">
+          <h2 id="cash-title" className="mono-label mb-3">Payment</h2>
+          <p className="text-[15px] text-heading">Pay ₹{total} in cash at the registration desk</p>
+          <p className="mt-1 text-[13px] text-dim">
+            Your seat is held now. Show your registration code at the desk and pay - you get your ID card once it’s paid.
+            Unpaid seats are released when the event starts ({holdUntil}).
+          </p>
+        </section>
+      )}
+
+      {canPayLater && !onSpot && (
         <fieldset className="card p-6 mb-5">
           <legend className="sr-only">When do you want to pay?</legend>
           <p className="mono-label mb-3" aria-hidden="true">When do you want to pay?</p>
@@ -520,12 +545,14 @@ export default function Checkout() {
             Back to details
           </Link>
           <Button type="submit" size="lg" className="flex-1" disabled={submitting} aria-busy={submitting || undefined}>
-            {submitting ? "Submitting…" : free ? "Complete registration" : later ? "Block my seat" : "Submit registration"}
+            {submitting ? "Submitting…" : free || onSpot ? "Complete registration" : later ? "Block my seat" : "Submit registration"}
           </Button>
         </div>
         <p className="text-[13px] text-dim">
           {free
             ? "Your registration is confirmed straight away, and you’ll get an email with your registration code and events."
+            : onSpot && later
+            ? `Next: show your registration code at the registration desk and pay ₹${total} in cash.`
             : later
             ? `You’ll get an email with your registration code and how to pay. Pay ₹${total} before ${holdUntil} on the status page or at the registration desk.`
             : "The registration desk checks every payment, usually within a day. You can follow it on the status page, and you’ll get an email once it’s approved."}

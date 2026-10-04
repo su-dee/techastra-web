@@ -282,7 +282,7 @@ router.patch("/registrations/:id/waitlist-promote", async (req, res) => {
     if (!current) return res.status(404).json({ error: "Registration not found" });
     if (current.status === "approved") return res.json({ registration: current, alreadyApproved: true });
     const registration = await prisma.$transaction(async (tx) => {
-      await applySeatChange(tx, current, current.status, "approved");
+      await applySeatChange(tx, current, current.status, "approved", { online: false });
       return tx.registration.update({
         where: { id: current.id },
         data: { status: "approved", rejectionReason: null, reviewedById: req.user.id, reviewedByName: req.user.name, reviewedAt: new Date() },

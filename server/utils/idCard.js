@@ -25,4 +25,24 @@ function isValidIdCardToken(registrationCode, token) {
   return expected.length === given.length && crypto.timingSafeEqual(expected, given);
 }
 
-module.exports = { idCardToken, isValidIdCardToken };
+/** A date as YYYY-MM-DD in India time. */
+const istDate = (d = new Date()) => new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+/**
+ * The desk's on-spot registration QR carries this token: an HMAC of the
+ * day (India time), so a photo of the QR shared online stops working the
+ * next day and can't be used to take on-spot seats in advance.
+ */
+function onSpotToken(date = new Date()) {
+  return crypto.createHmac("sha256", secret()).update(`onspot:${istDate(date)}`).digest("base64url").slice(0, 16);
+}
+
+/** True if `token` is today's on-spot token (constant-time). */
+function isValidOnSpotToken(token, now = new Date()) {
+  if (typeof token !== "string" || !token) return false;
+  const expected = Buffer.from(onSpotToken(now));
+  const given = Buffer.from(token);
+  return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+}
+
+module.exports = { idCardToken, isValidIdCardToken, istDate, onSpotToken, isValidOnSpotToken };

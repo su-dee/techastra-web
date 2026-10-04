@@ -1,6 +1,8 @@
 const express = require("express");
 const prisma = require("../db");
 const { requireAuth, requireRole, optionalAuth } = require("../middleware/auth");
+const { seatsLeft, checkOnSpotSeats } = require("../utils/validation");
+const { isValidOnSpotToken } = require("../utils/idCard");
 
 const router = express.Router();
 
@@ -16,11 +18,14 @@ const publicEvent = (e, req) => {
 router.get("/", optionalAuth, async (req, res) => {
   try {
     const events = await prisma.event.findMany({ orderBy: { startTime: "asc" } });
+    // Opened from the desk's on-spot QR (?onspot=<today's token>): the
+    // on-spot seats count as available too.
+    const onSpot = isValidOnSpotToken(String(req.query.onspot || ""));
     const withAvailability = events.map((e) => ({
       ...publicEvent(e, req),
-      seatsAvailable: Math.max(e.maxSeats - e.seatsTaken, 0),
+      seatsAvailable: seatsLeft(e, { onSpot }),
     }));
-    res.json({ events: withAvailability });
+    res.json({ events: withAvailability, ...(req.query.onspot ? { onSpot } : {}) });
   } catch (err) {
     console.error("List events error:", err);
     res.status(500).json({ error: "Failed to load events" });
@@ -32,7 +37,8 @@ router.get("/:id", optionalAuth, async (req, res) => {
   try {
     const event = await prisma.event.findUnique({ where: { id: req.params.id } });
     if (!event) return res.status(404).json({ error: "Event not found" });
-    res.json({ event: { ...publicEvent(event, req), seatsAvailable: Math.max(event.maxSeats - event.seatsTaken, 0) } });
+    const onSpot = isValidOnSpotToken(String(req.query.onspot || ""));
+    res.json({ event: { ...publicEvent(event, req), seatsAvailable: seatsLeft(event, { onSpot }) } });
   } catch (err) {
     console.error("Get event error:", err);
     res.status(500).json({ error: "Failed to load event" });
@@ -55,7 +61,7 @@ function eventFields(body) {
   if (body.day !== undefined) data.day = body.day === null || body.day === "" ? null : Number(body.day);
   if (body.startTime) data.startTime = new Date(body.startTime);
   if (body.endTime) data.endTime = new Date(body.endTime);
-  for (const k of ["fee", "maxSeats", "minTeamSize", "maxTeamSize"]) {
+  for (const k of ["fee", "maxSeats", "onSpotSeats", "minTeamSize", "maxTeamSize"]) {
     if (body[k] !== undefined && body[k] !== "") data[k] = Number(body[k]);
   }
   for (const k of ["feePerTeam", "isTeamEvent", "externalRegistration"]) {
@@ -82,6 +88,10 @@ function eventFields(body) {
   }
   for (const k of ["fee", "maxSeats", "minTeamSize", "maxTeamSize", "day"]) {
     if (data[k] !== undefined && data[k] !== null && !Number.isFinite(data[k])) return { error: `Invalid ${k}` };
+  }
+  if (data.onSpotSeats !== undefined) {
+    const error = checkOnSpotSeats(data.onSpotSeats, data.maxSeats);
+    if (error) return { error };
   }
   return { data };
 }
@@ -118,6 +128,13 @@ router.put("/:id", requireAuth, requireRole("master_admin"), async (req, res) =>
   try {
     const { data, error } = eventFields(req.body);
     if (error) return res.status(400).json({ error });
+    // On-spot seats can't exceed the event's seats (when only one of them changes).
+    if (data.onSpotSeats !== undefined || data.maxSeats !== undefined) {
+      const current = await prisma.event.findUnique({ where: { id: req.params.id }, select: { maxSeats: true, onSpotSeats: true } });
+      if (!current) return res.status(404).json({ error: "Event not found" });
+      const seatsError = checkOnSpotSeats(data.onSpotSeats ?? current.onSpotSeats, data.maxSeats ?? current.maxSeats);
+      if (seatsError) return res.status(400).json({ error: seatsError });
+    }
 
     const event = await prisma.event.update({ where: { id: req.params.id }, data });
     res.json({ event });

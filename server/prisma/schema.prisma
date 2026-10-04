@@ -63,6 +63,9 @@ model Event {
   choices              String[] @default([])
   choiceLabel          String?
   maxSeats      Int
+  // Seats kept for on-spot registration on the event day (desk QR): online
+  // registration can only fill maxSeats - onSpotSeats. 0: no quota.
+  onSpotSeats   Int      @default(0)
   seatsTaken    Int      @default(0)
   isTeamEvent   Boolean  @default(false)
   minTeamSize   Int      @default(1)
@@ -97,6 +100,9 @@ model Registration {
   teamMembers       Json?    // [{name, regNo, role: "lead"|"member"}]
   // The option picked for each event that has choices: { [eventId]: "BGMI" }
   eventChoices      Json?
+  // Registered on the spot (the desk's on-spot QR or its cash form): may
+  // use an event's on-spot seats, and pays in cash at the desk.
+  onSpot            Boolean  @default(false)
   collegeName       String?
   totalAmount       Float
   transactionId     String?  @unique

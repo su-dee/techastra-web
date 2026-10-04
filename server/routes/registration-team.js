@@ -94,6 +94,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
         ...choiceOf(reg),
         Status: reg.status || "",
         Payment: reg.paymentMethod === "later" ? "pay later (not paid)" : reg.paymentMethod || "",
+        "On-spot": reg.onSpot ? "Yes" : "",
         "Transaction ID": reg.transactionId || "",
         "Total Amount": reg.totalAmount || 0,
         "Registration Date": reg.createdAt
@@ -129,6 +130,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
           Email: p.lead ? reg.user.email || "" : "",
           Phone: p.lead ? reg.user.phone || "" : "",
           Status: reg.status || "",
+          "On-spot": reg.onSpot ? "Yes" : "",
           "Registration Code": reg.registrationCode || "",
         }));
       });

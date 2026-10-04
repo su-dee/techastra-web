@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import OnSpotBanner from "../components/OnSpotBanner";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Stepper from "../components/ui/Stepper";
@@ -35,7 +36,7 @@ const LEVEL_INTRO_SHORT = {
 
 export default function Events() {
   const navigate = useNavigate();
-  const { events, loading } = useEvents();
+  const { events, loading, onSpot } = useEvents();
   const { items, inCart, toggle } = useCartToggle();
   const { total, totalIsEstimate, addCombo } = useCart();
   const modal = useEventModal(events);
@@ -85,6 +86,7 @@ export default function Events() {
               {/* The stepper already says "Choose events" on phones. */}
               <div className="kicker mt-6 hidden sm:block">Step 1 · Choose events</div>
               <h1 className="h2">Choose what you’ll compete in</h1>
+              {onSpot && <OnSpotBanner className="mt-4 max-w-xl" />}
               {/* Names the chosen level first, then what applies to it. */}
               <div className="mt-4 max-w-xl" aria-live="polite">
                 <p className="text-[22px] leading-tight font-semibold text-amber-light">{LEVEL_LABEL[level]} events</p>

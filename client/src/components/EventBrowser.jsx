@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, levelOf, registrationClosed } from "../lib/site";
 import { priceLabel } from "../lib/pricing";
+import { eventsPath, confirmOnSpot, getOnSpotToken } from "../lib/onSpot";
 
 // Shared pieces for pages that list events (Home, Events): data loading,
 // cart toggling, the event card and the details modal.
@@ -15,14 +16,22 @@ import { priceLabel } from "../lib/pricing";
 export function useEvents() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Opened from the registration desk's on-spot QR (lib/onSpot.js).
+  const [onSpot, setOnSpot] = useState(() => !!getOnSpotToken());
   useEffect(() => {
+    const hadToken = !!getOnSpotToken();
     api
-      .get("/api/events")
-      .then((data) => setEvents(data.events || []))
+      .get(eventsPath())
+      .then((data) => {
+        setEvents(data.events || []);
+        const valid = confirmOnSpot(data);
+        setOnSpot(valid);
+        if (hadToken && !valid) toast("This on-spot link has expired - ask the registration desk for today's QR.", { id: "onspot-expired" });
+      })
       .catch(() => toast.error("Failed to load events"))
       .finally(() => setLoading(false));
   }, []);
-  return { events, loading };
+  return { events, loading, onSpot };
 }
 
 export function useCartToggle() {

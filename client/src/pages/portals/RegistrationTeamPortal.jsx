@@ -10,6 +10,7 @@ import ParticipantIDCard from "../../components/ParticipantIDCard";
 import { idCardVerifyUrl } from "../../lib/idCard";
 import { levelOf } from "../../lib/site";
 import KitDesk from "./KitDesk";
+import OnSpotQr from "./OnSpotQr";
 import ParticipantDetailsModal from "../../components/ParticipantDetailsModal";
 import ParticipantsTable from "../../components/ParticipantsTable";
 
@@ -46,6 +47,7 @@ const STATUS_TABS = [
   ["pending", "Pending"],
   ["approved", "Approved"],
   ["rejected", "Rejected"],
+  ["onspot", "On-spot"],
   ["all", "All"],
 ];
 
@@ -144,15 +146,18 @@ export default function RegistrationTeamPortal() {
   // Selected events that need an option picked (e.g. the Clash Squad game).
   const cashChoiceEvents = cashRegistration.eventIds.map((id) => eventsById.get(id)).filter((e) => e?.choices?.length);
   const counts = useMemo(() => {
-    const c = { pending: 0, approved: 0, rejected: 0, all: registrations.length };
-    registrations.forEach((r) => (c[r.status] = (c[r.status] || 0) + 1));
+    const c = { pending: 0, approved: 0, rejected: 0, onspot: 0, all: registrations.length };
+    registrations.forEach((r) => {
+      c[r.status] = (c[r.status] || 0) + 1;
+      if (r.onSpot) c.onspot++;
+    });
     return c;
   }, [registrations]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     return registrations.filter(
       (r) =>
-        (filter === "all" || r.status === filter) &&
+        (filter === "all" || (filter === "onspot" ? r.onSpot : r.status === filter)) &&
         (!q ||
           [r.user?.name, r.user?.email, r.user?.phone, r.registrationCode, r.collegeName, r.transactionId, r.teamName]
             .filter(Boolean)
@@ -408,6 +413,9 @@ export default function RegistrationTeamPortal() {
       {/* Event day: scan ID cards and hand out the welcome kits. */}
       <KitDesk />
 
+      {/* Event day: walk-up participants register on the website and pay cash here. */}
+      <OnSpotQr />
+
       {/* The desk's main job first: approve / reject. */}
       <section className="mb-10" aria-label="Review registrations">
         <h2 className="font-heading font-semibold text-xl mb-3">Review registrations</h2>
@@ -458,7 +466,7 @@ export default function RegistrationTeamPortal() {
         {loading && registrations.length === 0 ? (
           <p className="text-shade/50">Loading...</p>
         ) : shown.length === 0 ? (
-          <p className="text-shade/50">{(() => { const kind = filter === "all" ? "" : `${filter} `; return search ? `No ${kind}registrations match "${search}".` : `No ${kind}registrations.`; })()}</p>
+          <p className="text-shade/50">{(() => { const kind = filter === "all" ? "" : filter === "onspot" ? "on-spot " : `${filter} `; return search ? `No ${kind}registrations match "${search}".` : `No ${kind}registrations.`; })()}</p>
         ) : view === "table" ? (
           <ParticipantsTable
             rows={shown}
@@ -535,6 +543,7 @@ export default function RegistrationTeamPortal() {
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <Badge status={r.status} />
                       {r.paymentMethod === "later" && <Badge status="info">Payment due</Badge>}
+                      {r.onSpot && <Badge status="info">On-spot</Badge>}
                       {junior && <Badge status="info">Junior</Badge>}
                     </div>
                   </div>

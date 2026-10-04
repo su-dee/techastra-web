@@ -8,6 +8,8 @@ const {
   checkEventChoices,
   checkMemberDetails,
   applyMemberDetails,
+  seatsLeft,
+  checkOnSpotSeats,
   checkParticipation,
   checkRegistrationOpen,
   registrationTeamSize,
@@ -271,4 +273,17 @@ test("the lead can add members' department and year later; names stay as registe
   assert.ok(applyMemberDetails(team, [{ department: "", yearOfStudy: "3rd Year" }, { department: "IT", yearOfStudy: "1st Year" }]).error);
   assert.ok(applyMemberDetails(team, [{ department: "ECE", yearOfStudy: "9th" }, { department: "IT", yearOfStudy: "1st Year" }]).error);
   assert.ok(applyMemberDetails(null, []).error);
+});
+
+test("on-spot seats: online can't use them, the on-spot QR can", () => {
+  const ev = { maxSeats: 80, onSpotSeats: 20, seatsTaken: 55 };
+  assert.equal(seatsLeft(ev), 5);
+  assert.equal(seatsLeft(ev, { onSpot: true }), 25);
+  assert.equal(seatsLeft({ ...ev, seatsTaken: 70 }), 0); // online full, never negative
+  assert.equal(seatsLeft({ maxSeats: 10, seatsTaken: 4 }), 6); // no quota set
+  assert.equal(checkOnSpotSeats(0, 80), null);
+  assert.equal(checkOnSpotSeats(80, 80), null);
+  assert.ok(checkOnSpotSeats(81, 80));
+  assert.ok(checkOnSpotSeats(-1, 80));
+  assert.ok(checkOnSpotSeats(2.5, 80));
 });

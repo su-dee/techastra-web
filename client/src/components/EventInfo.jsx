@@ -1,5 +1,6 @@
 import React from "react";
 import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, dayOf, levelOf } from "../lib/site";
+import { getOnSpotToken } from "../lib/onSpot";
 import { priceLabel } from "../lib/pricing";
 
 // Symposium day the event ends on (Hack Nexus runs from Day 1 into Day 2).
@@ -41,7 +42,9 @@ export function teamLabel(event) {
 
 export function seatsLabel(event) {
   if (event.seatsAvailable == null) return `${event.maxSeats} seats`;
-  return event.seatsAvailable <= 0 ? "Full" : `${event.seatsAvailable} of ${event.maxSeats} left`;
+  // Online registration can't use the on-spot seats (lib/onSpot.js), so count only its share.
+  const seats = getOnSpotToken() ? event.maxSeats : event.maxSeats - (event.onSpotSeats || 0);
+  return event.seatsAvailable <= 0 ? "Full" : `${event.seatsAvailable} of ${seats} left`;
 }
 
 export function kickerFor(event) {

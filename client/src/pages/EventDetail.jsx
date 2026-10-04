@@ -5,6 +5,7 @@ import EventInfo, { kickerFor, teamLabel } from "../components/EventInfo";
 import { ExternalRegisterButton } from "../components/EventBrowser";
 import JuniorNotice from "../components/JuniorNotice";
 import { api } from "../lib/api";
+import { getOnSpotToken } from "../lib/onSpot";
 import { useCart } from "../context/CartContext";
 import { categoryOf, levelOf, registrationClosed } from "../lib/site";
 
@@ -22,7 +23,7 @@ export default function EventDetail() {
     window.scrollTo(0, 0);
     setLoading(true);
     api
-      .get(`/api/events/${id}`)
+      .get(`/api/events/${id}${getOnSpotToken() ? `?onspot=${encodeURIComponent(getOnSpotToken())}` : ""}`)
       .then((data) => setEvent(data.event))
       .catch(() => toast.error("Could not load this event"))
       .finally(() => setLoading(false));

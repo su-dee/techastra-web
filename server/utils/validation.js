@@ -284,6 +284,22 @@ function seatsNeeded(ev, teamSize = 1) {
   return ev.isTeamEvent ? 1 : Math.max(1, teamSize);
 }
 
+/**
+ * Seats left in an event. Online registration can't use the on-spot seats
+ * (Event.onSpotSeats); on-spot registration (the desk's QR) can use them all.
+ */
+function seatsLeft(ev, { onSpot = false } = {}) {
+  const cap = ev.maxSeats - (onSpot ? 0 : ev.onSpotSeats || 0);
+  return Math.max(cap - ev.seatsTaken, 0);
+}
+
+/** On-spot seats must be a whole number from 0 to the event's seats. Error message or null. */
+function checkOnSpotSeats(onSpotSeats, maxSeats) {
+  if (!Number.isInteger(onSpotSeats) || onSpotSeats < 0) return "On-spot seats must be a whole number, 0 or more.";
+  if (Number.isFinite(maxSeats) && onSpotSeats > maxSeats) return `On-spot seats can't be more than the event's ${maxSeats} seats.`;
+  return null;
+}
+
 /** People in a saved registration: its team list, or just the registrant. */
 function registrationTeamSize(registration) {
   return Array.isArray(registration.teamMembers) && registration.teamMembers.length ? registration.teamMembers.length : 1;
@@ -328,6 +344,8 @@ module.exports = {
   computeTotal,
   eventCharge,
   seatsNeeded,
+  seatsLeft,
+  checkOnSpotSeats,
   registrationTeamSize,
   checkRegistrationOpen,
   checkParticipation,

@@ -10,13 +10,22 @@ const { seatsNeeded, registrationTeamSize } = require("./validation");
  * Reserves seats atomically inside a transaction: the conditional UPDATE only
  * succeeds while enough seats are left, so concurrent registrations can't
  * oversell. Throws a 409 error naming the full event.
+ *
+ * `online`: a participant registering online can't take an event's on-spot
+ * seats (Event.onSpotSeats, kept for the desk's on-spot QR); on-spot
+ * registrations and staff actions (approve, cash received) can use every seat.
  */
-async function reserveSeats(tx, events, teamSize) {
+async function reserveSeats(tx, events, teamSize, { online = true } = {}) {
   for (const ev of events) {
     const n = seatsNeeded(ev, teamSize);
-    const updated = await tx.$executeRaw`UPDATE "Event" SET "seatsTaken" = "seatsTaken" + ${n}, "updatedAt" = NOW() WHERE "id" = ${ev.id} AND "seatsTaken" + ${n} <= "maxSeats"`;
+    const updated = online
+      ? await tx.$executeRaw`UPDATE "Event" SET "seatsTaken" = "seatsTaken" + ${n}, "updatedAt" = NOW() WHERE "id" = ${ev.id} AND "seatsTaken" + ${n} <= "maxSeats" - "onSpotSeats"`
+      : await tx.$executeRaw`UPDATE "Event" SET "seatsTaken" = "seatsTaken" + ${n}, "updatedAt" = NOW() WHERE "id" = ${ev.id} AND "seatsTaken" + ${n} <= "maxSeats"`;
     if (updated !== 1) {
-      const err = new Error(`"${ev.name}" doesn't have ${n > 1 ? `${n} seats` : "a seat"} left`);
+      const err =
+        online && ev.onSpotSeats > 0
+          ? new Error(`"${ev.name}" has no online seats left - its remaining seats are for on-spot registration at the desk on the day.`)
+          : new Error(`"${ev.name}" doesn't have ${n > 1 ? `${n} seats` : "a seat"} left`);
       err.status = 409;
       throw err;
     }
@@ -31,9 +40,9 @@ async function heldSeats(tx, registration) {
 }
 
 /** Takes the seats for a saved registration again (e.g. leaving "rejected"). */
-async function reserveForRegistration(tx, registration) {
+async function reserveForRegistration(tx, registration, options) {
   const { events, size } = await heldSeats(tx, registration);
-  await reserveSeats(tx, events, size);
+  await reserveSeats(tx, events, size, options);
 }
 
 /** Gives a saved registration's seats back (e.g. when it is rejected). */
@@ -48,9 +57,10 @@ async function releaseForRegistration(tx, registration) {
 /**
  * Applies the seat change for a status move: leaving "rejected" reserves,
  * entering it releases; other moves (pending <-> approved) keep the seats.
+ * `options` as for reserveSeats (staff moves pass { online: false }).
  */
-async function applySeatChange(tx, registration, fromStatus, toStatus) {
-  if (fromStatus === "rejected" && toStatus !== "rejected") await reserveForRegistration(tx, registration);
+async function applySeatChange(tx, registration, fromStatus, toStatus, options) {
+  if (fromStatus === "rejected" && toStatus !== "rejected") await reserveForRegistration(tx, registration, options);
   else if (fromStatus !== "rejected" && toStatus === "rejected") await releaseForRegistration(tx, registration);
 }
 
