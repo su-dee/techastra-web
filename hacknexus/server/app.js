@@ -79,11 +79,29 @@ export function createApp(
     }
     next();
   });
+  // The check-in and food counters scan all day from devices that may share
+  // the campus Wi-Fi's public IP with every participant, so they skip the
+  // shared per-IP limit. They get a high per-IP backstop here and a limit
+  // per admin login in admin.js.
+  const scannerPath = (path) =>
+    /^\/admin\/(me|attendance|meals)(\/scan)?$/.test(path);
   app.use(
     "/api",
     rateLimit({
       windowMs: 60_000,
       limit: 100,
+      skip: (req) => scannerPath(req.path),
+      standardHeaders: "draft-8",
+      legacyHeaders: false,
+      message: { error: "Too many requests. Please try again shortly." },
+    }),
+  );
+  app.use(
+    "/api",
+    rateLimit({
+      windowMs: 60_000,
+      limit: 1000,
+      skip: (req) => !scannerPath(req.path),
       standardHeaders: "draft-8",
       legacyHeaders: false,
       message: { error: "Too many requests. Please try again shortly." },

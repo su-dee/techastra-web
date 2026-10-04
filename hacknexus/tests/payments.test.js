@@ -502,12 +502,12 @@ test("the food counter gives each meal once per squad", async () => {
   const counter = cookieOf(
     await send("post", "/api/admin/login", { username: "food_1", password: "food counter pass" }).expect(200),
   );
-  const third = await send("post", "/api/admin/meals/scan", { code: passQr, meal: "d2_lunch" }, counter).expect(200);
+  const third = await send("post", "/api/admin/meals/scan", { code: passQr, meal: "d1_evening_snacks" }, counter).expect(200);
   assert.equal(third.body.result, "given");
   const summary = await send("get", "/api/admin/meals", undefined, counter).expect(200);
   const lunch = summary.body.meals.find((m) => m.id === "d1_lunch");
   assert.deepEqual([lunch.squads, lunch.people], [1, 3]);
-  assert.equal(summary.body.recent[0].label, "Day 2 · Lunch (finalists)");
+  assert.equal(summary.body.recent[0].label, "Day 1 · Evening snacks");
   assert.ok(summary.body.expected.squads >= 1);
 });
 
@@ -766,4 +766,16 @@ test("ID cards issued before short codes still check in", async () => {
     adminCookie,
   ).expect(200);
   assert.equal(typed.body.result, "already");
+});
+
+test("the scanners are not held back by the shared per-IP limit", async () => {
+  // The rest of the API allows 100 requests a minute per IP; the check-in
+  // and food counters have their own, higher limits.
+  for (let i = 0; i < 110; i++)
+    await send("get", "/api/admin/meals", undefined, adminCookie).expect(200);
+  // (This squad's card was revoked by an earlier test: refused, but not rate-limited.)
+  const scan = await send("post", "/api/admin/attendance/scan", { code: passQr }, adminCookie);
+  assert.notEqual(scan.status, 429);
+  // Other routes still share the per-IP limit, which these 110 didn't use up.
+  await send("get", "/api/admin/stats", undefined, adminCookie).expect(200);
 });

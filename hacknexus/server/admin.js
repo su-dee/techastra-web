@@ -257,6 +257,18 @@ export function createAdminRouter(
   );
   router.get("/me", (req, res) => res.json({ admin: req.admin }));
 
+  // Check-in and food counters: limited per admin login rather than per IP
+  // (see app.js). A busy counter makes about 60 requests a minute.
+  const counterLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: 200,
+    keyGenerator: (req) => `admin:${req.admin.username}`,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Scanning too fast. Wait a few seconds and scan again." },
+  });
+  router.use(["/attendance", "/meals"], counterLimiter);
+
   router.get("/stats", async (req, res) => {
     const [totals, byDomain, byStatus, byProblem, daily, payments] =
       await Promise.all([
