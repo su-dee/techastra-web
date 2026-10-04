@@ -105,13 +105,21 @@ function validateRegistration(body = {}) {
     } else {
       const members = teamMembers
         .filter((m) => m?.role !== "lead")
-        .map((m) => ({ name: str(m?.name).slice(0, 100), regNo: str(m?.regNo).slice(0, 50), role: "member" }));
+        .map((m) => ({
+          name: str(m?.name).slice(0, 100),
+          regNo: str(m?.regNo).slice(0, 50),
+          department: str(m?.department).slice(0, 100),
+          yearOfStudy: str(m?.yearOfStudy),
+          role: "member",
+        }));
       if (members.some((m) => m.name.length < 2)) errors.push("Enter a name for every team member.");
+      if (members.some((m) => m.yearOfStudy && !YEARS_OF_STUDY.includes(m.yearOfStudy))) errors.push("Choose each team member's year of study.");
       // The same person can't be listed twice (checked by register number).
       const regNos = [value.registerNo, ...members.map((m) => m.regNo)].filter(Boolean).map((r) => r.toUpperCase());
       if (new Set(regNos).size !== regNos.length) errors.push("Each team member must be a different person - two have the same register number.");
       if (members.length) {
-        value.teamMembers = [{ name: value.name, regNo: value.registerNo || "", role: "lead" }, ...members];
+        const lead = { name: value.name, regNo: value.registerNo || "", department: value.department || "", yearOfStudy: value.yearOfStudy || "", role: "lead" };
+        value.teamMembers = [lead, ...members];
       }
     }
   }
@@ -133,6 +141,36 @@ function checkParticipantDetails(value, level) {
     if (!value.yearOfStudy) return "Choose your year of study.";
   }
   return null;
+}
+
+/**
+ * College students (senior) give each team member's department and year
+ * of study, like their own. Returns an error message or null.
+ */
+function checkMemberDetails(teamMembers) {
+  const members = (teamMembers || []).filter((m) => m.role !== "lead");
+  if (members.some((m) => !m.department)) return "Enter every team member's department.";
+  if (members.some((m) => !m.yearOfStudy)) return "Choose every team member's year of study.";
+  return null;
+}
+
+/**
+ * The team lead fills in (or corrects) their members' department and year
+ * of study after registering - teams that registered before these were
+ * asked. `updates` lists { department, yearOfStudy } for each member in
+ * order (the lead excluded); names and register numbers never change here.
+ * Returns { error } or { teamMembers }.
+ */
+function applyMemberDetails(teamMembers, updates) {
+  const list = Array.isArray(teamMembers) ? teamMembers : [];
+  const members = list.filter((m) => m?.role !== "lead");
+  if (!members.length) return { error: "This registration has no team members." };
+  if (!Array.isArray(updates) || updates.length !== members.length) return { error: "Send the details of every team member." };
+  const clean = updates.map((u) => ({ department: str(u?.department).slice(0, 100), yearOfStudy: str(u?.yearOfStudy) }));
+  if (clean.some((u) => !u.department)) return { error: "Enter every team member's department." };
+  if (clean.some((u) => !YEARS_OF_STUDY.includes(u.yearOfStudy))) return { error: "Choose every team member's year of study." };
+  let i = 0;
+  return { teamMembers: list.map((m) => (m?.role === "lead" ? m : { ...m, ...clean[i++] })) };
 }
 
 /**
@@ -275,6 +313,8 @@ module.exports = {
   MIN_PASSWORD,
   YEARS_OF_STUDY,
   checkParticipantDetails,
+  checkMemberDetails,
+  applyMemberDetails,
   parseJsonField,
   normalizeEmail,
   normalizeTxn,

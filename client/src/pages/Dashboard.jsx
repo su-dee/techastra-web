@@ -11,6 +11,7 @@ import { downloadIdCard as saveIdCard, printIdCard } from "../lib/idCardExport";
 import { idCardVerifyUrl } from "../lib/idCard";
 import { CATEGORY_LABEL, categoryOf } from "../lib/site";
 import ApprovalHero from "../components/dashboard/ApprovalHero";
+import TeamCard from "../components/dashboard/TeamCard";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { usePanels } from "../context/PanelContext";
@@ -236,7 +237,6 @@ export default function Dashboard() {
 
   const approved = registration?.status === "approved";
   const profile = registration?.user || user;
-  const team = Array.isArray(registration?.teamMembers) ? registration.teamMembers : [];
 
   // ID card data: Registration No. = college register number, Delegate ID
   // = registration code; the QR opens the card's verification page.
@@ -401,25 +401,7 @@ export default function Dashboard() {
                   ))}
                 </ul>
               )}
-              {(registration.teamName || team.length > 0) && (
-                <div className="card p-4 sm:p-5 mt-3">
-                  <p className="mono-label">Team</p>
-                  {registration.teamName && <p className="text-[17px] text-heading mt-1">{registration.teamName}</p>}
-                  {team.length > 0 && (
-                    <ul className="mt-3 space-y-2">
-                      {team.map((m, i) => (
-                        <li key={i} className="flex items-center justify-between gap-3 text-sm">
-                          <span className="text-soft truncate">
-                            {m.name}
-                            {m.regNo && <span className="text-dim"> · {m.regNo}</span>}
-                          </span>
-                          {m.role === "lead" && <span className="pill shrink-0">LEAD</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+              <TeamCard registration={registration} onSaved={(teamMembers) => setRegistration((r) => ({ ...r, teamMembers }))} />
             </Section>
 
             {(approved || certificates.length > 0) && (

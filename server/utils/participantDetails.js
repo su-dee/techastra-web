@@ -33,7 +33,7 @@ async function participantDetails(registration) {
   const checkedIn = new Map(attendance.map((a) => [a.eventId, a.scannedAt]));
   const u = reg.user;
   const members = Array.isArray(reg.teamMembers)
-    ? reg.teamMembers.filter((m) => m && m.name).map((m) => ({ name: m.name, regNo: m.regNo || null, role: m.role === "lead" ? "lead" : "member" }))
+    ? reg.teamMembers.filter((m) => m && m.name).map((m) => ({ name: m.name, regNo: m.regNo || null, department: m.department || null, yearOfStudy: m.yearOfStudy || null, role: m.role === "lead" ? "lead" : "member" }))
     : [];
 
   return {

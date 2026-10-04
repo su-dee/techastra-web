@@ -384,7 +384,7 @@ export default function RegistrationTeamPortal() {
   const addTeamMember = () => {
     setCashRegistration({
       ...cashRegistration,
-      teamMembers: [...cashRegistration.teamMembers, { name: "", regNo: "", role: "member" }],
+      teamMembers: [...cashRegistration.teamMembers, { name: "", regNo: "", department: "", yearOfStudy: "", role: "member" }],
     });
   };
 
@@ -874,6 +874,23 @@ export default function RegistrationTeamPortal() {
                             Remove
                           </Button>
                         </div>
+                        <Input
+                          placeholder="Department"
+                          value={member.department || ""}
+                          onChange={(e) => updateTeamMember(index, "department", e.target.value)}
+                          required={cashRegistration.isTeam}
+                        />
+                        <Select
+                          value={member.yearOfStudy || ""}
+                          onChange={(e) => updateTeamMember(index, "yearOfStudy", e.target.value)}
+                          required={cashRegistration.isTeam}
+                          aria-label="Member year of study"
+                        >
+                          <option value="">Year of study</option>
+                          {["1st Year", "2nd Year", "3rd Year", "4th Year"].map((y) => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </Select>
                       </div>
                     ))}
                   </div>

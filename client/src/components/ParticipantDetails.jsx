@@ -67,6 +67,9 @@ export default function ParticipantDetails({ details, highlightEventId }) {
                 <span className="min-w-0 break-words">
                   {m.name}
                   {m.role === "lead" && <span className="text-dim"> (lead)</span>}
+                  {(m.department || m.yearOfStudy) && (
+                    <span className="block text-shade/60 text-[13px]">{[m.department, m.yearOfStudy].filter(Boolean).join(" · ")}</span>
+                  )}
                 </span>
                 {m.regNo && <span className="font-mono text-dim shrink-0">{m.regNo}</span>}
               </li>

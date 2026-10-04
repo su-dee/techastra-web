@@ -6,6 +6,8 @@ const {
   checkTeamSizes,
   checkComboRules,
   checkEventChoices,
+  checkMemberDetails,
+  applyMemberDetails,
   checkParticipation,
   checkRegistrationOpen,
   registrationTeamSize,
@@ -232,4 +234,41 @@ test("events with choices need one of their options (the Clash Squad game)", () 
   // Parsed from the form; anything but an object is ignored.
   assert.deepEqual(validateRegistration({ ...valid, eventChoices: JSON.stringify({ cs: "BGMI" }) }).value.eventChoices, { cs: "BGMI" });
   assert.deepEqual(validateRegistration({ ...valid, eventChoices: "[1]" }).value.eventChoices, {});
+});
+
+test("team members carry their department and year; seniors must give both", () => {
+  const team = JSON.stringify([{ name: "Priya S", regNo: "R2", department: " ECE ", yearOfStudy: "3rd Year" }]);
+  const { errors, value } = validateRegistration({ ...valid, registerNo: "R1", department: "CSE", yearOfStudy: "2nd Year", teamMembers: team });
+  assert.deepEqual(errors, []);
+  assert.deepEqual(value.teamMembers, [
+    { name: "Arun Kumar", regNo: "R1", department: "CSE", yearOfStudy: "2nd Year", role: "lead" },
+    { name: "Priya S", regNo: "R2", department: "ECE", yearOfStudy: "3rd Year", role: "member" },
+  ]);
+  assert.equal(checkMemberDetails(value.teamMembers), null);
+  assert.match(checkMemberDetails([{ name: "A", department: "", yearOfStudy: "1st Year" }]), /department/);
+  assert.match(checkMemberDetails([{ name: "A", department: "CSE", yearOfStudy: "" }]), /year of study/);
+  assert.equal(checkMemberDetails(null), null);
+  const bad = JSON.stringify([{ name: "Priya S", regNo: "R2", department: "ECE", yearOfStudy: "5th Year" }]);
+  assert.ok(validateRegistration({ ...valid, teamMembers: bad }).errors.some((e) => /year of study/.test(e)));
+});
+
+test("the lead can add members' department and year later; names stay as registered", () => {
+  const team = [
+    { name: "Lead", regNo: "R1", role: "lead" },
+    { name: "Priya S", regNo: "R2", role: "member" },
+    { name: "Rahul K", regNo: "R3", role: "member" },
+  ];
+  const ok = applyMemberDetails(team, [
+    { department: " ECE ", yearOfStudy: "3rd Year", name: "Someone else" },
+    { department: "IT", yearOfStudy: "1st Year" },
+  ]);
+  assert.deepEqual(ok.teamMembers, [
+    { name: "Lead", regNo: "R1", role: "lead" },
+    { name: "Priya S", regNo: "R2", role: "member", department: "ECE", yearOfStudy: "3rd Year" },
+    { name: "Rahul K", regNo: "R3", role: "member", department: "IT", yearOfStudy: "1st Year" },
+  ]);
+  assert.ok(applyMemberDetails(team, [{ department: "ECE", yearOfStudy: "3rd Year" }]).error); // one missing
+  assert.ok(applyMemberDetails(team, [{ department: "", yearOfStudy: "3rd Year" }, { department: "IT", yearOfStudy: "1st Year" }]).error);
+  assert.ok(applyMemberDetails(team, [{ department: "ECE", yearOfStudy: "9th" }, { department: "IT", yearOfStudy: "1st Year" }]).error);
+  assert.ok(applyMemberDetails(null, []).error);
 });

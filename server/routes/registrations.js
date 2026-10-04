@@ -16,6 +16,8 @@ const {
   checkParticipation,
   checkRegistrationOpen,
   checkParticipantDetails,
+  checkMemberDetails,
+  applyMemberDetails,
   computeTotal,
   normalizeEmail,
   normalizeTxn,
@@ -108,7 +110,9 @@ async function createRegistration(req, res) {
       }
       // College / school name (printed on the ID card) and, for college
       // students, course, department and year of study.
-      const detailsError = checkParticipantDetails(value, levels.has("junior") ? "junior" : "senior");
+      const detailsError =
+        checkParticipantDetails(value, levels.has("junior") ? "junior" : "senior") ||
+        (levels.has("junior") ? null : checkMemberDetails(value.teamMembers));
       if (detailsError) return reject(400, detailsError);
 
       // Online registration for an event closes once it has started (the
@@ -584,6 +588,30 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
   } catch (err) {
     console.error("Get my registration error:", err);
     res.status(500).json({ error: "Failed to load your registration" });
+  }
+});
+
+/**
+ * PATCH /api/registrations/mine/team-members - the team lead adds or
+ * corrects their members' department and year of study.
+ * Body: { members: [{ department, yearOfStudy }] } in the team's order.
+ */
+router.patch("/mine/team-members", requireAuth, requireRole("participant"), async (req, res) => {
+  try {
+    const registration = await prisma.registration.findUnique({ where: { userId: req.user.id } });
+    if (!registration) return res.status(404).json({ error: "No registration found for this account" });
+    if (registration.status === "rejected") return res.status(409).json({ error: "This registration was rejected." });
+    const result = applyMemberDetails(registration.teamMembers, req.body?.members);
+    if (result.error) return res.status(400).json({ error: result.error });
+    const updated = await prisma.registration.update({
+      where: { id: registration.id },
+      data: { teamMembers: result.teamMembers },
+      select: { teamMembers: true },
+    });
+    res.json({ teamMembers: updated.teamMembers });
+  } catch (err) {
+    console.error("Update team members error:", err);
+    res.status(500).json({ error: "Couldn't save the team details" });
   }
 });
 

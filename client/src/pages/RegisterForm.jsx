@@ -17,6 +17,8 @@ const PHONE = /^(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}$/;
 const MIN_PASSWORD = 8;
 // Same options as the server (YEARS_OF_STUDY in server/utils/validation.js).
 const YEARS_OF_STUDY = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+// Senior team members also give their department and year of study.
+const EMPTY_MEMBER = { name: "", regNo: "", department: "", yearOfStudy: "", role: "member" };
 const EMPTY_FORM = { name: "", email: "", phone: "", password: "", collegeName: "", registerNo: "", course: "", department: "", yearOfStudy: "" };
 
 /**
@@ -39,7 +41,7 @@ export default function RegisterForm() {
   // Merged with the defaults so a draft saved before a field existed still works.
   const [form, setForm] = useState({ ...EMPTY_FORM, ...(saved?.form || {}) });
   const [teamName, setTeamName] = useState(saved?.teamName || "");
-  const [members, setMembers] = useState(saved?.members || [{ name: "", regNo: "", role: "member" }]);
+  const [members, setMembers] = useState(saved?.members || [{ ...EMPTY_MEMBER }]);
   const [consent, setConsent] = useState(saved?.consent || false);
   const [guardianConsent, setGuardianConsent] = useState(saved?.guardianConsent || false);
   // Options picked for events that have them, e.g. { [clashSquadId]: "BGMI" }.
@@ -80,7 +82,7 @@ export default function RegisterForm() {
     setMembers((prev) => {
       if (prev.length >= minMembers && prev.length <= maxMembers) return prev;
       const next = prev.slice(0, maxMembers);
-      while (next.length < minMembers) next.push({ name: "", regNo: "", role: "member" });
+      while (next.length < minMembers) next.push({ ...EMPTY_MEMBER });
       return next;
     });
   }, [minMembers, maxMembers]);
@@ -113,6 +115,8 @@ export default function RegisterForm() {
       next.members.forEach((m, i) => {
         if (!m.name.trim()) e[`member-${i}-name`] = "Enter this member’s name.";
         if (!m.regNo.trim()) e[`member-${i}-regno`] = `Enter this member’s ${idLabel.toLowerCase()}.`;
+        if (!(m.department || "").trim()) e[`member-${i}-department`] = "Enter this member’s department.";
+        if (!m.yearOfStudy) e[`member-${i}-year`] = "Choose this member’s year of study.";
       });
     }
     // Team events need the right number of people (you plus your members).
@@ -168,7 +172,7 @@ export default function RegisterForm() {
     revalidate({ eventChoices: c });
   };
   const addMember = () =>
-    setMembers((prev) => (prev.length >= maxMembers ? prev : [...prev, { name: "", regNo: "", role: "member" }]));
+    setMembers((prev) => (prev.length >= maxMembers ? prev : [...prev, { ...EMPTY_MEMBER }]));
   const removeMember = (idx) => {
     const m = members.filter((_, i) => i !== idx);
     setMembers(m);
@@ -417,6 +421,21 @@ export default function RegisterForm() {
                           <Label htmlFor={`m${idx}-regno`} required>{idLabel}</Label>
                           <Input {...field(`m${idx}-regno`, `member-${idx}-regno`)} required value={m.regNo} onChange={(e) => updateMember(idx, "regNo", e.target.value)} />
                           <FieldError id={`m${idx}-regno`}>{errors[`member-${idx}-regno`]}</FieldError>
+                        </div>
+                        <div>
+                          <Label htmlFor={`m${idx}-department`} required>Department</Label>
+                          <Input {...field(`m${idx}-department`, `member-${idx}-department`)} required value={m.department || ""} onChange={(e) => updateMember(idx, "department", e.target.value)} />
+                          <FieldError id={`m${idx}-department`}>{errors[`member-${idx}-department`]}</FieldError>
+                        </div>
+                        <div>
+                          <Label htmlFor={`m${idx}-year`} required>Year of study</Label>
+                          <Select {...field(`m${idx}-year`, `member-${idx}-year`)} required value={m.yearOfStudy || ""} onChange={(e) => updateMember(idx, "yearOfStudy", e.target.value)}>
+                            <option value="">Select year</option>
+                            {YEARS_OF_STUDY.map((y) => (
+                              <option key={y} value={y}>{y}</option>
+                            ))}
+                          </Select>
+                          <FieldError id={`m${idx}-year`}>{errors[`member-${idx}-year`]}</FieldError>
                         </div>
                       </div>
                     </li>

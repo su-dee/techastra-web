@@ -70,7 +70,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
       let teamMembersStr = "";
       if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
         teamMembersStr = reg.teamMembers
-          .map((member) => `${member.name} (${member.regNo || "N/A"})`)
+          .map((member) => `${member.name} (${[member.regNo || "N/A", member.department, member.yearOfStudy].filter(Boolean).join(", ")})`)
           .join("; ");
       }
 
@@ -113,16 +113,17 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
       rows = registrations.flatMap((reg) => {
         const members = Array.isArray(reg.teamMembers) && reg.teamMembers.length ? reg.teamMembers : null;
         const people = members
-          ? members.map((m, i) => ({ name: m.name, regNo: m.regNo, lead: m.role === "lead" || (i === 0 && !members.some((x) => x.role === "lead")) }))
+          ? members.map((m, i) => ({ name: m.name, regNo: m.regNo, department: m.department, yearOfStudy: m.yearOfStudy, lead: m.role === "lead" || (i === 0 && !members.some((x) => x.role === "lead")) }))
           : [{ name: reg.user.name, regNo: reg.user.registerNo, lead: true }];
         return people.map((p) => ({
           Name: p.name || "",
           "Register No": p.regNo || (p.lead ? reg.user.registerNo || "" : ""),
           College: reg.collegeName || "",
-          // Course / department / year are asked of the registrant only.
+          // Course is asked of the registrant only; members give their
+          // department and year (not in registrations made before 4 Oct).
           Course: p.lead ? reg.user.course || "" : "",
-          Department: p.lead ? reg.user.department || "" : "",
-          "Year of Study": p.lead ? reg.user.yearOfStudy || "" : "",
+          Department: p.department || (p.lead ? reg.user.department || "" : ""),
+          "Year of Study": p.yearOfStudy || (p.lead ? reg.user.yearOfStudy || "" : ""),
           ...choiceOf(reg),
           "Registered With": members ? `${reg.teamName || "Team"} (lead: ${reg.user.name})` : "Self",
           Email: p.lead ? reg.user.email || "" : "",
