@@ -4,7 +4,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import toast from "react-hot-toast";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
-import { Label, Input } from "../components/ui/Input";
+import { Label, Input, PasswordInput } from "../components/ui/Input";
 import { api } from "../lib/api";
 import { fadeUp, staggerContainer, EASE_CINEMATIC } from "../lib/motion";
 import { usePanels } from "../context/PanelContext";
@@ -66,7 +66,7 @@ function Resubmit({ code, email, amount, onDone, firstPayment = false }) {
       )}
       <div>
         <Label htmlFor="rs-password" required>Your password</Label>
-        <Input id="rs-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <PasswordInput id="rs-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </div>
       <div>
         <Label htmlFor="rs-txn" required>UPI transaction ID (UTR)</Label>

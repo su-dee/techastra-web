@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
-import { Input, Label } from "../components/ui/Input";
+import { Input, Label, PasswordInput } from "../components/ui/Input";
 import { PORTAL_PATH } from "../lib/site";
 import logo from "../assets/logo-sm.webp";
 
@@ -52,9 +52,8 @@ export default function Login() {
           </div>
           <div>
             <Label htmlFor="login-password">Password</Label>
-            <Input
+            <PasswordInput
               id="login-password"
-              type="password"
               autoComplete="current-password"
               required
               value={password}

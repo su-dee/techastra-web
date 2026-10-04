@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Button from "../components/ui/Button";
 import Stepper from "../components/ui/Stepper";
-import { Label, Input, Select, FieldError, FieldHint } from "../components/ui/Input";
+import { Label, Input, Select, FieldError, FieldHint, PasswordInput } from "../components/ui/Input";
 import { useCart } from "../context/CartContext";
 import { api } from "../lib/api";
 import { levelOf } from "../lib/site";
@@ -321,10 +321,9 @@ export default function RegisterForm() {
             </div>
             <div>
               <Label htmlFor="reg-password" required>Password</Label>
-              <Input
+              <PasswordInput
                 {...field("reg-password", "password")}
                 aria-describedby={errors.password ? "reg-password-error" : "reg-password-hint"}
-                type="password"
                 required
                 autoComplete="new-password"
                 minLength={MIN_PASSWORD}

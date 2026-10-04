@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 const FIELD =
   "w-full rounded-[10px] bg-shade/[0.03] border border-[color:var(--c-8f8676)] px-3.5 py-2.5 text-[15px] text-text placeholder-[color:var(--c-afa697)] " +
@@ -44,6 +45,25 @@ export function FieldHint({ id, children }) {
 
 export function Input({ className = "", ...props }) {
   return <input className={`${FIELD} ${className}`} {...props} />;
+}
+
+/** A password field with a show/hide button (the field stays type=password by default). */
+export function PasswordInput({ className = "", ...props }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input className={`${FIELD} pr-12 ${className}`} {...props} type={show ? "text" : "password"} />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        aria-label={show ? "Hide password" : "Show password"}
+        aria-pressed={show}
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-[10px] text-dim hover:text-heading focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber/60"
+      >
+        {show ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+      </button>
+    </div>
+  );
 }
 
 export function Textarea({ className = "", ...props }) {

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Button from "../components/ui/Button";
 import Stepper from "../components/ui/Stepper";
-import { Label, Input, FieldError, FieldHint } from "../components/ui/Input";
+import { Label, Input, FieldError, FieldHint, PasswordInput } from "../components/ui/Input";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import { loadDraft, clearDraft } from "../lib/registrationDraft";
@@ -523,9 +523,8 @@ export default function Checkout() {
         {needsPassword && (
           <div>
             <Label htmlFor="pay-password" required>Your password</Label>
-            <Input
+            <PasswordInput
               {...fieldProps("pay-password", "password")}
-              type="password"
               required
               autoComplete="new-password"
               minLength={MIN_PASSWORD}

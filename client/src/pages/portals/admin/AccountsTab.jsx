@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Modal from "../../../components/ui/Modal";
-import { Label, Input, Select } from "../../../components/ui/Input";
+import { Label, Input, Select, PasswordInput } from "../../../components/ui/Input";
 import { api } from "../../../lib/api";
 
 const ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "master_admin"];
@@ -82,7 +82,7 @@ export default function AccountsTab() {
           </div>
           <div>
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" required value={form.password} onChange={(e) => update("password", e.target.value)} />
+            <PasswordInput id="password" required value={form.password} onChange={(e) => update("password", e.target.value)} />
           </div>
           <div>
             <Label htmlFor="role">Role</Label>
