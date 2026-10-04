@@ -262,6 +262,21 @@ export default function Dashboard() {
     }
   };
 
+  // Certificates are private files: fetched with the sign-in token.
+  const downloadCertificate = async (c) => {
+    try {
+      const blob = await api.blob(`/api/certificates/${encodeURIComponent(c.certificateCode)}/pdf`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Techastra26-${(eventName.get(c.eventId) || "Certificate").replace(/[^A-Za-z0-9]+/g, "-")}-${(c.recipientName || "").replace(/[^A-Za-z0-9]+/g, "-")}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      toast.error(err.message || "Couldn't download the certificate.");
+    }
+  };
+
   const submitFeedback = async (e) => {
     e.preventDefault();
     if (!feedbackEventId) return toast.error("Select an event");
@@ -407,22 +422,21 @@ export default function Dashboard() {
             {(approved || certificates.length > 0) && (
               <Section id="certificates" title="Certificates" className="order-3 lg:order-none">
                 {certificates.length === 0 ? (
-                  <p className="text-sm text-dim">Certificates are issued after your events end - they’ll appear here.</p>
+                  <p className="text-sm text-dim">
+                    Participation certificates are sent at the end of each event day - they’ll appear here and in your email.
+                  </p>
                 ) : (
                   <ul className="space-y-3">
                     {certificates.map((c) => (
                       <li key={c.id} className="card p-4 flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-heading truncate">{eventName.get(c.eventId) || "Techastra ’26"}</p>
-                          <p className="text-[12px] text-dim font-mono tracking-[0.06em] mt-0.5">
-                            {c.type === "winner" ? "WINNER" : "PARTICIPATION"} · {c.certificateCode}
-                          </p>
+                          <p className="text-[13px] text-soft truncate">{c.recipientName}</p>
+                          <p className="text-[12px] text-dim font-mono tracking-[0.06em] mt-0.5">PARTICIPATION · {c.certificateCode}</p>
                         </div>
-                        {c.pdfUrl && (
-                          <a href={`${api.baseUrl}${c.pdfUrl}`} target="_blank" rel="noreferrer" className="btn-ghost-sm shrink-0">
-                            Download
-                          </a>
-                        )}
+                        <button type="button" className="btn-ghost-sm shrink-0" onClick={() => downloadCertificate(c)}>
+                          Download
+                        </button>
                       </li>
                     ))}
                   </ul>

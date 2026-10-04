@@ -181,8 +181,19 @@ model Certificate {
   registrationId  String
   eventId         String
   type            String   // participation | winner
+  // Whose certificate: the person's place in the team list (0 = the
+  // registrant), and the name printed on it. Each team member gets their own.
+  memberIndex     Int      @default(0)
+  recipientName   String?
+  // The PDF's file name in uploads/certificates (served only through
+  // GET /api/certificates/:code/pdf, never publicly).
   pdfUrl          String?
+  // Participation certificates are emailed to the registrant at the end of
+  // the event day; winner certificates are printed by the committee only.
+  emailedAt       DateTime?
   issuedAt        DateTime @default(now())
+
+  @@unique([registrationId, eventId, type, memberIndex])
 }
 
 model Announcement {

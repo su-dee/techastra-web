@@ -9,7 +9,8 @@ if (!fs.existsSync(certDir)) {
 
 /**
  * Renders a simple, clean certificate PDF (participation or winner variant)
- * using pdf-lib and saves it to disk. Returns the public URL path.
+ * using pdf-lib and saves it in uploads/certificates. Returns the file name;
+ * the file is private (GET /api/certificates/:code/pdf checks who may have it).
  */
 async function generateCertificatePdf({
   certificateCode,
@@ -65,14 +66,18 @@ async function generateCertificatePdf({
   }
 
   page.drawText(`Certificate ID: ${certificateCode}`, { x: 60, y: 90, size: 11, font, color: cyan });
-  page.drawText(`Verify at /verify-certificate`, { x: 60, y: 72, size: 10, font, color: white });
+  const site = (process.env.CLIENT_ORIGIN || "").split(",")[0].trim().replace(/\/+$/, "");
+  page.drawText(`Verify at ${site}/verify-certificate`, { x: 60, y: 72, size: 10, font, color: white });
 
   const pdfBytes = await doc.save();
   const filename = `${certificateCode}.pdf`;
   fs.writeFileSync(path.join(certDir, filename), pdfBytes);
 
-  return `/uploads/certificates/${filename}`;
+  return filename;
 }
+
+/** Absolute path of a stored certificate PDF (older rows stored "/uploads/certificates/<file>"). */
+const certificateFile = (stored) => path.join(certDir, path.basename(String(stored || "")));
 
 function ordinal(n) {
   const num = Number(n);
@@ -82,4 +87,4 @@ function ordinal(n) {
   return `${num}th`;
 }
 
-module.exports = { generateCertificatePdf };
+module.exports = { generateCertificatePdf, certificateFile };

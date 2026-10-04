@@ -12,7 +12,6 @@ const prisma = require("./db");
 const { initSocket } = require("./socket");
 const requestLogger = require("./middleware/requestLogger");
 const { globalLimiter } = require("./middleware/rateLimiter");
-const { uploadDir } = require("./middleware/upload");
 
 const authRoutes = require("./routes/auth");
 const eventRoutes = require("./routes/events");
@@ -102,13 +101,9 @@ app.use(express.json({ limit: "100kb" }));
 app.use(requestLogger);
 app.use("/api", globalLimiter);
 
-// Only generated certificate PDFs are public (anyone holding a certificate
-// can share it; it is also verifiable by code). Payment screenshots stay
-// private - see GET /api/registrations/:id/proof.
-app.use(
-  "/uploads/certificates",
-  express.static(path.join(uploadDir, "certificates"), { index: false, dotfiles: "deny", maxAge: "7d" })
-);
+// Uploaded and generated files are never served publicly: payment
+// screenshots through GET /api/registrations/:id/proof, certificates through
+// GET /api/certificates/:code/pdf (each checks who may have the file).
 
 app.get("/api/health", async (req, res) => {
   try {

@@ -17,13 +17,18 @@ const { spawn } = require("child_process");
  *   MAIL_ENDPOINT_URL, signed with MAIL_ENDPOINT_SECRET so only this API can
  *   use it.
  *
+ * Attachments ({ filename, content: Buffer, contentType }) go out with
+ * "smtp" and "sendmail"; the PHP mailer takes text only, so they are left off
+ * there (the certificates email also says where to download them).
+ *
  * Never throws: a failed email must not undo or block the action that
  * triggered it. With neither configured the email is printed to the console
  * instead (local development).
  */
-async function sendMail({ to, subject, text }) {
-  if (process.env.MAIL_TRANSPORT === "smtp") return sendWithSmtp({ to, subject, text });
-  if (process.env.MAIL_TRANSPORT === "sendmail") return sendWithSendmail({ to, subject, text });
+async function sendMail({ to, subject, text, attachments = [] }) {
+  if (process.env.MAIL_TRANSPORT === "smtp") return sendWithSmtp({ to, subject, text, attachments });
+  if (process.env.MAIL_TRANSPORT === "sendmail") return sendWithSendmail({ to, subject, text, attachments });
+  if (attachments.length) console.warn(`Email to ${to}: the PHP mailer can't send attachments - ${attachments.length} left off.`);
 
   const url = process.env.MAIL_ENDPOINT_URL;
   const secret = process.env.MAIL_ENDPOINT_SECRET;
@@ -32,6 +37,7 @@ async function sendMail({ to, subject, text }) {
     console.log("\n----- MOCK EMAIL (MAIL_ENDPOINT_URL not set) -----");
     console.log("To:", to);
     console.log("Subject:", subject);
+    if (attachments.length) console.log("Attachments:", attachments.map((a) => a.filename).join(", "));
     console.log("Body:\n", text);
     console.log("--------------------------------------------------\n");
     return { sent: false, mocked: true };
@@ -68,11 +74,13 @@ const isAddress = (s) => typeof s === "string" && s.length <= 254 && EMAIL_RE.te
 const encodeHeader = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${Buffer.from(s, "utf8").toString("base64")}?=`);
 
 // The message as sendmail expects it: CRLF-free (sendmail normalises line
-// ends), base64 body so no line is ever too long.
-function buildMessage({ from, fromName, replyTo, to, subject, text }) {
+// ends), base64 body so no line is ever too long. With attachments it is
+// multipart/mixed: the text, then each file.
+function buildMessage({ from, fromName, replyTo, to, subject, text, attachments = [] }) {
   const domain = from.split("@")[1];
-  const body = Buffer.from(text, "utf8").toString("base64").replace(/.{76}/g, "$&\n");
-  return [
+  const base64 = (buf) => buf.toString("base64").replace(/.{76}/g, "$&\n");
+  const body = base64(Buffer.from(text, "utf8"));
+  const headers = [
     `From: ${encodeHeader(fromName).replace(/[\r\n"]/g, "")} <${from}>`,
     `To: ${to}`,
     `Reply-To: ${replyTo}`,
@@ -80,6 +88,37 @@ function buildMessage({ from, fromName, replyTo, to, subject, text }) {
     `Date: ${new Date().toUTCString().replace("GMT", "+0000")}`,
     `Message-ID: <${crypto.randomUUID()}@${domain}>`,
     "MIME-Version: 1.0",
+  ];
+  if (attachments.length) {
+    const boundary = `=_techastra_${crypto.randomUUID()}`;
+    const files = attachments.map((a) => {
+      const name = String(a.filename).replace(/["\r\n\\]/g, "");
+      return [
+        `--${boundary}`,
+        `Content-Type: ${a.contentType || "application/octet-stream"}; name="${name}"`,
+        "Content-Transfer-Encoding: base64",
+        `Content-Disposition: attachment; filename="${name}"`,
+        "",
+        base64(Buffer.from(a.content)),
+      ].join("\n");
+    });
+    return [
+      ...headers,
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      "X-Mailer: Techastra26",
+      "",
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      body,
+      ...files,
+      `--${boundary}--`,
+      "",
+    ].join("\n");
+  }
+  return [
+    ...headers,
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: base64",
     "X-Mailer: Techastra26",
@@ -122,7 +161,7 @@ function getSmtpTransport() {
   return smtpTransport;
 }
 
-async function sendWithSmtp({ to, subject, text }) {
+async function sendWithSmtp({ to, subject, text, attachments = [] }) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn("Email not sent: SMTP_HOST / SMTP_USER / SMTP_PASS are not all set.");
     return { sent: false };
@@ -153,6 +192,7 @@ async function sendWithSmtp({ to, subject, text }) {
       replyTo,
       subject: cleanSubject,
       text: cleanText,
+      attachments: attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
       headers: { "X-Mailer": "Techastra26" },
     });
     return { sent: true };
@@ -162,7 +202,7 @@ async function sendWithSmtp({ to, subject, text }) {
   }
 }
 
-function sendWithSendmail({ to, subject, text }) {
+function sendWithSendmail({ to, subject, text, attachments = [] }) {
   const from = process.env.MAIL_FROM || "";
   const replyTo = process.env.MAIL_REPLY_TO || from;
   const fromName = process.env.MAIL_FROM_NAME || "Techastra '26";
@@ -181,7 +221,7 @@ function sendWithSendmail({ to, subject, text }) {
     console.warn(`Email to ${recipient} not sent: subject and text are required.`);
     return Promise.resolve({ sent: false });
   }
-  const message = buildMessage({ from, fromName, replyTo, to: recipient, subject: cleanSubject, text: cleanText });
+  const message = buildMessage({ from, fromName, replyTo, to: recipient, subject: cleanSubject, text: cleanText, attachments });
 
   const command = process.env.MAIL_SENDMAIL_PATH || "/usr/sbin/sendmail";
   const extra = (process.env.MAIL_SENDMAIL_ARGS || "").split(" ").filter(Boolean);
