@@ -215,7 +215,7 @@ const EVENTS = [
       staff("Mr. P. Sudarsan", "9790780562"),
       student("Mr. Sanjai P A", "9487826286"),
       student("Ms. Kavitha G", "6382401242"),
-      student("Mr. Yashvinthan M"),
+      student("Mr. Yashvinthan M", "9789921988"),
     ],
     when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 60, team: [1, 1],
   },

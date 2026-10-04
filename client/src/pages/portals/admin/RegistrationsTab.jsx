@@ -153,14 +153,16 @@ export default function RegistrationsTab() {
                 aria-label={`Override status for ${r.registrationCode}`}
                 value={r.status}
                 onChange={(e) => override(r.id, e.target.value)}
-                className="!py-1 !text-[13px] max-w-[120px]"
+                className="!py-1 !text-[13px] w-full"
               >
                 {STATUSES.map((st) => (
                   <option key={st} value={st}>{st}</option>
                 ))}
               </Select>
-              <Button size="sm" variant="outline" onClick={() => promoteWaitlist(r.id)}>Promote</Button>
-              <Button size="sm" variant="danger" onClick={() => refund(r.id)}>Refund</Button>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" className="flex-1 !px-2" onClick={() => promoteWaitlist(r.id)}>Promote</Button>
+                <Button size="sm" variant="danger" className="flex-1 !px-2" onClick={() => refund(r.id)}>Refund</Button>
+              </div>
             </>
           )}
         />
