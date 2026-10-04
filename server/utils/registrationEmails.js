@@ -18,13 +18,17 @@ const { sendMail } = require("./mailer");
 const DAY_NUMBER = { "2026-10-08": 1, "2026-10-09": 2 };
 const IST = "Asia/Kolkata";
 
-function formatEventLine(ev) {
+/** One line per event, with the option picked for it (e.g. the game). */
+const eventLines = (events, registration) =>
+  events.map((ev) => formatEventLine(ev, registration.eventChoices?.[ev.id]));
+
+function formatEventLine(ev, choice) {
   const start = new Date(ev.startTime);
   const ymd = start.toLocaleDateString("en-CA", { timeZone: IST });
   const date = start.toLocaleDateString("en-US", { timeZone: IST, month: "long", day: "numeric", year: "numeric" });
   const time = (d) => new Date(d).toLocaleTimeString("en-US", { timeZone: IST, hour: "numeric", minute: "2-digit" });
   const day = DAY_NUMBER[ymd] ? ` (Day ${DAY_NUMBER[ymd]})` : "";
-  const venue = ev.venue ? `, ${ev.venue}` : "";
+  const venue = (ev.venue ? `, ${ev.venue}` : "") + (choice ? ` - ${ev.choiceLabel || "Choice"}: ${choice}` : "");
   const endYmd = new Date(ev.endTime).toLocaleDateString("en-CA", { timeZone: IST });
   if (endYmd !== ymd && DAY_NUMBER[ymd] && DAY_NUMBER[endYmd]) {
     // Runs across both days (Hack Nexus).
@@ -63,7 +67,7 @@ async function sendApprovalEmail(registration) {
       `Your Techastra '26 registration (${registration.registrationCode}) has been approved. See you there!`,
       "",
       "Your events:",
-      ...events.map(formatEventLine),
+      ...eventLines(events, registration),
       "",
       // Only the groups of the events in this registration.
       ...(groups.length
@@ -196,7 +200,7 @@ async function sendReceivedEmail(registration, { resubmitted = false, payBy = nu
         `Amount due: ₹${registration.totalAmount}`,
         "",
         "Your events:",
-        ...events.map(formatEventLine),
+        ...eventLines(events, registration),
         "",
         `Your registration is not complete until you pay. Pay ₹${registration.totalAmount} before ${payBy}, either:`,
         `- Online: open the registration status page${statusLink ? ` (${statusLink})` : ""}, enter your registration code and email, and submit your UPI transaction ID (UTR) and payment screenshot. The registration desk then checks it.`,
@@ -227,7 +231,7 @@ async function sendReceivedEmail(registration, { resubmitted = false, payBy = nu
       `UPI transaction ID (UTR): ${registration.transactionId || "-"}`,
       "",
       "Your events:",
-      ...events.map(formatEventLine),
+      ...eventLines(events, registration),
       "",
       "What happens next: the registration desk checks your payment. You'll get another email once your registration is approved - you can then sign in to get your digital ID card.",
       statusLink ? `Check your status any time: ${statusLink}` : "Check your status any time on the website's status page.",

@@ -223,6 +223,7 @@ export default function Checkout() {
     if (teamMembers) fd.append("teamMembers", JSON.stringify(teamMembers));
     fd.append("eventIds", JSON.stringify(items.map((i) => i.id)));
     fd.append("comboIds", JSON.stringify(comboIds));
+    if (draft.eventChoices) fd.append("eventChoices", JSON.stringify(draft.eventChoices));
     if (later) fd.append("payLater", "true");
     else if (!free) fd.append("transactionId", normalizeTxn(txn));
     fd.append("consent", String(!!consent));
@@ -314,6 +315,9 @@ export default function Checkout() {
             <li key={item.id} className="flex justify-between gap-4">
               <div>
                 <p className="text-[15px] text-text">{item.name}</p>
+                {draft.eventChoices?.[item.id] && (
+                  <p className="text-[13px] text-amber-pale mt-0.5">{draft.eventChoices[item.id]}</p>
+                )}
                 {!item.isTeamEvent && teamSize > 1 && (
                   <p className="text-[13px] text-dim mt-0.5">Individual event - each of the {teamSize} members takes part</p>
                 )}

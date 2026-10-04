@@ -110,6 +110,7 @@ export default function RegistrationTeamPortal() {
     yearOfStudy: "",
     consent: false, // the participant agrees to the Terms and Privacy Notice
     eventIds: [],
+    eventChoices: {}, // e.g. { [clashSquadId]: "BGMI" }
     isTeam: false,
     teamName: "",
     teamMembers: [],
@@ -140,6 +141,8 @@ export default function RegistrationTeamPortal() {
   useEffect(load, []);
 
   const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
+  // Selected events that need an option picked (e.g. the Clash Squad game).
+  const cashChoiceEvents = cashRegistration.eventIds.map((id) => eventsById.get(id)).filter((e) => e?.choices?.length);
   const counts = useMemo(() => {
     const c = { pending: 0, approved: 0, rejected: 0, all: registrations.length };
     registrations.forEach((r) => (c[r.status] = (c[r.status] || 0) + 1));
@@ -310,6 +313,12 @@ export default function RegistrationTeamPortal() {
       return;
     }
 
+    const missingChoice = cashChoiceEvents.find((e) => !e.choices.includes(cashRegistration.eventChoices[e.id]));
+    if (missingChoice) {
+      toast.error(`Choose the ${(missingChoice.choiceLabel || "option").toLowerCase()} for ${missingChoice.name}`);
+      return;
+    }
+
     setCreatingCash(true);
 
     try {
@@ -324,6 +333,10 @@ export default function RegistrationTeamPortal() {
       formData.append("yearOfStudy", cashRegistration.yearOfStudy || "");
       formData.append("eventIds", JSON.stringify(cashRegistration.eventIds));
       formData.append("amountCollected", String(cashRegistration.amountCollected));
+      formData.append(
+        "eventChoices",
+        JSON.stringify(Object.fromEntries(cashChoiceEvents.map((e) => [e.id, cashRegistration.eventChoices[e.id]])))
+      );
       formData.append("consent", "true");
 
       if (cashRegistration.isTeam) {
@@ -352,6 +365,7 @@ export default function RegistrationTeamPortal() {
         yearOfStudy: "",
         consent: false,
         eventIds: [],
+        eventChoices: {}, // e.g. { [clashSquadId]: "BGMI" }
         isTeam: false,
         teamName: "",
         teamMembers: [],
@@ -528,7 +542,10 @@ export default function RegistrationTeamPortal() {
                   {regEvents.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-3">
                       {regEvents.map((e) => (
-                        <span key={e.id} className="pill">{e.name}</span>
+                        <span key={e.id} className="pill">
+                          {e.name}
+                          {r.eventChoices?.[e.id] && <> · {r.eventChoices[e.id]}</>}
+                        </span>
                       ))}
                       {r.teamName && <span className="pill">Team: {r.teamName}</span>}
                     </div>
@@ -770,6 +787,28 @@ export default function RegistrationTeamPortal() {
                   </label>
                 ))}
               </div>
+              {cashChoiceEvents.map((event) => (
+                <label key={event.id} className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="font-semibold">
+                    {event.name}: {(event.choiceLabel || "Option").toLowerCase()} *
+                  </span>
+                  <Select
+                    className="!w-auto"
+                    value={cashRegistration.eventChoices[event.id] || ""}
+                    onChange={(e) =>
+                      setCashRegistration({
+                        ...cashRegistration,
+                        eventChoices: { ...cashRegistration.eventChoices, [event.id]: e.target.value },
+                      })
+                    }
+                  >
+                    <option value="">Choose…</option>
+                    {event.choices.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </Select>
+                </label>
+              ))}
             </div>
 
             {/* Team Registration Toggle */}
@@ -873,6 +912,7 @@ export default function RegistrationTeamPortal() {
                     yearOfStudy: "",
                     consent: false,
                     eventIds: [],
+                    eventChoices: {}, // e.g. { [clashSquadId]: "BGMI" }
                     isTeam: false,
                     teamName: "",
                     teamMembers: [],

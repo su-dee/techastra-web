@@ -133,7 +133,7 @@ function StatusPanel({ registration, registeredEvents, email, onHelp }) {
   );
 }
 
-function EventRow({ event, attendedAt, place, approved, whatsappUrl }) {
+function EventRow({ event, attendedAt, place, approved, whatsappUrl, choice }) {
   const ended = new Date(event.endTime).getTime() < Date.now();
   let state = null;
   if (place) state = <Badge status="info">🏆 {PLACE[place] || `Position ${place}`}</Badge>;
@@ -156,6 +156,7 @@ function EventRow({ event, attendedAt, place, approved, whatsappUrl }) {
       <div className="flex flex-wrap gap-2 mt-3">
         <span className="pill">{CATEGORY_LABEL[categoryOf(event)]}</span>
         <span className="pill">{teamLabel(event)}</span>
+        {choice && <span className="pill">{event.choiceLabel || "Choice"}: {choice}</span>}
       </div>
       {whatsappUrl && (
         <a
@@ -394,6 +395,7 @@ export default function Dashboard() {
                       attendedAt={attendedAt.get(e.id)}
                       place={placeOf.get(e.id)}
                       approved={approved}
+                      choice={registration.eventChoices?.[e.id]}
                       whatsappUrl={approved ? whatsappGroups.find((g) => g.eventId === e.id)?.url : undefined}
                     />
                   ))}

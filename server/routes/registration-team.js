@@ -60,6 +60,10 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
     // Create a map for quick lookup: eventId -> eventName
     const eventMap = new Map(events.map((e) => [e.id, e.name]));
 
+    // The option each participant picked for this event (e.g. the game).
+    const choiceKey = event.choices?.length ? event.choiceLabel || "Choice" : null;
+    const choiceOf = (reg) => (choiceKey ? { [choiceKey]: reg.eventChoices?.[event.id] || "" } : {});
+
     // Prepare data rows for Excel
     let rows = registrations.map((reg) => {
       // Format team members if it's a team event
@@ -87,6 +91,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
         "Team Name": reg.teamName || "",
         "Team Members": teamMembersStr,
         Events: eventsStr,
+        ...choiceOf(reg),
         Status: reg.status || "",
         Payment: reg.paymentMethod === "later" ? "pay later (not paid)" : reg.paymentMethod || "",
         "Transaction ID": reg.transactionId || "",
@@ -118,6 +123,7 @@ router.get("/export/:eventId", exportLimiter, async (req, res) => {
           Course: p.lead ? reg.user.course || "" : "",
           Department: p.lead ? reg.user.department || "" : "",
           "Year of Study": p.lead ? reg.user.yearOfStudy || "" : "",
+          ...choiceOf(reg),
           "Registered With": members ? `${reg.teamName || "Team"} (lead: ${reg.user.name})` : "Self",
           Email: p.lead ? reg.user.email || "" : "",
           Phone: p.lead ? reg.user.phone || "" : "",

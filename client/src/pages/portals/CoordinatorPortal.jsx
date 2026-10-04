@@ -169,7 +169,7 @@ export default function CoordinatorPortal() {
                 {roster.map((r) => (
                   <div key={r.registrationId} className="flex items-center justify-between bg-shade/5 rounded-lg px-4 py-2">
                     <div>
-                      <p className="text-sm font-medium">{r.name} {r.teamName ? `(${r.teamName})` : ""}</p>
+                      <p className="text-sm font-medium">{r.name} {r.teamName ? `(${r.teamName})` : ""}{r.choice && <span className="ml-2 pill">{r.choice}</span>}</p>
                       <p className="text-xs text-shade/50">{r.registrationCode} · {r.college}</p>
                     </div>
                     <div className="flex items-center gap-2">

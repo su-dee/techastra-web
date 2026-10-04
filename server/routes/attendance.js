@@ -125,6 +125,7 @@ router.get(
         name: r.user.name,
         college: r.collegeName,
         teamName: r.teamName,
+        choice: r.eventChoices?.[eventId] || null,
         present: attendedIds.has(r.id),
       }));
 

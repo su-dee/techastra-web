@@ -5,6 +5,7 @@ const {
   validateRegistration,
   checkTeamSizes,
   checkComboRules,
+  checkEventChoices,
   checkParticipation,
   checkRegistrationOpen,
   registrationTeamSize,
@@ -219,4 +220,16 @@ test("college / school name and senior details are required", () => {
 test("year of study must be one of the four options", () => {
   assert.equal(validateRegistration({ ...valid, yearOfStudy: "3rd Year" }).errors.length, 0);
   assert.ok(validateRegistration({ ...valid, yearOfStudy: "5th Year" }).errors.some((e) => /year of study/.test(e)));
+});
+
+test("events with choices need one of their options (the Clash Squad game)", () => {
+  const clash = { id: "cs", name: "Clash Squad E-Sports", choices: ["Free Fire Max", "BGMI"], choiceLabel: "Game" };
+  const other = { id: "o", name: "Code Rescue", choices: [] };
+  assert.match(checkEventChoices([clash, other], {}).error, /Choose your game for "Clash Squad E-Sports"/);
+  assert.ok(checkEventChoices([clash], { cs: "PUBG" }).error);
+  assert.deepEqual(checkEventChoices([clash, other], { cs: "BGMI", o: "x" }), { choices: { cs: "BGMI" } });
+  assert.deepEqual(checkEventChoices([other], {}), { choices: null });
+  // Parsed from the form; anything but an object is ignored.
+  assert.deepEqual(validateRegistration({ ...valid, eventChoices: JSON.stringify({ cs: "BGMI" }) }).value.eventChoices, { cs: "BGMI" });
+  assert.deepEqual(validateRegistration({ ...valid, eventChoices: "[1]" }).value.eventChoices, {});
 });

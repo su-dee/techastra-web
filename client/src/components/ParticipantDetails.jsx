@@ -83,7 +83,10 @@ export default function ParticipantDetails({ details, highlightEventId }) {
               className={`rounded-lg px-3 py-2 ${e.id === highlightEventId ? "bg-amber/10 border border-amber/40" : "bg-shade/5"}`}
             >
               <div className="flex justify-between gap-3">
-                <span className="font-medium min-w-0 break-words">{e.name}</span>
+                <span className="font-medium min-w-0 break-words">
+                  {e.name}
+                  {e.choice && <span className="ml-2 pill">{e.choice.value}</span>}
+                </span>
                 {e.checkedInAt ? (
                   <span className="text-success shrink-0">✓ In {time(e.checkedInAt)}</span>
                 ) : (

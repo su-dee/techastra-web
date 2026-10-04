@@ -4,6 +4,7 @@ import Button from "../components/ui/Button";
 import Stepper from "../components/ui/Stepper";
 import { Label, Input, Select, FieldError, FieldHint } from "../components/ui/Input";
 import { useCart } from "../context/CartContext";
+import { api } from "../lib/api";
 import { levelOf } from "../lib/site";
 import { plural } from "../lib/a11y";
 import { computeTotal, registrationKind, teamSizeRange } from "../lib/pricing";
@@ -41,8 +42,22 @@ export default function RegisterForm() {
   const [members, setMembers] = useState(saved?.members || [{ name: "", regNo: "", role: "member" }]);
   const [consent, setConsent] = useState(saved?.consent || false);
   const [guardianConsent, setGuardianConsent] = useState(saved?.guardianConsent || false);
+  // Options picked for events that have them, e.g. { [clashSquadId]: "BGMI" }.
+  const [eventChoices, setEventChoices] = useState(saved?.eventChoices || {});
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  // The cart keeps copies of events from when they were added, so read each
+  // event's current choices (e.g. the Clash Squad game) from the event list.
+  const [currentEvents, setCurrentEvents] = useState({});
+  useEffect(() => {
+    api
+      .get("/api/events")
+      .then((data) => setCurrentEvents(Object.fromEntries((data.events || []).map((e) => [e.id, e]))))
+      .catch(() => {});
+  }, []);
+  const choiceEvents = items
+    .map((i) => ({ ...i, choices: currentEvents[i.id]?.choices ?? i.choices, choiceLabel: currentEvents[i.id]?.choiceLabel ?? i.choiceLabel }))
+    .filter((i) => i.choices?.length);
 
   // Junior events are for school students, so ask for school and class
   // instead of college and register number (stored in the same fields).
@@ -75,7 +90,7 @@ export default function RegisterForm() {
   const orgLabel = junior ? "School name" : "College name";
   const idLabel = junior ? "Class / grade" : "Register number";
 
-  function validate(next = { mode, form, teamName, members, consent, guardianConsent }) {
+  function validate(next = { mode, form, teamName, members, consent, guardianConsent, eventChoices }) {
     const e = {};
     if (!next.form.name.trim()) e.name = "Enter your full name.";
     if (!next.form.email.trim()) e.email = "Enter your email address.";
@@ -125,6 +140,9 @@ export default function RegisterForm() {
         ? `${bad.comboName || "Your combo pass"} needs a team of ${range} people including you (you have ${size}).`
         : `${bad.name} needs a team of ${range} people including you (you have ${size}).`;
     }
+    choiceEvents.forEach((i) => {
+      if (!i.choices.includes(next.eventChoices[i.id])) e[`choice-${i.id}`] = `Choose your ${(i.choiceLabel || "option").toLowerCase()} for ${i.name}.`;
+    });
     if (!next.consent) e.consent = "Please accept the Terms and the Privacy Notice.";
     if (junior && !next.guardianConsent) e.guardianConsent = "A parent or guardian must agree before a school student can register.";
     return e;
@@ -132,7 +150,7 @@ export default function RegisterForm() {
 
   // After the first submit attempt, re-check as the user types.
   const revalidate = (patch) => {
-    if (submitted) setErrors(validate({ mode, form, teamName, members, consent, guardianConsent, ...patch }));
+    if (submitted) setErrors(validate({ mode, form, teamName, members, consent, guardianConsent, eventChoices, ...patch }));
   };
   const updateForm = (key, value) => {
     const f = { ...form, [key]: value };
@@ -143,6 +161,11 @@ export default function RegisterForm() {
     const m = members.map((x, i) => (i === idx ? { ...x, [key]: value } : x));
     setMembers(m);
     revalidate({ members: m });
+  };
+  const updateChoice = (eventId, value) => {
+    const c = { ...eventChoices, [eventId]: value };
+    setEventChoices(c);
+    revalidate({ eventChoices: c });
   };
   const addMember = () =>
     setMembers((prev) => (prev.length >= maxMembers ? prev : [...prev, { name: "", regNo: "", role: "member" }]));
@@ -162,7 +185,8 @@ export default function RegisterForm() {
       requestAnimationFrame(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus());
       return;
     }
-    saveDraft({ mode: junior ? "individual" : mode, form, teamName, members, consent, guardianConsent });
+    const choices = Object.fromEntries(choiceEvents.map((i) => [i.id, eventChoices[i.id]]));
+    saveDraft({ mode: junior ? "individual" : mode, form, teamName, members, consent, guardianConsent, eventChoices: choices });
     navigate("/checkout");
   };
 
@@ -406,6 +430,41 @@ export default function RegisterForm() {
               </div>
             </fieldset>
           )}
+
+          {choiceEvents.map((ev) => {
+            const label = ev.choiceLabel || "Option";
+            const err = errors[`choice-${ev.id}`];
+            return (
+              <fieldset key={ev.id} className="border-t border-line pt-6" aria-describedby={err ? `choice-${ev.id}-error` : undefined}>
+                <legend className="h3 !text-[20px] !mt-0 pt-6">
+                  {ev.name}: choose your {label.toLowerCase()} <span className="text-amber-light" aria-hidden="true">*</span>
+                </legend>
+                {mode === "team" && !junior && !ev.isTeamEvent && (
+                  <p className="text-[13px] text-soft mb-3">Your whole team plays this {label.toLowerCase()}.</p>
+                )}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {ev.choices.map((option, idx) => (
+                    <label
+                      key={option}
+                      className={`flex items-center gap-2 cursor-pointer rounded-[10px] border px-4 py-3 ${eventChoices[ev.id] === option ? "border-amber/70 bg-amber/10" : "border-shade/15 hover:border-amber/40"}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`choice-${ev.id}`}
+                        value={option}
+                        required
+                        checked={eventChoices[ev.id] === option}
+                        aria-invalid={err && idx === 0 ? "true" : undefined}
+                        onChange={() => updateChoice(ev.id, option)}
+                      />
+                      <span className="text-[15px] text-heading">{option}</span>
+                    </label>
+                  ))}
+                </div>
+                <FieldError id={`choice-${ev.id}`}>{err}</FieldError>
+              </fieldset>
+            );
+          })}
 
           <fieldset className="border-t border-line pt-6 space-y-4">
             <legend className="sr-only">Consent</legend>

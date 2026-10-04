@@ -425,10 +425,10 @@ const EVENTS = [
     // Individual event, ₹50 per person (changed 2026-10-02; was teams of 4
     // at ₹100 per person, Free Fire only).
     description:
-      "A competitive e-sports tournament covering both Free Fire and BGMI. This is an individual event - register on your own; teams are formed at random on the event day. Players face off in room matches in an elimination format where every match matters and one mistake can send you out. Make smart tactical decisions to defeat your opponents and advance to the next round.",
+      "A competitive e-sports tournament with two tracks, Free Fire Max and BGMI - pick your game when you register. This is an individual event - register on your own; teams are formed at random on the event day. Players face off in room matches in an elimination format where every match matters and one mistake can send you out. Make smart tactical decisions to defeat your opponents and advance to the next round.",
     rules: {
       rules: [
-        "Games: Free Fire and BGMI.",
+        "Games: Free Fire Max and BGMI - choose your game when you register.",
         "Individual event - register on your own.",
         "Teams are formed at random on the event day.",
         "Room matches.",
@@ -437,6 +437,8 @@ const EVENTS = [
     },
     coordinators: [staff("Dr. S. Mohandoss", "9884974422"), student("Mr. Hamdan Arabi", "8122276912"), student("Mr. Lakshmikanth", "6374786721"), student("Mr. Praveen", "6307563967")],
     when: [2, [9, 30], [14, 0]], fee: 50, maxSeats: 80, team: [1, 1],
+    // Two tracks: each participant picks one game when registering.
+    choiceLabel: "Game", choices: ["Free Fire Max", "BGMI"],
   },
 
   // ===============================================================
@@ -787,6 +789,8 @@ function buildEvents() {
       ...(e.registrationUrl ? { registrationUrl: e.registrationUrl } : {}),
       // Likewise: only when listed above, so a group link set in Admin → Events stays.
       ...(WHATSAPP_GROUPS[e.name] ? { whatsappUrl: WHATSAPP_GROUPS[e.name] } : {}),
+      choices: e.choices || [],
+      choiceLabel: e.choiceLabel ?? null,
       maxSeats: e.maxSeats,
       isTeamEvent: maxTeamSize > 1,
       minTeamSize,

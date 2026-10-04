@@ -23,7 +23,7 @@ async function participantDetails(registration) {
   const [events, attendance, meals, kit] = await Promise.all([
     prisma.event.findMany({
       where: { id: { in: reg.eventIds } },
-      select: { id: true, name: true, level: true, isTeamEvent: true, startTime: true, endTime: true, venue: true },
+      select: { id: true, name: true, level: true, isTeamEvent: true, startTime: true, endTime: true, venue: true, choiceLabel: true },
       orderBy: { startTime: "asc" },
     }),
     prisma.attendance.findMany({ where: { registrationId: reg.id }, select: { eventId: true, scannedAt: true } }),
@@ -58,6 +58,8 @@ async function participantDetails(registration) {
       startTime: e.startTime,
       endTime: e.endTime,
       venue: e.venue,
+      // The option picked for this event, e.g. { label: "Game", value: "BGMI" }.
+      choice: reg.eventChoices?.[e.id] ? { label: e.choiceLabel || "Choice", value: reg.eventChoices[e.id] } : null,
       checkedInAt: checkedIn.get(e.id) || null,
     })),
     payment: {

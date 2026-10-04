@@ -49,6 +49,7 @@ function validateRegistration(body = {}) {
   const eventIds = parseJsonField(body.eventIds, []);
   const comboIds = parseJsonField(body.comboIds, []);
   const teamMembers = parseJsonField(body.teamMembers, null);
+  const eventChoices = parseJsonField(body.eventChoices, {});
 
   const value = {
     name: str(body.name),
@@ -65,6 +66,7 @@ function validateRegistration(body = {}) {
     eventIds,
     comboIds,
     teamMembers: null,
+    eventChoices: eventChoices && typeof eventChoices === "object" && !Array.isArray(eventChoices) ? eventChoices : {},
     consent: body.consent === "true" || body.consent === true,
     guardianConsent: body.guardianConsent === "true" || body.guardianConsent === true,
   };
@@ -167,6 +169,24 @@ function checkTeamSizes(events, teamSize, combos = []) {
 }
 
 /**
+ * Events with choices (e.g. the game for Clash Squad E-Sports) need one of
+ * their options picked. Returns { error } or { choices } - only the selected
+ * events that have options, as { [eventId]: option }, or null if none do.
+ */
+function checkEventChoices(events, picked = {}) {
+  const choices = {};
+  for (const ev of events) {
+    if (!ev.choices?.length) continue;
+    const value = picked[ev.id];
+    if (!ev.choices.includes(value)) {
+      return { error: `Choose your ${(ev.choiceLabel || "option").toLowerCase()} for "${ev.name}" (${ev.choices.join(" or ")}).` };
+    }
+    choices[ev.id] = value;
+  }
+  return { choices: Object.keys(choices).length ? choices : null };
+}
+
+/**
  * Combo pass rules: at most one combo per registration, and a combo is
  * registered on its own - the registration's events must be exactly the
  * combo's events. Returns an error message or null.
@@ -264,6 +284,7 @@ module.exports = {
   validateRegistration,
   checkTeamSizes,
   checkComboRules,
+  checkEventChoices,
   computeTotal,
   eventCharge,
   seatsNeeded,

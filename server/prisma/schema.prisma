@@ -57,6 +57,11 @@ model Event {
   // The event's WhatsApp group invite. Only approved participants of the
   // event get it (approval email, dashboard) - never in the public list.
   whatsappUrl          String?
+  // Options a participant must pick one of when registering, e.g. the game
+  // for Clash Squad E-Sports (["Free Fire Max", "BGMI"]), and what to call
+  // the choice ("Game"). Empty: nothing to choose.
+  choices              String[] @default([])
+  choiceLabel          String?
   maxSeats      Int
   seatsTaken    Int      @default(0)
   isTeamEvent   Boolean  @default(false)
@@ -90,6 +95,8 @@ model Registration {
   eventIds          String[] // array of Event ids
   teamName          String?
   teamMembers       Json?    // [{name, regNo, role: "lead"|"member"}]
+  // The option picked for each event that has choices: { [eventId]: "BGMI" }
+  eventChoices      Json?
   collegeName       String?
   totalAmount       Float
   transactionId     String?  @unique

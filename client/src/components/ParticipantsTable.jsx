@@ -76,12 +76,14 @@ export default function ParticipantsTable({ rows, eventsById, onDetails, renderA
         <tbody>
           {sorted.map((r, i) => {
             const u = r.user || {};
-            const events = r.eventIds.map((id) => eventsById.get(id)?.name).filter(Boolean);
+            const events = r.eventIds
+              .filter((id) => eventsById.get(id))
+              .map((id) => eventsById.get(id).name + (r.eventChoices?.[id] ? ` (${r.eventChoices[id]})` : ""));
             const people = peopleOf(r);
             const flags = renderFlags?.(r);
+            const study = [u.course, u.department, u.yearOfStudy].filter(Boolean).join(" · ");
             return (
               <tr key={r.id} className="border-t border-shade/10 odd:bg-shade/[0.03] hover:bg-amber/[0.06] align-top">
-            const study = [u.course, u.department, u.yearOfStudy].filter(Boolean).join(" · ");
                 <td className="px-3 py-2.5 text-right text-dim tabular-nums">{i + 1}</td>
                 <td className="px-3 py-2.5 font-mono text-[13px] whitespace-nowrap">{r.registrationCode}</td>
                 <td className="px-3 py-2.5 min-w-[150px]">

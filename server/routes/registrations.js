@@ -12,6 +12,7 @@ const {
   validateRegistration,
   checkTeamSizes,
   checkComboRules,
+  checkEventChoices,
   checkParticipation,
   checkRegistrationOpen,
   checkParticipantDetails,
@@ -150,6 +151,9 @@ async function createRegistration(req, res) {
       const totalAmount = computeTotal(events, combos, teamSize);
       const teamError = checkTeamSizes(events, teamSize, combos) || checkParticipation(events, teamSize);
       if (teamError) return reject(400, teamError);
+      // e.g. Free Fire Max or BGMI for Clash Squad E-Sports.
+      const picked = checkEventChoices(events, value.eventChoices);
+      if (picked.error) return reject(400, picked.error);
 
       // Free registrations (Junior Techastra) only collect the student's
       // details: no payment to verify, so they're approved straight away.
@@ -218,6 +222,7 @@ async function createRegistration(req, res) {
             eventIds: value.eventIds,
             teamName: value.teamName,
             teamMembers: value.teamMembers || undefined,
+            eventChoices: picked.choices || undefined,
             collegeName: value.collegeName,
             totalAmount,
             transactionId: value.transactionId,
