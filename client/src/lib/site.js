@@ -142,7 +142,7 @@ export const CATEGORY_COORDINATORS = [
   {
     role: "SENIOR · NON-TECHNICAL",
     staff: ["Dr. S. Mohandoss", "Dr. M. Nisha"],
-    students: ["Ms. Madhumitha T S", "Ms. Charulatha", "Mr. Dhevanathan R"],
+    students: ["Mr. Dhevanathan R", "Ms. Madhumitha T S", "Ms. Charulatha R"],
   },
   {
     role: "JUNIOR · ALL EVENTS",

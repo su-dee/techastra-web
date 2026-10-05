@@ -17,15 +17,16 @@
  *   maxSeats, and junior times and venues.
  *
  * FEES (organisers, 29 Sep 2026): ₹100 PER PERSON for every senior event
- * (a team pays members × ₹100); Hack Nexus is a flat ₹1000 per team
+ * (a team pays members × ₹100); Hack Nexus is a flat ₹1000 per team and
+ * Pen Your Vision a flat ₹250 per team of up to 4
  * (feePerTeam); combo passes are ₹200 per person. Junior events are free -
  * registration only collects the student's details. Senior team sizes follow
  * the organisers' combo sheet.
  *   Venue is left null (shows "TBA") wherever it isn't known.
  *
  * Senior non-technical descriptions and rounds are from "NTE overall
- * description.pdf". Prompt Arena's description was written for the main
- * site and is marked "TODO: confirm" there too.
+ * description.pdf". Prompt Arena's description, rounds and rules are from
+ * the organisers (5 Oct 2026).
  */
 
 // Symposium days, in IST.
@@ -77,7 +78,7 @@ const EVENTS = [
       student("Ms. Laavanya Muthukumar", "9025442826"),
       student("Mr. Sivasuriyanath S", "8825908483"),
     ],
-    when: [1, [10, 0], [15, 30]], fee: 100, maxSeats: 40, team: [1, 4],
+    when: [1, [10, 0], [15, 30]], fee: 250, feePerTeam: true, maxSeats: 40, team: [1, 4],
   },
   {
     name: "Hack Nexus",
@@ -273,7 +274,20 @@ const EVENTS = [
     day: 1,
     venue: "IBM Lab",
     description:
-      "A battle of words and wits with generative AI. Craft precise, creative prompts to get AI models to produce the best possible output for each challenge — the sharpest prompt engineer takes the arena.",
+      "An AI-powered creative competition that challenges participants to test their prompt engineering, observation, creativity, and AI image-generation skills through three exciting rounds. Think. Prompt. Create.",
+    rules: {
+      rounds: [
+        { title: "The Prelude", text: "Interpret a given scenario, craft a prompt, and generate an image. The image is evaluated against a reference based on accuracy, relevance, creativity, and detail." },
+        { title: "Reverse Prompt", text: "Observe a reference image for a limited time. Once it is removed, recreate it using your own prompt and AI image-generation skills." },
+        { title: "Final Forge", text: "Combine six unrelated images into one meaningful AI-generated scene, story, or concept. Create a compelling composition using creative prompt engineering." },
+      ],
+      rules: [
+        "All images must be created and submitted within the specified time for each round.",
+        "External editing tools, unauthorized resources, or assistance are strictly prohibited.",
+        "Only AI tools approved by the organizers may be used.",
+      ],
+      judging: ["Accuracy", "Relevance", "Creativity", "Detail"],
+    },
     coordinators: [
       staff("Mr. M. Arun", "9600652291"),
       student("Ms. Mithila", "9941821475"),
@@ -285,7 +299,8 @@ const EVENTS = [
 
   // ---------------------------------------------------------------
   // NON-TECHNICAL (8) - day and venue confirmed; student coordinators'
-  // numbers from "SNTE Coordinators.pdf" (staff numbers not yet given).
+  // numbers from "SNTE Coordinators.pdf" (staff numbers not yet given);
+  // names and staff from "senior non technical events.xlsx" (5 Oct 2026).
   // Descriptions and rounds from "NTE overall description.pdf".
   // ---------------------------------------------------------------
   {
@@ -304,10 +319,9 @@ const EVENTS = [
       ],
     },
     coordinators: [
-      staff("Dr. M. Sujitha", "9176628345"),
       staff("Dr. M. Nisha", "9042006686"),
-      student("Mr. Aldrin", "7550249271"),
-      student("Ms. Dharani Rajan", "8610555944"),
+      student("Mr. Aldrin Gladson D", "7550249271"),
+      student("Ms. Dharanirajan B", "8610555944"),
       student("Ms. Nandika Hegde N", "9943007783"),
     ],
     when: [1, [14, 0], [16, 0]], fee: 100, maxSeats: 60, team: [3, 3],
@@ -319,7 +333,7 @@ const EVENTS = [
     day: 1,
     venue: "CAD Lab & VOC 201",
     description: "Look closer. Spot what is concealed in every frame and piece together the picture before anyone else does.",
-    coordinators: [staff("Mrs. G. Priyanka", "8072937403"), student("Mr. Dhevanathan R", "6383429727"), student("Mr. Sham Prasad", "9043595650"), student("Mr. Rithvick Sree", "7397449938")],
+    coordinators: [staff("Ms. G. Priyanka", "8072937403"), student("Mr. Dhevanathan R", "6383429727"), student("Mr. Sham Prasad G", "9043595650"), student("Mr. Rithvick Sree", "7397449938")],
     when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [3, 3],
   },
   {
@@ -354,7 +368,7 @@ const EVENTS = [
         { title: "The Upside Down" },
       ],
     },
-    coordinators: [staff("Mrs. E. Nalini", "9176497770"), student("Ms. Lathika", "8122690763"), student("Mr. Gopi Shankar", "8939496446"), student("Mr. Sai Jeevan N", "8778592427")],
+    coordinators: [staff("Mrs. E. Nalini", "9176497770"), student("Ms. Lathika S", "8122690763"), student("Mr. Gopishankar V", "8939496446"), student("Mr. Sai Jeevan N", "8778592427")],
     when: [1, [14, 15], [16, 15]], fee: 100, maxSeats: 90, team: [3, 3],
   },
   {
@@ -372,7 +386,7 @@ const EVENTS = [
         { title: "Twist Tower" },
       ],
     },
-    coordinators: [staff("Dr. B. Raja", "8754363789"), staff("Mr. Mohan", "9445761267"), student("Ms. Harshini", "7042613974"), student("Ms. Subiksha", "8838741574"), student("Ms. Jayashree", "6369719262")],
+    coordinators: [staff("Dr. B. Raja", "8754363789"), staff("Mr. Mohan", "9445761267"), student("Ms. Harshni Jayaraj", "7042613974"), student("Ms. Subitsha S", "8838741574"), student("Ms. Jayasri K", "6369719262")],
     when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 50, team: [3, 3],
   },
   {
@@ -393,8 +407,8 @@ const EVENTS = [
       staff("Dr. M. Manikandan", "9840291680"),
       staff("Mr. M. Umamahesh", "9790948948"),
       student("Ms. Subhashini M", "9677184868"),
-      student("Mr. Guru Prasath", "7904186779"),
-      student("Mr. Venkatesh", "9110348446"),
+      student("Mr. Guru Prasath L", "7904186779"),
+      student("Mr. Venkatesh V", "9110348446"),
     ],
     when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 60, team: [3, 3],
   },
@@ -413,7 +427,7 @@ const EVENTS = [
         { title: "Can you guess the song?" },
       ],
     },
-    coordinators: [staff("Mrs. M. Kanagapriya", "9176818964"), student("Ms. Sonali", "9790574852"), student("Ms. Harini Sri", "6385554331"), student("Mr. Kumaresan", "6381090465")],
+    coordinators: [staff("Mrs. M. Kanagapriya", "9176818964"), student("Ms. Sonali M", "9790574852"), student("Ms. Harini Sri R", "6385554331"), student("Mr. Kumaresan M", "6381090465")],
     when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 100, team: [3, 3],
   },
   {
@@ -435,7 +449,7 @@ const EVENTS = [
         "Format: knockout / elimination — defeat your opponents to advance to the next round.",
       ],
     },
-    coordinators: [staff("Dr. S. Mohandoss", "9884974422"), student("Mr. Hamdan Arabi", "8122276912"), student("Mr. Lakshmikanth", "6374786721"), student("Mr. Praveen", "6307563967")],
+    coordinators: [staff("Dr. M. Sujitha", "9176628345"), student("Mr. Hamdan Arabi AQ", "8122276912"), student("Mr. Lakshmikanth R", "6374786721"), student("Mr. Praveen T", "6307563967")],
     when: [2, [9, 30], [14, 0]], fee: 50, maxSeats: 80, team: [1, 1],
     // Two tracks: each participant picks one game when registering.
     choiceLabel: "Game", choices: ["Free Fire Max", "BGMI"],
@@ -563,23 +577,45 @@ const EVENTS = [
     day: 2,
     venue: "Communication Lab",
     description:
-      "An unplugged cybersecurity case-solving challenge for school students. Each team receives a physical “Top Secret” dossier with a unique cyber-crime scenario and must analyse the evidence to identify what happened, the root cause and how it could be prevented — no computers or internet needed.",
+      "An online cybersecurity case-solving challenge for school students. Each team registers through the TRACE-X platform and first solves simple cyber-safety questions in Round 1. Teams selected by the administrator then proceed to Round 2, where they analyse cybersecurity investigation cases, examine evidence, find hidden clues and identify the safest and most correct solutions.",
     rules: {
       rounds: [
-        { title: "Investigation", text: "30 minutes to study the dossier and evidence and write the findings and proposed solutions on the official answer sheet. Multiple approaches may be written." },
+        { title: "Round 1", text: "15 minutes to solve 10 cybersecurity questions and identify the correct and safest actions." },
+        { title: "Round 2", text: "15 minutes to investigate 2 cybersecurity cases and analyse the questions and evidence provided." },
       ],
       rules: [
-        "Each team must consist of 3 registered members.",
-        "Every team gets a different case scenario (e.g. phishing, weak passwords, rogue Wi-Fi, malware).",
-        "Sealed clue envelopes are available if a team is stuck, but each one carries negative marking (−2, −5 or −10).",
-        "Mobile phones, smartwatches and internet searches are strictly prohibited.",
-        "Don’t share clues, solutions or answers with other teams.",
-        "Ties are broken by submission time — the team that submits earlier ranks higher.",
-        "Cheating or malpractice may lead to penalties or disqualification; the judges’ decision is final.",
+        "Final score = Round 1 score + Round 2 score − evidence penalties.",
+        "Teams must not share answers, clues or solutions with other teams.",
+        "Teams must not attempt to bypass the administrator approval or game controls.",
+        "In case of equal scores, the team with the lower recorded completion time ranks higher.",
+        "Cheating, malpractice or attempts to interfere with the challenge may lead to penalties or disqualification; the judges' decision is final.",
+        "If the administrator restarts the game, the current teams, approvals, scores and Round 2 selections are cleared and teams must register again.",
       ],
-      judging: ["Accuracy of the root cause", "Evidence spotted", "Solutions proposed", "Clue deductions", "Rule compliance"],
+      judging: ["Accuracy of answers", "Cybersecurity understanding", "Investigation and evidence analysis", "Correct use of clues", "Final score", "Time taken", "Rule compliance"],
+      sections: [
+        {
+          title: "Round 1",
+          items: [
+            "Each team must register with their team name, members and class details.",
+            "Teams must wait for administrator approval before entering the challenge.",
+            "Round 1 starts automatically when the administrator allows the team.",
+            "Round 1 contains 10 questions, with 5 points for each correct answer (maximum 50 points).",
+            "After Round 1, the administrator selects the teams that proceed to Round 2.",
+          ],
+        },
+        {
+          title: "Round 2",
+          items: [
+            "Only teams selected by the administrator can enter Round 2.",
+            "Each case contains investigation questions and evidence cards.",
+            "Evidence cards may reveal hidden clues but can carry negative marking of −2, −3 or −5 points.",
+            "Teams must carefully decide whether opening additional evidence is worth the penalty.",
+            "Round 2 carries a maximum of 50 points.",
+          ],
+        },
+      ],
     },
-    coordinators: [staff("Ms. G. Priyanka", "8072937403"), student("Mr. Gokul Krishan S R", "6385132601"), student("Mr. Gowtham Pandian", "8122739807"), student("Mr. Bavanan S", "7708009302")],
+    coordinators: [staff("Mrs. K. C. Anu", "9841138462"), student("Mr. Gokul Krishan S R", "6385132601"), student("Mr. Gowtham Pandian", "8122739807"), student("Mr. Bavanan S", "7708009302")],
     when: [2, [13, 0], [14, 0]], fee: 0, maxSeats: 40, team: [3, 3],
   },
   {
