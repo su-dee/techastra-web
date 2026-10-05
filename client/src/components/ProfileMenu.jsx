@@ -10,6 +10,7 @@ export const ROLE_LABEL = {
   coordinator: "Event Coordinator",
   hospitality: "Hospitality",
   certificate_team: "Certificate Team",
+  junior_coordinator: "Junior Techastra",
   master_admin: "Admin",
 };
 
@@ -20,6 +21,7 @@ const STAFF_PORTALS = [
   ["coordinator", "Coordinator portal"],
   ["hospitality", "Hospitality portal"],
   ["certificate_team", "Certificate portal"],
+  ["junior_coordinator", "Junior Techastra"],
 ];
 
 function linksFor(role) {

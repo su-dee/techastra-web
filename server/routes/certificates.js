@@ -65,7 +65,8 @@ async function winnersByEvent(eventId) {
     orderBy: [{ eventId: "asc" }, { position: "asc" }],
   });
   const [events, regs] = await Promise.all([
-    prisma.event.findMany({ where: { id: { in: [...new Set(results.map((r) => r.eventId))] } }, orderBy: [{ day: "asc" }, { startTime: "asc" }] }),
+    // Junior Techastra gets no certificates.
+    prisma.event.findMany({ where: { id: { in: [...new Set(results.map((r) => r.eventId))] }, level: "senior" }, orderBy: [{ day: "asc" }, { startTime: "asc" }] }),
     prisma.registration.findMany({ where: { id: { in: results.map((r) => r.registrationId) } }, include: { user: true } }),
   ]);
   const regById = new Map(regs.map((r) => [r.id, r]));
@@ -177,6 +178,7 @@ router.get("/winners/:eventId/pdf", ...committee, async (req, res) => {
   try {
     const event = await prisma.event.findUnique({ where: { id: req.params.eventId } });
     if (!event) return res.status(404).json({ error: "Event not found" });
+    if (event.level === "junior") return res.status(409).json({ error: "Junior Techastra events have no certificates." });
     const certs = await winnerCertificates(event);
     if (!certs.length) return res.status(409).json({ error: "This event's results aren't locked yet." });
     const merged = await PDFDocument.create();

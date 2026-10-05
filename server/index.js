@@ -118,6 +118,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/registrations", registrationRoutes);
 app.use("/api/registration-team", registrationTeamRoutes);
+app.use("/api/junior", require("./routes/junior"));
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/food", foodRoutes);
 app.use("/api/kits", require("./routes/kits"));

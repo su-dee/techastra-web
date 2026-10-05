@@ -6,7 +6,7 @@ import EventArt from "./EventArt";
 import EventInfo, { formatDay, formatFee, formatTimeRange, kickerFor, teamLabel } from "./EventInfo";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
-import { CATEGORY_LABEL, DAYS, LEVEL_LABEL, categoryOf, levelOf, registrationClosed } from "../lib/site";
+import { CATEGORY_LABEL, DAYS, JUNIOR_REGISTRATION_NOTE, LEVEL_LABEL, categoryOf, levelOf, registrationClosed } from "../lib/site";
 import { priceLabel } from "../lib/pricing";
 import { eventsPath, confirmOnSpot, getOnSpotToken } from "../lib/onSpot";
 
@@ -237,6 +237,10 @@ export function EventCard({ event, inCart, onOpen, onToggle }) {
         </span>
         {event.externalRegistration ? (
           <ExternalRegisterButton event={event} className="ev__action btn-small" short />
+        ) : levelOf(event) === "junior" ? (
+          <span className="ev__action btn-ghost-sm !cursor-default" title={JUNIOR_REGISTRATION_NOTE}>
+            Via your school
+          </span>
         ) : (
           <button
             className={"ev__action " + (inCart ? "btn-ghost-sm" : "btn-small")}
@@ -336,6 +340,7 @@ export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavi
                 {event.name} has its own registration website - it isn’t registered through this portal or the cart.
               </p>
             )}
+            {levelOf(event) === "junior" && <p className="text-[13px] text-soft mb-3">{JUNIOR_REGISTRATION_NOTE}</p>}
             {comboItem && (
               <p className="text-[13px] text-soft mb-3">
                 Part of <b className="text-heading">{comboItem.comboName}</b> - combo events can only be removed together.
@@ -361,7 +366,7 @@ export function EventModal({ event, onClose, inCart, onToggle, list = [], onNavi
                 <div className="modal__bar-actions">
                   <ExternalRegisterButton event={event} />
                 </div>
-              ) : inCart ? (
+              ) : levelOf(event) === "junior" ? null : inCart ? (
                 <div className="modal__bar-actions">
                   {comboItem ? (
                     <button

@@ -13,6 +13,9 @@ import { registrationCodeFromQr } from "../../lib/idCard";
 import { useAuth } from "../../context/AuthContext";
 
 const TABS = ["scan", "roster", "checked in", "winners"];
+// Junior Techastra: students are imported by the Junior coordinator - no ID
+// cards or check-in, and winners are picked from everyone imported.
+const JUNIOR_TABS = ["students", "winners"];
 
 // One scan of the lead's ID card checks in everyone on the registration.
 // The team's members (lead first) from a roster row or scan details.
@@ -79,6 +82,11 @@ export default function CoordinatorPortal() {
     loadRoster();
     loadResults();
   }, [loadRoster, loadResults]);
+
+  useEffect(() => {
+    const junior = events.find((e) => e.id === eventId)?.level === "junior";
+    setTab((t) => ((junior ? JUNIOR_TABS : TABS).includes(t) ? t : junior ? "students" : "scan"));
+  }, [events, eventId]);
 
   // Everyone checked in at this event, with their full details.
   const loadCheckedIn = useCallback(() => {
@@ -151,7 +159,10 @@ export default function CoordinatorPortal() {
   };
 
   const selectedEvent = events.find((e) => e.id === eventId);
+  const isJunior = selectedEvent?.level === "junior";
+  const tabs = isJunior ? JUNIOR_TABS : TABS;
   const present = roster.filter((r) => r.present);
+  const candidates = isJunior ? roster : present;
   const rosterById = new Map(roster.map((r) => [r.registrationId, r]));
   const people = (rows) => rows.reduce((n, r) => n + membersOf(r).length, 0);
   const hasTeams = roster.some((r) => membersOf(r).length > 1);
@@ -182,7 +193,7 @@ export default function CoordinatorPortal() {
           <h2 className="font-heading text-xl font-semibold mb-4 text-cyan">{selectedEvent?.name}</h2>
 
           <div className="flex gap-2 mb-6 overflow-x-auto">
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -193,7 +204,42 @@ export default function CoordinatorPortal() {
             ))}
           </div>
 
-          {tab === "scan" && (
+          {tab === "students" && isJunior && (
+            <Card>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <h3 className="font-semibold">Junior students</h3>
+                <span className="text-sm text-shade/50">
+                  {hasTeams ? `${roster.length} teams/students · ${people(roster)} people` : `${roster.length} students`}
+                </span>
+              </div>
+              <p className="text-sm text-shade/60 mb-4">
+                Imported by the Junior Techastra coordinator. Junior events have no ID cards or check-in.
+              </p>
+              {roster.length === 0 ? (
+                <p className="text-shade/50 text-sm">No students imported for this event yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {roster.map((r) => (
+                    <div key={r.registrationId} className="bg-shade/5 rounded-lg px-4 py-3 space-y-1.5">
+                      <p className="text-sm font-medium">
+                        {teamTitle(r)}
+                        {membersOf(r).length > 1 && <span className="text-shade/50 font-normal"> · {membersOf(r).length} members</span>}
+                      </p>
+                      {membersOf(r).length > 1 && (
+                        <p className="text-[13px] text-shade/70">{membersOf(r).map((m) => `${m.name}${m.className ? ` (${m.className})` : ""}`).join(", ")}</p>
+                      )}
+                      <p className="text-xs text-shade/50">
+                        {r.registrationCode} · {r.college}
+                        {membersOf(r).length === 1 && r.members?.[0]?.className ? ` · Class ${r.members[0].className}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {tab === "scan" && !isJunior && (
             <Card>
               <p className="text-shade/60 mb-4">Scan a participant's QR code to check them in.</p>
               <Button onClick={() => setScannerOpen(true)}>Open Scanner</Button>
@@ -202,7 +248,7 @@ export default function CoordinatorPortal() {
             </Card>
           )}
 
-          {tab === "roster" && (
+          {tab === "roster" && !isJunior && (
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Present / Absent List</h3>
@@ -239,7 +285,7 @@ export default function CoordinatorPortal() {
             </Card>
           )}
 
-          {tab === "checked in" && (
+          {tab === "checked in" && !isJunior && (
             <Card>
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h3 className="font-semibold">
@@ -319,7 +365,7 @@ export default function CoordinatorPortal() {
                         onChange={(e) => setWinners((w) => ({ ...w, [pos]: e.target.value }))}
                       >
                         <option value="">Select participant/team</option>
-                        {roster.filter((r) => r.present).map((r) => (
+                        {candidates.map((r) => (
                           <option key={r.registrationId} value={r.registrationId}>
                             {teamTitle(r)}
                           </option>

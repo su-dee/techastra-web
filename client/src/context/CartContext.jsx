@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { LEVEL_LABEL, LEVEL_AUDIENCE, levelOf, registrationClosed } from "../lib/site";
+import { LEVEL_LABEL, LEVEL_AUDIENCE, JUNIOR_REGISTRATION_NOTE, levelOf, registrationClosed } from "../lib/site";
 import { computeTotal, dependsOnTeamSize, smallestTeam } from "../lib/pricing";
 
 const CartContext = createContext(null);
@@ -13,7 +13,8 @@ export function CartProvider({ children }) {
   const [items, setItems] = useState(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
+      // Junior events can't be registered online any more (see addItem).
+      return raw ? JSON.parse(raw).filter((i) => levelOf(i) !== "junior") : [];
     } catch {
       return [];
     }
@@ -50,6 +51,7 @@ export function CartProvider({ children }) {
 
   const addItem = (event) => {
     if (event.externalRegistration) return { ok: false, reason: `${event.name} has its own registration website.` };
+    if (levelOf(event) === "junior") return { ok: false, reason: JUNIOR_REGISTRATION_NOTE };
     if (registrationClosed(event)) return { ok: false, reason: `Registration for ${event.name} has closed - it has already started.` };
     if (items.some((i) => i.id === event.id)) return { ok: false, reason: "Already in cart" };
     if (activeCombo) {
@@ -72,6 +74,7 @@ export function CartProvider({ children }) {
    * If any event clashes, the entire combo is blocked (no partial add).
    */
   const addCombo = (comboPass, comboEvents) => {
+    if (comboEvents.some((e) => levelOf(e) === "junior")) return { ok: false, reason: JUNIOR_REGISTRATION_NOTE };
     if (activeCombo) {
       return {
         ok: false,

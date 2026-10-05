@@ -3,11 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import EventInfo, { kickerFor, teamLabel } from "../components/EventInfo";
 import { ExternalRegisterButton } from "../components/EventBrowser";
-import JuniorNotice from "../components/JuniorNotice";
 import { api } from "../lib/api";
 import { getOnSpotToken } from "../lib/onSpot";
 import { useCart } from "../context/CartContext";
-import { categoryOf, levelOf, registrationClosed } from "../lib/site";
+import { JUNIOR_REGISTRATION_NOTE, categoryOf, levelOf, registrationClosed } from "../lib/site";
 
 // Stand-alone page for a single event (shared links / bookmarks). Same
 // content as the modal on /events, laid out as the main site's modal panel.
@@ -75,6 +74,8 @@ export default function EventDetail() {
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
             {event.externalRegistration ? (
               <ExternalRegisterButton event={event} className="btn-small modal__cta !mt-0 flex-1 text-center" />
+            ) : levelOf(event) === "junior" ? (
+              <p className="text-[14px] text-soft">{JUNIOR_REGISTRATION_NOTE}</p>
             ) : inCart ? (
               <>
                 <button className="btn-small modal__cta !mt-0 flex-1" onClick={() => navigate("/register/form")} data-log="event-detail-continue">
@@ -121,7 +122,6 @@ export default function EventDetail() {
           </div>
         )}
       </div>
-      <JuniorNotice active={levelOf(event) === "junior"} onCollege={() => navigate("/events?level=senior")} />
     </div>
   );
 }

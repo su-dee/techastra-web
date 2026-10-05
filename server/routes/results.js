@@ -4,6 +4,18 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { broadcastResult } = require("../socket");
 const { apiLimiter } = require("../middleware/rateLimiter");
 const { logSecurityEvent, logIDORAttempt } = require("../middleware/securityLogger");
+const { juniorRoster, juniorWinners } = require("../utils/juniorRoster");
+
+/**
+ * Junior events: every winner must be one of the event's imported teams or
+ * students (the roster's ids). Returns an error message, or null.
+ */
+async function checkJuniorWinners(eventId, winners) {
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { level: true } });
+  if (event?.level !== "junior") return null;
+  const ids = new Set((await juniorRoster(eventId)).map((r) => r.registrationId));
+  return winners.every((w) => ids.has(w.registrationId)) ? null : "Pick the winners from this event's Junior students.";
+}
 
 const router = express.Router();
 
@@ -23,6 +35,8 @@ router.get("/", async (req, res) => {
       include: { user: true },
     });
     const regMap = new Map(registrations.map((r) => [r.id, r]));
+    // Junior events' winners are imported students, not registrations.
+    const juniors = await juniorWinners(registrationIds.filter((id) => !regMap.has(id)));
 
     const eventIds = [...new Set(results.map((r) => r.eventId))];
     const events = await prisma.event.findMany({ where: { id: { in: eventIds } } });
@@ -30,14 +44,15 @@ router.get("/", async (req, res) => {
 
     let enriched = results.map((r) => {
       const reg = regMap.get(r.registrationId);
+      const junior = juniors.get(r.registrationId);
       return {
         id: r.id,
         eventId: r.eventId,
         eventName: eventMap.get(r.eventId)?.name || "Unknown Event",
         position: r.position,
-        teamName: reg?.teamName || null,
-        participantName: reg?.user?.name || "Unknown",
-        college: reg?.collegeName || null,
+        teamName: reg?.teamName || junior?.teamName || null,
+        participantName: reg?.user?.name || junior?.name || "Unknown",
+        college: reg?.collegeName || junior?.school || null,
         lockedAt: r.lockedAt,
       };
     });
@@ -82,6 +97,8 @@ router.post("/", requireAuth, requireRole("coordinator", "master_admin"), apiLim
     if (existing.length > 0) {
       return res.status(409).json({ error: "Results for this event are already locked. Ask a master admin to override." });
     }
+    const juniorError = await checkJuniorWinners(eventId, winners);
+    if (juniorError) return res.status(400).json({ error: juniorError });
 
     const created = await prisma.$transaction(
       winners.map((w) =>
@@ -122,6 +139,8 @@ router.patch("/override", requireAuth, requireRole("master_admin"), apiLimiter, 
     if (!eventId || !Array.isArray(winners) || !winners.length) {
       return res.status(400).json({ error: "eventId and a winners array are required" });
     }
+    const juniorError = await checkJuniorWinners(eventId, winners);
+    if (juniorError) return res.status(400).json({ error: juniorError });
 
     await prisma.result.deleteMany({ where: { eventId } });
 

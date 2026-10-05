@@ -11,7 +11,7 @@ const { sendApprovalEmail, sendRejectionEmail } = require("../utils/registration
 const router = express.Router();
 
 // Staff roles an admin can create or assign (participants sign up via registration).
-const STAFF_ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "master_admin"];
+const STAFF_ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "junior_coordinator", "master_admin"];
 
 // Every route below is master_admin only.
 router.use(requireAuth, requireRole("master_admin"));

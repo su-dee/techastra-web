@@ -1,6 +1,6 @@
 /**
  * Creates the real staff logins, each with its own random password:
- *   - admin, hospitality, certificates
+ *   - admin, hospitality, certificates, junior (imports Junior Techastra students)
  *   - desk1 ... desk5 (registration desk)
  *   - one coordinator login per event (e.g. coderescue@...), limited to that event
  *
@@ -59,6 +59,7 @@ function readCsv() {
     { role: "master_admin", label: "Admin", name: "Techastra Admin", login: `admin@${DOMAIN}` },
     { role: "hospitality", label: "Hospitality (food counter)", name: "Hospitality Desk", login: `hospitality@${DOMAIN}` },
     { role: "certificate_team", label: "Certificate team", name: "Certificate Desk", login: `certificates@${DOMAIN}` },
+    { role: "junior_coordinator", label: "Junior Techastra (imports students)", name: "Junior Techastra Coordinator", login: `junior@${DOMAIN}` },
     ...Array.from({ length: DESKS }, (_, i) => ({
       role: "registration_team", label: "Registration desk", name: `Registration Desk ${i + 1}`, login: `desk${i + 1}@${DOMAIN}`,
     })),

@@ -61,7 +61,8 @@ async function ensureCertificate({ registration, event, type, person, position =
  */
 async function participationPlan(day, now = new Date()) {
   const events = await prisma.event.findMany({
-    where: { day: Number(day), externalRegistration: false },
+    // Junior Techastra gets no certificates.
+    where: { day: Number(day), externalRegistration: false, level: "senior" },
     orderBy: { startTime: "asc" },
   });
   const ids = events.map((e) => e.id);

@@ -54,6 +54,7 @@ const TITLES = [
   ["/coordinator", "Coordinator portal"],
   ["/hospitality", "Hospitality portal"],
   ["/certificates", "Certificate portal"],
+  ["/junior", "Junior Techastra"],
   ["/admin", "Admin portal"],
 ];
 const SITE = "Techastra ’26";

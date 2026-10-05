@@ -92,6 +92,11 @@ async function createRegistration(req, res) {
       if (external) {
         return reject(400, `${external.name} has its own registration website - register for it there.`);
       }
+      // Junior Techastra students are registered by their school through the
+      // Junior Techastra coordinator (imported from Excel/CSV, routes/junior.js).
+      if (events.some((e) => e.level === "junior")) {
+        return reject(400, "Junior Techastra has no online registration. Schools register their students through the Junior Techastra coordinator.");
+      }
 
       // Senior events are for college students and Junior events for school
       // students, so one registration can't mix them (UI also blocks this).

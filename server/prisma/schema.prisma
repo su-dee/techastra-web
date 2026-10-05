@@ -16,7 +16,7 @@ model User {
   email            String   @unique
   phone            String?
   passwordHash     String
-  role             String   // participant | registration_team | coordinator | hospitality | certificate_team | master_admin
+  role             String   // participant | registration_team | coordinator | hospitality | certificate_team | junior_coordinator | master_admin
   collegeName      String?
   registerNo       String?
   // College students (senior events): course, department and year of study
@@ -128,6 +128,27 @@ model Registration {
   user              User     @relation("UserRegistration", fields: [userId], references: [id])
 
   @@index([status])
+}
+
+// Junior Techastra: school students are registered by the overall Junior
+// coordinator importing an Excel/CSV file (one student per row, per event).
+// No account, phone, email, ID card, QR check-in or certificate. Students
+// with the same team name and school in one event form a team. Results for
+// junior events store one of these ids (the team's first member) as
+// Result.registrationId.
+model JuniorParticipant {
+  id             String   @id @default(cuid())
+  code           String   @unique // JR2026-0001
+  eventId        String
+  name           String
+  school         String
+  className      String
+  teamName       String?
+  importedById   String
+  importedByName String
+  createdAt      DateTime @default(now())
+
+  @@index([eventId])
 }
 
 model Attendance {

@@ -6,7 +6,7 @@ import Modal from "../../../components/ui/Modal";
 import { Label, Input, Select, PasswordInput } from "../../../components/ui/Input";
 import { api } from "../../../lib/api";
 
-const ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "master_admin"];
+const ROLES = ["registration_team", "coordinator", "hospitality", "certificate_team", "junior_coordinator", "master_admin"];
 
 export default function AccountsTab() {
   const [users, setUsers] = useState([]);

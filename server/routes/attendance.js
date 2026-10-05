@@ -5,6 +5,14 @@ const { scanLimiter } = require("../middleware/rateLimiter");
 const { logSuspiciousActivity, logSecurityEvent } = require("../middleware/securityLogger");
 const { validateQRScanData } = require("../middleware/inputValidation");
 const { participantDetails } = require("../utils/participantDetails");
+const { juniorRoster } = require("../utils/juniorRoster");
+
+// Junior Techastra has no ID cards, so its events have no check-in.
+async function isJuniorEvent(eventId) {
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { level: true } });
+  return event?.level === "junior";
+}
+const NO_JUNIOR_CHECKIN = "Junior Techastra events don't use check-in.";
 
 const router = express.Router();
 
@@ -50,6 +58,7 @@ router.post(
       });
       return res.status(403).json({ error: "You are not assigned to this event" });
     }
+    if (await isJuniorEvent(eventId)) return res.status(409).json({ error: NO_JUNIOR_CHECKIN });
 
     const registration = await prisma.registration.findUnique({
       where: { registrationCode },
@@ -128,6 +137,12 @@ router.get(
       if (req.user.role === "coordinator" && req.user.assignedEventId !== eventId) {
         return res.status(403).json({ error: "You are not assigned to this event" });
       }
+      // Junior events: the students the Junior coordinator imported (no check-in).
+      if (await isJuniorEvent(eventId)) {
+        const roster = await juniorRoster(eventId);
+        const total = roster.reduce((n, r) => n + r.members.length, 0);
+        return res.json({ roster, junior: true, presentCount: 0, totalCount: roster.length, presentPeople: 0, totalPeople: total });
+      }
 
       const registrations = await prisma.registration.findMany({
         where: { status: "approved", eventIds: { has: eventId } },
@@ -174,6 +189,7 @@ router.post("/manual", requireAuth, requireRole("coordinator", "master_admin"), 
     if (req.user.role === "coordinator" && req.user.assignedEventId !== eventId) {
       return res.status(403).json({ error: "You are not assigned to this event" });
     }
+    if (await isJuniorEvent(eventId)) return res.status(409).json({ error: NO_JUNIOR_CHECKIN });
 
     // Same checks as a QR scan: the registration must exist, be approved and
     // include this event.

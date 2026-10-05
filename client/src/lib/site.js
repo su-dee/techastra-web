@@ -113,6 +113,7 @@ export const PORTAL_PATH = {
   coordinator: "/coordinator",
   hospitality: "/hospitality",
   certificate_team: "/certificates",
+  junior_coordinator: "/junior",
   master_admin: "/admin",
   participant: "/dashboard",
 };
@@ -167,6 +168,10 @@ export function dayOf(event) {
 // Senior events are for college students, Junior events for school students.
 export const LEVEL_LABEL = { senior: "Senior", junior: "Junior" };
 export const LEVEL_AUDIENCE = { senior: "college students", junior: "school students" };
+// Junior Techastra has no online registration: the Junior Techastra
+// coordinator imports each school's students (server routes/junior.js).
+export const JUNIOR_REGISTRATION_NOTE =
+  "Junior Techastra has no online registration. Schools register their students through the Junior Techastra coordinator.";
 
 export function levelOf(event) {
   return event.level === "junior" ? "junior" : "senior";

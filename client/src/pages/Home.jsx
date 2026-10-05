@@ -294,7 +294,7 @@ function Hero({ eventCount }) {
         <Countdown />
         <div className="hero__ctas">
           <Link className="btn-reg" to="/events?level=senior" data-log="home-hero-senior">Senior Registration</Link>
-          <Link className="btn-reg" to="/events?level=junior" data-log="home-hero-junior">Junior Registration</Link>
+          <Link className="btn-reg" to="/events?level=junior" data-log="home-hero-junior">Junior Events</Link>
         </div>
         <a className="hero__explore" href="#events">
           Explore {eventCount ? `all ${eventCount}` : "the"} events ↓
@@ -412,7 +412,7 @@ function AboutTechastra({ eventCount }) {
           </div>
           <div className="techastra__ctas">
             <Link className="btn-reg" to="/events?level=senior">Senior Registration</Link>
-            <Link className="btn-reg" to="/events?level=junior">Junior Registration</Link>
+            <Link className="btn-reg" to="/events?level=junior">Junior Events</Link>
           </div>
         </div>
       </div>
@@ -572,13 +572,13 @@ function Contact() {
         <div className="kicker mb-[18px]">05 — Register &amp; Contact</div>
         <h2>See you on 8 October</h2>
         <p className="lead mx-auto mt-[18px] max-w-[560px]">
-          Senior events are open to college students and Junior events to school students — each
-          registers separately. Pick your events, register as an individual or a team, and pay
-          online. Reach out to the coordinators below for any queries.
+          Senior events are open to college students: pick your events, register as an individual or
+          a team, and pay online. Junior events are for school students, registered by their school
+          through the Junior Techastra coordinator. Reach out to the coordinators below for any queries.
         </p>
         <div className="contact__ctas">
           <Link className="btn-reg" to="/events?level=senior" data-log="home-contact-senior">Senior Registration</Link>
-          <Link className="btn-reg" to="/events?level=junior" data-log="home-contact-junior">Junior Registration</Link>
+          <Link className="btn-reg" to="/events?level=junior" data-log="home-contact-junior">Junior Events</Link>
         </div>
 
         <div className="overall card">
