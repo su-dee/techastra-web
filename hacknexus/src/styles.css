@@ -3181,12 +3181,7 @@ footer {
   white-space: nowrap;
 }
 
-/* Logos: the HackNexus emblem as the brand, and the Techastra '26 "presents" block. */
-.brand-logo {
-  display: block;
-  height: 42px;
-  width: auto;
-}
+/* The Techastra '26 "presents" block above the HACK_NEXUS wordmark. */
 .hero-presenter {
   display: flex;
   flex-direction: column;
@@ -3208,11 +3203,6 @@ footer {
   text-transform: uppercase;
   color: #c9d1c2;
 }
-.hero-logo {
-  width: min(760px, 100%);
-  height: auto;
-  margin-top: 6px;
-}
 .footer-parent {
   margin-top: 22px;
   display: grid;
@@ -3230,9 +3220,6 @@ footer {
   max-width: 280px;
 }
 @media (max-width: 640px) {
-  .brand-logo {
-    height: 34px;
-  }
   .hero-presenter {
     margin-bottom: 30px;
     gap: 10px;
@@ -3242,85 +3229,42 @@ footer {
   }
 }
 
-/* --- Animated HackNexus emblem ------------------------------------------
-   Entrance (fade up from a soft blur), a shine that sweeps across the
-   emblem only (masked to the logo's own alpha), and a breathing glow.
-   Only opacity/transform animate, so it stays smooth on phones. */
-.hero-logo-wrap {
-  position: relative;
-  width: min(760px, 100%);
-  margin-top: 6px;
-  isolation: isolate;
+/* Text wordmark in the hero (it replaced the emblem image). */
+.hero-wordmark {
+  margin: 6px 0 0;
+  font-family: var(--heading);
+  font-size: clamp(48px, 10vw, 132px);
+  font-weight: 650;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  white-space: nowrap;
+  color: #edeeeb;
 }
-.hero-logo-wrap .hero-logo {
-  display: block;
-  width: 100%;
-  margin: 0;
-}
-.hero-logo-glow {
-  position: absolute;
-  inset: 12% 8%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(255, 186, 48, 0.32), rgba(255, 186, 48, 0) 72%);
-  filter: blur(18px);
-  opacity: 0.55;
-  pointer-events: none;
-}
-.hero-logo-shine {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  -webkit-mask: var(--logo-mask) center / 100% 100% no-repeat;
-  mask: var(--logo-mask) center / 100% 100% no-repeat;
-}
-.hero-logo-shine::before {
-  content: "";
-  position: absolute;
-  top: -10%;
-  bottom: -10%;
-  left: -50%;
-  width: 38%;
-  background: linear-gradient(
-    100deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 244, 205, 0.35) 30%,
-    rgba(255, 255, 255, 0.95) 50%,
-    rgba(255, 244, 205, 0.35) 70%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  mix-blend-mode: screen;
-  transform: translateX(0) skewX(-12deg);
-  opacity: 0;
+.hero-wordmark small {
+  margin-left: 0.12em;
+  font-size: 0.24em;
+  letter-spacing: 0;
+  vertical-align: top;
+  color: var(--lime);
 }
 /* Hidden only while the loader may cover the page; without the loader
    script there's no class and everything shows at once. */
 html.hn-loading .presenter-logo,
 html.hn-loading .hero-presenter p,
-html.hn-loading .hero-logo-wrap .hero-logo,
-html.hn-loading .hero-logo-glow {
+html.hn-loading .hero-wordmark {
   opacity: 0;
 }
 @media (prefers-reduced-motion: no-preference) {
   html.hn-loaded .presenter-logo,
-  html.hn-loaded .hero-presenter p {
+  html.hn-loaded .hero-presenter p,
+  html.hn-loaded .hero-wordmark {
     animation: hn-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   html.hn-loaded .hero-presenter p {
     animation-delay: 0.12s;
   }
-  html.hn-loaded .hero-logo-wrap .hero-logo {
-    animation: hn-logo-in 1.1s cubic-bezier(0.16, 0.84, 0.24, 1) 0.25s both;
-  }
-  html.hn-loaded .hero-logo-glow {
-    animation:
-      hn-glow-in 1.4s ease-out 0.4s both,
-      hn-glow 4.8s ease-in-out 1.8s infinite alternate;
-  }
-  html.hn-loaded .hero-logo-shine::before {
-    /* First sweep right after the entrance, then every 5.5 s. */
-    animation: hn-shine 5.5s cubic-bezier(0.45, 0, 0.25, 1) 1.2s infinite;
+  html.hn-loaded .hero-wordmark {
+    animation-delay: 0.25s;
   }
 }
 @keyframes hn-rise {
@@ -3333,57 +3277,66 @@ html.hn-loading .hero-logo-glow {
     transform: none;
   }
 }
-@keyframes hn-logo-in {
-  0% {
-    opacity: 0;
-    transform: translateY(18px) scale(0.94);
-    filter: blur(10px) brightness(1.5);
-  }
-  60% {
-    opacity: 1;
-    filter: blur(0) brightness(1.15);
-  }
-  100% {
-    opacity: 1;
-    transform: none;
-    filter: none;
+
+/* "Revealed on the spot" cards (no published challenge library). */
+.onspot-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+.onspot-grid .domain-card p {
+  max-width: none;
+}
+@media (max-width: 760px) {
+  .onspot-grid {
+    grid-template-columns: 1fr;
   }
 }
-@keyframes hn-glow-in {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
+
+/* Tablets (iPad portrait etc.): two columns are too tight here and the
+   terminal ran off the right edge into the heading, so stack them. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
   }
-  to {
-    opacity: 0.55;
-    transform: none;
+  .hero-copy {
+    padding-bottom: 10px;
+  }
+  .hero-visual {
+    margin-right: 0;
+    justify-content: center;
+  }
+  .terminal-scene {
+    width: 100%;
+    min-height: 0;
+    margin-left: 0;
+    padding: 28px 0 8px;
+  }
+  .hero-terminal {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  /* The form was squeezed into a half-width column; give it the full width. */
+  .register-layout {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+  .register-mark {
+    display: none;
   }
 }
-@keyframes hn-glow {
-  from {
-    opacity: 0.45;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 0.85;
-    transform: scale(1.04);
+/* Small phones: keep the announcement bar to one line. */
+@media (max-width: 380px) {
+  .announcement-divider,
+  .announcement-divider + span {
+    display: none;
   }
 }
-@keyframes hn-shine {
-  0% {
-    opacity: 0;
-    transform: translateX(0) skewX(-12deg);
-  }
-  6% {
-    opacity: 1;
-  }
-  32% {
-    opacity: 1;
-    transform: translateX(420%) skewX(-12deg);
-  }
-  36%,
-  100% {
-    opacity: 0;
-    transform: translateX(420%) skewX(-12deg);
+/* Line breaks meant only for wide screens. */
+@media (max-width: 640px) {
+  .desktop-break {
+    display: none;
   }
 }

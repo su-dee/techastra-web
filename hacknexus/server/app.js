@@ -21,9 +21,6 @@ import {
   validateMembers,
 } from "./members.js";
 
-const { problems } = JSON.parse(
-  readFileSync(new URL("../src/content.json", import.meta.url)),
-);
 // Builders per squad - every new registration has 2 or 3 (organisers, 3 Oct 2026).
 export const SQUAD_SIZES = [2, 3];
 const cookieName = "hn_session";
@@ -341,17 +338,14 @@ export function createApp(
     const {
       teamName,
       email,
-      domain,
       squadSize,
-      problemId,
       abstract = "",
       conductAccepted,
     } = req.body;
     const team =
       typeof teamName === "string" ? teamName.trim().replace(/\s+/g, " ") : "";
-    const chosenProblem = problems.find((p) => p.id === problemId);
-    const selectedDomain =
-      domain === "" || domain == null ? chosenProblem?.domain || null : domain;
+    // Problem statements and tracks are given on the spot, so registration
+    // no longer records a domain or challenge (older squads keep theirs).
     const leadEmail = typeof email === "string" ? email.trim() : "";
     // Report the first problem specifically so the lead knows what to fix.
     const problem = (() => {
@@ -362,22 +356,12 @@ export function createApp(
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail)
       )
         return "Enter a complete lead email address, such as lead@university.edu.";
-      if (
-        selectedDomain !== null &&
-        !["HN-AI", "HN-CS", "HN-FT", "HN-X"].includes(selectedDomain)
-      )
-        return "Choose a target domain from the list.";
       // The database still allows 2-4, so squads registered before the
       // change stay valid.
       if (!SQUAD_SIZES.includes(Number(squadSize)))
         return "Squads must have 2 or 3 builders.";
       if (typeof abstract !== "string" || abstract.length > 3000)
         return "Your big idea must be at most 3,000 characters.";
-      if (
-        problemId &&
-        (!chosenProblem || chosenProblem.domain !== selectedDomain)
-      )
-        return "The selected challenge doesn’t belong to the selected domain. Pick the challenge again.";
       if (conductAccepted !== true)
         return "Agree to the Code of Conduct to register.";
       return null;
@@ -410,9 +394,9 @@ export function createApp(
           req.user.id,
           team,
           leadEmail.toLowerCase(),
-          selectedDomain,
+          null,
           Number(squadSize),
-          problemId || null,
+          null,
           abstract.trim(),
           true,
           ...rows.params,
@@ -429,10 +413,6 @@ export function createApp(
           teamName: registration.team_name,
           registrationId: registration.id,
           squadSize: registration.squad_size,
-          domain: registration.domain,
-          challenge: chosenProblem
-            ? `${chosenProblem.id}: ${chosenProblem.title}`
-            : null,
           fee: paymentConfig.fee,
           members: registration.members,
           paymentUrl: `${siteUrl}/payment`,

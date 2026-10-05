@@ -80,7 +80,7 @@ test("optional domain is saved as NULL and team names cannot be reused by anothe
   );
 });
 
-test("a selected challenge supplies its domain when the optional domain is blank", async () => {
+test("registration ignores a domain or challenge: both are given on the spot", async () => {
   const owner = await post(
     "/api/auth/signup",
     { username: "challenge_owner", password: "challenge owner pass" },
@@ -93,19 +93,14 @@ test("a selected challenge supplies its domain when the optional domain is blank
       teamName: "Challenge Squad",
       email: "challenge@example.invalid",
       squadSize: 3,
-      domain: "",
+      domain: "HN-X",
       problemId: "HN-X-02",
       conductAccepted: true,
     },
     ownerCookie,
   ).expect(201);
-  assert.equal(result.body.registration.domain, "HN-X");
-  await assert.rejects(
-    db.query("UPDATE registrations SET domain=NULL WHERE id=$1", [
-      result.body.registration.id,
-    ]),
-    { code: "23514" },
-  );
+  assert.equal(result.body.registration.domain, null);
+  assert.equal(result.body.registration.problem_id, null);
 });
 
 test("mobile normalization rejects arbitrary text and consistently normalizes formatting", () => {
@@ -179,19 +174,11 @@ test("session returns only the signed-in user and private responses cannot be ca
   assert.equal(res.body.user.id, userId);
   assert.equal(res.headers["cache-control"], "no-store");
 });
-test("registration rejects domain/challenge mismatch and missing agreement", async () => {
-  const body = {
+test("registration rejects a missing code of conduct agreement", async () => {
+  await post("/api/registrations", {
     teamName: "Nexus Test Squad",
     email: "test@example.com",
-    domain: "HN-AI",
     squadSize: 3,
-    problemId: "HN-CS-01",
-    conductAccepted: true,
-  };
-  await post("/api/registrations", body).expect(400);
-  await post("/api/registrations", {
-    ...body,
-    problemId: "HN-AI-01",
     conductAccepted: false,
   }).expect(400);
 });
@@ -199,9 +186,7 @@ test("registration persists all fields and is available after reload", async () 
   const res = await post("/api/registrations", {
     teamName: "Nexus Test Squad",
     email: "test@example.com",
-    domain: "HN-AI",
     squadSize: 3,
-    problemId: "HN-AI-01",
     abstract: "A grounded campus assistant",
     conductAccepted: true,
   }).expect(201);
@@ -215,7 +200,6 @@ test("registration persists all fields and is available after reload", async () 
   await post("/api/registrations", {
     teamName: "Another Team",
     email: "test@example.com",
-    domain: "HN-AI",
     squadSize: 3,
     conductAccepted: true,
   }).expect(409);

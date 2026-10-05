@@ -22,14 +22,11 @@ test("hashed scripts, styles, and fonts use immutable browser caching", async ()
     assert.match(response.headers["cache-control"], /immutable/);
   }
 });
-test("every challenge has complete brief content and a unique identifier", async () => {
+test("problem statements are revealed on the spot, not published", async () => {
   const { problems, faqs } = JSON.parse(
     await readFile(new URL("../src/content.json", import.meta.url)),
   );
-  assert.equal(problems.length, 15);
-  assert.equal(faqs.length, 6);
-  assert.equal(new Set(problems.map((p) => p.id)).size, 15);
-  for (const p of problems)
-    for (const field of ["problem", "challenge", "deliverable", "stretch"])
-      assert.ok(p[field].length > 20);
+  assert.equal(problems.length, 0);
+  assert.equal(faqs.length, 7);
+  assert.ok(faqs.some((f) => /on the spot/.test(f.a)));
 });

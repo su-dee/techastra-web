@@ -1,5 +1,3 @@
-import hackNexusLogo from "./assets/hacknexus-logo.webp";
-import hackNexusLogoSmall from "./assets/hacknexus-logo-sm.webp";
 import techastraLogo from "./assets/techastra-logo.webp";
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -8,12 +6,9 @@ import {
   ArrowRight,
   ArrowDown,
   Plus,
-  Minus,
   X,
   Menu,
-  Cpu,
   ShieldCheck,
-  ChartNoAxesCombined,
   Network,
   Check,
   Eye,
@@ -22,6 +17,7 @@ import {
   LogOut,
   Zap,
   Layers,
+  Lock,
   Pencil,
 } from "lucide-react";
 import content from "./content.json";
@@ -39,42 +35,16 @@ const PassPage = lazy(() =>
   import("./Payment.jsx").then((m) => ({ default: m.PassPage })),
 );
 
-const domains = [
-  {
-    id: "HN-AI",
-    name: "AI & Machine Learning",
-    short: "AI & ML",
-    icon: Cpu,
-    desc: "Build intelligence that makes a difference.",
-  },
-  {
-    id: "HN-CS",
-    name: "Cybersecurity & Web3",
-    short: "Cybersecurity & Web3",
-    icon: ShieldCheck,
-    desc: "Redefine trust. Protect what matters.",
-  },
-  {
-    id: "HN-FT",
-    name: "Financial Technology",
-    short: "FinTech",
-    icon: ChartNoAxesCombined,
-    desc: "Create a more accessible financial future.",
-  },
-  {
-    id: "HN-X",
-    name: "Cross-Domain Innovation",
-    short: "Cross-Domain",
-    icon: Network,
-    desc: "Connect disciplines. Solve bigger problems.",
-  },
-];
-const domainName = (id) =>
-  domains.find((d) => d.id === id)?.short || id || "Undecided";
 function Brand() {
   return (
-    <a className="brand" href={to("/")} aria-label="HACK_NEXUS home">
-      <img className="brand-logo" src={hackNexusLogoSmall} alt="HACK_NEXUS" width="480" height="160" />
+    <a className="brand" href={to("/")} aria-label="Hack Nexus home">
+      <span className="brand-symbol">
+        N<span>↗</span>
+      </span>
+      <span>
+        HACK<span className="brand-underscore">_</span>NEXUS
+        <small>1.0 / CSE INNOVATION ALLIANCE</small>
+      </span>
     </a>
   );
 }
@@ -224,7 +194,7 @@ function HeroTerminal() {
     const transcript = [
       "$ hacknexus --initialize",
       "> loading build systems ........ OK",
-      "> four domains / fifteen challenges",
+      "> problem statements ...... ON SPOT",
       "> challenge window ............ OPEN",
       "> ₹18,000 prize money .......... SET",
       "> assembling the next generation",
@@ -268,7 +238,7 @@ function HeroTerminal() {
       <div
         className="hero-terminal"
         role="img"
-        aria-label="Animated HACK NEXUS terminal: 4 domains, 15 challenges, ₹18,000 prize pool, October 8 2026."
+        aria-label="Animated HACK NEXUS terminal: problem statements revealed on the spot, ₹18,000 prize pool, October 8 2026."
       >
         <div className="terminal-chrome">
           <span className="terminal-lights" aria-hidden="true">
@@ -436,7 +406,7 @@ function Header({ user, registration, onLogout }) {
           >
             {[
               ["About", "about"],
-              ["Domains", "domains"],
+              ["Challenge", "challenge"],
               ["Timeline", "timeline"],
               ["Prizes", "prizes"],
               ["FAQs", "faq"],
@@ -493,154 +463,35 @@ function SectionHead({ number, kicker, title, accent, description }) {
     </div>
   );
 }
-function ChallengeDialog({ problem, onClose, onChoose }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    ref.current.showModal();
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
+// Problem statements and tracks are revealed at the venue, not before.
+function Challenges() {
   return (
-    <dialog
-      ref={ref}
-      onCancel={onClose}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="challenge-dialog"
-      aria-labelledby="challenge-title"
-    >
-      <div className="dialog-top">
-        <span className="mono">
-          {problem.id} / {domainName(problem.domain)}
-        </span>
-        <button
-          className="icon-button"
-          onClick={onClose}
-          aria-label="Close challenge"
-        >
-          <X />
-        </button>
-      </div>
-      <h2 id="challenge-title">{problem.title}</h2>
-      {[
-        ["The problem", problem.problem],
-        ["Your challenge", problem.challenge],
-        ["Core deliverable", problem.deliverable],
-        ["Stretch goals", problem.stretch],
-      ].map(([title, text]) => (
-        <div className="challenge-detail" key={title}>
-          <h3>{title}</h3>
-          <p>{text}</p>
-        </div>
-      ))}
-      <button className="button primary" onClick={() => onChoose(problem)}>
-        Build this challenge <ArrowUpRight size={18} />
-      </button>
-    </dialog>
-  );
-}
-function Challenges({ onChoose }) {
-  const [filter, setFilter] = useState("all"),
-    [selected, setSelected] = useState(null),
-    [expanded, setExpanded] = useState(false);
-  const matching = content.problems.filter(
-    (p) => filter === "all" || p.domain === filter,
-  );
-  const visible = expanded ? matching : matching.slice(0, 6);
-  return (
-    <section className="section challenges" id="domains">
+    <section className="section challenges" id="challenge">
       <div className="container">
         <SectionHead
           number="02"
-          kicker="CHOOSE YOUR FRONTIER"
-          title="Big challenges."
-          accent="Bigger possibilities."
-          description="Four domains. Fifteen real-world problems. One chance to build something that matters."
+          kicker="THE CHALLENGE"
+          title="Revealed on the spot."
+          accent="Come ready for anything."
+          description="Problem statements and tracks will be given on the spot, when the sprint begins on October 8."
         />
-        <div className="domain-grid">
-          {domains.map((d, i) => (
-            <button
-              className={`domain-card ${filter === d.id ? "selected" : ""}`}
-              key={d.id}
-              onClick={() => {
-                setFilter(d.id);
-                setExpanded(false);
-              }}
-            >
+        <div className="domain-grid onspot-grid">
+          {[
+            [Lock, "Problem statements", "Announced at the venue as the 10-hour sprint starts. Nobody sees them before the event."],
+            [Network, "Tracks", "The tracks are revealed with the problem statements. Pick yours on the day."],
+            [Zap, "Be ready", "Bring your laptops, your stack and your squad. Ideas, design and code all happen in the room."],
+          ].map(([Icon, title, text], i) => (
+            <div className="domain-card" key={title}>
               <span className="domain-top">
-                <d.icon size={24} />
-                <span>
-                  0{i + 1} <ArrowUpRight size={16} />
-                </span>
+                <Icon size={24} />
+                <span>0{i + 1}</span>
               </span>
-              <h3>{d.name}</h3>
-              <p>{d.desc}</p>
-              <span className="domain-count">
-                {(() => {
-                  const n = content.problems.filter((p) => p.domain === d.id).length;
-                  return `${n} ${n === 1 ? "CHALLENGE" : "CHALLENGES"}`;
-                })()}
-              </span>
-            </button>
+              <h3>{title}</h3>
+              <p>{text}</p>
+              <span className="domain-count">ON SPOT</span>
+            </div>
           ))}
         </div>
-        <div className="challenge-toolbar">
-          <span className="mono">THE CHALLENGE LIBRARY</span>
-          <div className="filter-tabs" aria-label="Filter challenges">
-            {[{ id: "all", short: "All challenges" }, ...domains].map((d) => (
-              <button
-                key={d.id}
-                aria-pressed={filter === d.id}
-                className={filter === d.id ? "active" : ""}
-                onClick={() => {
-                  setFilter(d.id);
-                  setExpanded(false);
-                }}
-              >
-                {d.short}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="challenge-grid">
-          {visible.map((p) => (
-            <button
-              className="challenge-card"
-              key={p.id}
-              onClick={() => setSelected(p)}
-            >
-              <span className="mono">{p.id}</span>
-              <ArrowUpRight className="challenge-arrow" size={20} />
-              <h3>{p.title}</h3>
-              <p>{p.challenge}</p>
-              <span className="challenge-tag">{domainName(p.domain)}</span>
-            </button>
-          ))}
-        </div>
-        {matching.length > 6 && (
-          <button
-            className="text-button show-challenges"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded
-              ? "Show fewer challenges"
-              : `Explore all ${matching.length} challenges`}
-            {expanded ? <Minus size={16} /> : <Plus size={16} />}
-          </button>
-        )}
-        {selected && (
-          <ChallengeDialog
-            problem={selected}
-            onClose={() => setSelected(null)}
-            onChoose={(p) => {
-              setSelected(null);
-              onChoose(p);
-            }}
-          />
-        )}
       </div>
     </section>
   );
@@ -1032,19 +883,13 @@ function Registration({
   user,
   registration,
   setRegistration,
-  selected,
-  setSelected,
   authError,
 }) {
   const [loading, setLoading] = useState(false),
     [checking, setChecking] = useState(false),
     [error, setError] = useState(""),
-    [domain, setDomain] = useState(""),
     // Squads have 2 or 3 builders (the server enforces it too).
     [squadSize, setSquadSize] = useState(3);
-  useEffect(() => {
-    if (selected) setDomain(selected.domain);
-  }, [selected]);
   useEffect(() => {
     let active = true;
     if (user) {
@@ -1092,16 +937,13 @@ function Registration({
         body: {
           teamName: form.get("teamName"),
           email: form.get("email"),
-          domain,
           squadSize,
-          problemId: form.get("problemId"),
           abstract: form.get("abstract"),
           conductAccepted: form.get("conduct") === "on",
           members: membersFromForm(form, squadSize),
         },
       });
       setRegistration(data.registration);
-      setSelected(null);
       // Registration is saved; payment completes the squad's place.
       location.href = to("/payment");
     } catch (e) {
@@ -1151,20 +993,12 @@ function Registration({
               <p>Your squad is registered for HACK_NEXUS 1.0.</p>
               <dl>
                 <div>
-                  <dt>Domain</dt>
-                  <dd>{domainName(registration.domain)}</dd>
-                </div>
-                <div>
                   <dt>Squad size</dt>
                   <dd>{registration.squad_size} builders</dd>
                 </div>
                 <div>
                   <dt>Lead email</dt>
                   <dd>{registration.lead_email}</dd>
-                </div>
-                <div>
-                  <dt>Challenge</dt>
-                  <dd>{registration.problem_id || "Not chosen yet"}</dd>
                 </div>
                 <div>
                   <dt>Status</dt>
@@ -1240,24 +1074,6 @@ function Registration({
                   </label>
                   <div className="form-row">
                     <label>
-                      Target domain <span className="optional">OPTIONAL</span>
-                      <select
-                        name="domain"
-                        value={domain}
-                        onChange={(e) => {
-                          setDomain(e.target.value);
-                          setSelected(null);
-                        }}
-                      >
-                        <option value="">I’ll decide later</option>
-                        {domains.map((d) => (
-                          <option value={d.id} key={d.id}>
-                            {d.short}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
                       Squad size
                       <select
                         name="squadSize"
@@ -1279,30 +1095,6 @@ function Registration({
                       <MemberFields key={i} index={i} />
                     ))}
                   </div>
-                  <label>
-                    Choose a challenge{" "}
-                    <span className="optional">OPTIONAL</span>
-                    <select
-                      name="problemId"
-                      value={selected?.id || ""}
-                      onChange={(e) =>
-                        setSelected(
-                          content.problems.find(
-                            (p) => p.id === e.target.value,
-                          ) || null,
-                        )
-                      }
-                    >
-                      <option value="">I’ll decide later</option>
-                      {content.problems
-                        .filter((p) => !domain || p.domain === domain)
-                        .map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.id} / {p.title}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
                   <label>
                     Your big idea <span className="optional">OPTIONAL</span>
                     <textarea
@@ -1402,7 +1194,7 @@ function Footer() {
           <div>
             <span className="mono">EXPLORE</span>
             <a href={to("/#about")}>The alliance</a>
-            <a href={to("/#domains")}>Challenge library</a>
+            <a href={to("/#challenge")}>The challenge</a>
             <a href={to("/#timeline")}>Mission timeline</a>
             <a href={to("/#prizes")}>Prizes & recognition</a>
           </div>
@@ -1460,39 +1252,10 @@ function Footer() {
     </footer>
   );
 }
-const pendingChallengeKey = "hn:pending-challenge";
-function readPendingChallenge() {
-  try {
-    const id = sessionStorage.getItem(pendingChallengeKey);
-    return content.problems.find((p) => p.id === id) || null;
-  } catch {
-    return null;
-  }
-}
 function Home({ user, authError, onLogout }) {
   const motionRef = useScrollMotion();
-  const [selected, setSelectedState] = useState(readPendingChallenge);
   // Shared by the header button and the registration section.
   const [registration, setRegistration] = useState(null);
-  function setSelected(p) {
-    setSelectedState(p);
-    try {
-      if (p) sessionStorage.setItem(pendingChallengeKey, p.id);
-      else sessionStorage.removeItem(pendingChallengeKey);
-    } catch {}
-  }
-  function choose(p) {
-    setSelected(p);
-    setTimeout(
-      () =>
-        document.getElementById("register").scrollIntoView({
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? "instant"
-            : "smooth",
-        }),
-      30,
-    );
-  }
   return (
     <div ref={motionRef} className="home-page">
       <div className="scroll-progress" aria-hidden="true" />
@@ -1518,19 +1281,9 @@ function Home({ user, authError, onLogout }) {
                 Department of Computer Science and Engineering &amp; Department
                 of Cyber Security presents
               </p>
-              {/* Animated emblem: entrance, a shine masked to the logo's own
-                  shape, and a soft glow behind it (all off for reduced motion). */}
-              <div className="hero-logo-wrap" style={{ "--logo-mask": `url(${hackNexusLogo})` }}>
-                <span className="hero-logo-glow" aria-hidden="true" />
-                <img
-                  className="hero-logo"
-                  src={hackNexusLogo}
-                  alt="HACK_NEXUS"
-                  width="1400"
-                  height="467"
-                  fetchpriority="high"
-                />
-                <span className="hero-logo-shine" aria-hidden="true" />
+              <div className="hero-wordmark">
+                HACK<span className="brand-underscore">_</span>NEXUS
+                <small>1.0</small>
               </div>
             </div>
             <div className="hero-content">
@@ -1557,8 +1310,8 @@ function Home({ user, authError, onLogout }) {
                   <a className="button primary" href="#register">
                     Enter the arena <ArrowUpRight size={19} />
                   </a>
-                  <a className="button ghost" href="#domains">
-                    Explore challenges <ArrowRight size={18} />
+                  <a className="button ghost" href="#challenge">
+                    The challenge <ArrowRight size={18} />
                   </a>
                 </div>
               </div>
@@ -1584,7 +1337,7 @@ function Home({ user, authError, onLogout }) {
           <div className="container">
             {[
               ["10", "HOURS TO BUILD"],
-              ["04", "TACTICAL DOMAINS"],
+              ["2–3", "BUILDERS PER SQUAD"],
               ["₹18K", "TOTAL PRIZE MONEY"],
             ].map(([v, l]) => (
               <div key={l}>
@@ -1637,7 +1390,7 @@ function Home({ user, authError, onLogout }) {
             </div>
           </div>
         </section>
-        <Challenges onChoose={choose} />
+        <Challenges />
         <Timeline />
         <Prizes />
         <FAQ />
@@ -1645,8 +1398,6 @@ function Home({ user, authError, onLogout }) {
           user={user}
           registration={registration}
           setRegistration={setRegistration}
-          selected={selected}
-          setSelected={setSelected}
           authError={authError}
         />
       </main>
@@ -2009,8 +1760,7 @@ function Policies() {
             Account creation stores your username, a salted hash of your
             password, and a creation timestamp. Registration stores your team
             name, lead email, squad size, each member’s name, email, mobile
-            number and college, selected domain and challenge, optional project
-            abstract, and code of conduct acceptance. Payment submission stores
+            number and college, optional project abstract, and code of conduct acceptance. Payment submission stores
             the UPI transaction ID and the payment screenshot you upload; only
             organizers can view them, to verify the ₹1,000 team fee. Verified
             squads receive an ID card whose QR code is used to record attendance

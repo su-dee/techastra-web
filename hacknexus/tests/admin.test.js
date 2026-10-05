@@ -48,7 +48,6 @@ before(async () => {
       teamName: "=Formula Squad",
       email: "lead@example.invalid",
       squadSize: 3,
-      problemId: "HN-AI-01",
       conductAccepted: true,
     },
     participantCookie,
@@ -107,8 +106,9 @@ test("stats summarize registrations", async () => {
   assert.equal(res.body.totals.registrations, 1);
   assert.equal(res.body.totals.participants, 3);
   assert.equal(res.body.totals.users, 1);
-  assert.deepEqual(res.body.byDomain, [{ domain: "HN-AI", count: 1 }]);
-  assert.deepEqual(res.body.byProblem, [{ problem_id: "HN-AI-01", count: 1 }]);
+  // Problem statements are given on the spot, so nobody picks one at signup.
+  assert.deepEqual(res.body.byDomain, [{ domain: null, count: 1 }]);
+  assert.deepEqual(res.body.byProblem, []);
 });
 
 test("registrations can be searched, filtered, and paged", async () => {

@@ -20,12 +20,6 @@ const escapeHtml = (text) =>
   );
 const rupees = (amount) =>
   `₹${Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-const DOMAINS = {
-  "HN-AI": "AI & ML",
-  "HN-CS": "Cybersecurity & Web3",
-  "HN-FT": "FinTech",
-  "HN-X": "Cross-Domain",
-};
 // A "Squad members" section, or nothing when no member details were given.
 const membersSection = (members = []) =>
   members.length
@@ -161,8 +155,6 @@ export function createMailer(env = settings) {
       teamName,
       registrationId,
       squadSize,
-      domain,
-      challenge,
       fee,
       members,
       paymentUrl,
@@ -182,8 +174,7 @@ export function createMailer(env = settings) {
           ["Squad name", teamName],
           ["Registration reference", reference(registrationId)],
           ["Squad size", `${squadSize} members`],
-          ["Domain", DOMAINS[domain] || "To be decided at the keynote"],
-          ["Challenge", challenge || "To be decided at the keynote"],
+          ["Problem statement & track", "Given on the spot at the event"],
           ["Registration fee", `${rupees(fee)} per team`],
           ["Status", "Registered, payment pending"],
         ],

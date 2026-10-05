@@ -163,8 +163,6 @@ test("registering emails the squad lead a link to complete payment", () => {
     teamName: "Paying Squad",
     registrationId: registrations[0].registrationId,
     squadSize: 3,
-    domain: null,
-    challenge: null,
     fee: 1000,
     // The lead's email always comes from the registration's lead email.
     members: savedMembers,
@@ -670,7 +668,6 @@ test("registration errors name the field that needs fixing", async () => {
     [{ squadSize: 5 }, /2 or 3 builders/],
     [{ squadSize: 1 }, /2 or 3 builders/],
     [{ squadSize: 4 }, /2 or 3 builders/],
-    [{ domain: "HN-AI", problemId: "HN-CS-01" }, /doesn’t belong/],
     [{ conductAccepted: false }, /Code of Conduct/],
   ];
   for (const [change, message] of cases) {
