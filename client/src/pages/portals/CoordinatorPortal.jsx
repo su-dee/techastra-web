@@ -51,6 +51,9 @@ export default function CoordinatorPortal() {
   const [winners, setWinners] = useState({ 1: "", 2: "", 3: "" });
   const [locked, setLocked] = useState(false);
   const [existingResults, setExistingResults] = useState([]);
+  const [confirmLock, setConfirmLock] = useState(false); // "are you sure?" before results are locked
+  const [agreed, setAgreed] = useState(false);
+  const [locking, setLocking] = useState(false);
 
   useEffect(() => {
     api.get("/api/events").then((data) => setEvents(data.events || []));
@@ -121,19 +124,29 @@ export default function CoordinatorPortal() {
     }
   };
 
-  const submitWinners = async () => {
-    const payload = Object.entries(winners)
+  const winnerPayload = () =>
+    Object.entries(winners)
       .filter(([, regId]) => regId)
       .map(([position, registrationId]) => ({ position: Number(position), registrationId }));
 
-    if (payload.length === 0) return toast.error("Select at least one winner");
+  // Locking can't be undone by the coordinator, so ask first.
+  const askToLock = () => {
+    if (winnerPayload().length === 0) return toast.error("Select at least one winner");
+    setAgreed(false);
+    setConfirmLock(true);
+  };
 
+  const submitWinners = async () => {
+    setLocking(true);
     try {
-      await api.post("/api/results", { eventId, winners: payload });
+      await api.post("/api/results", { eventId, winners: winnerPayload() });
       toast.success("Results locked!");
+      setConfirmLock(false);
       loadResults();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setLocking(false);
     }
   };
 
@@ -314,7 +327,7 @@ export default function CoordinatorPortal() {
                       </Select>
                     </div>
                   ))}
-                  <Button className="w-full" onClick={submitWinners}>Lock Results</Button>
+                  <Button className="w-full" onClick={askToLock}>Lock Results</Button>
                 </div>
               )}
             </Card>
@@ -324,6 +337,34 @@ export default function CoordinatorPortal() {
 
       <Modal open={scannerOpen} onClose={() => setScannerOpen(false)} title="Scan Participant QR" fullScreen>
         <QRScanner active={scannerOpen} onScan={handleScan} />
+      </Modal>
+
+      <Modal open={confirmLock} onClose={() => !locking && setConfirmLock(false)} title="Lock these results?" size="sm">
+        <div className="space-y-5">
+          <ul className="space-y-2">
+            {winnerPayload().map(({ position, registrationId }) => (
+              <li key={position} className="bg-shade/5 rounded-lg px-4 py-2 text-sm">
+                {position === 1 ? "🥇 1st" : position === 2 ? "🥈 2nd" : "🥉 3rd"} —{" "}
+                {rosterById.has(registrationId) ? teamTitle(rosterById.get(registrationId)) : registrationId}
+              </li>
+            ))}
+          </ul>
+          <p className="text-sm text-warning">
+            Once locked, you can't change the results. Only a Master Admin can override them, and certificates are issued from them.
+          </p>
+          <label className="flex items-start gap-3 text-sm cursor-pointer">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#c9a24a]" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+            <span>I have checked the winners and agree to lock these results.</span>
+          </label>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setConfirmLock(false)} disabled={locking}>
+              Cancel
+            </Button>
+            <Button className="flex-1" onClick={submitWinners} disabled={!agreed || locking}>
+              {locking ? "Locking…" : "Agree & lock"}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       <ParticipantDetailsModal registrationId={detailsId} onClose={() => setDetailsId(null)} highlightEventId={eventId} />
