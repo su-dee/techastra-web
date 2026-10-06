@@ -291,11 +291,9 @@ export default function CoordinatorPortal() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge status={r.present ? "present" : "absent"} />
-                      {r.present && (
-                        <Button size="sm" variant="outline" onClick={() => setDetailsId(r.registrationId)}>
-                          Details
-                        </Button>
-                      )}
+                      <Button size="sm" variant="outline" onClick={() => setDetailsId(r.registrationId)}>
+                        Details
+                      </Button>
                       {!r.present && (
                         <Button
                           size="sm"

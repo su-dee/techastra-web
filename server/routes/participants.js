@@ -7,7 +7,8 @@ const { participantDetails } = require("../utils/participantDetails");
 /**
  * Participants' full details for staff (utils/participantDetails.js):
  *  - registration team and master admin: anyone who has registered, any status;
- *  - event coordinators: only participants checked in at their own event.
+ *  - event coordinators: only APPROVED participants of their own event
+ *    (checked in or not, so they can prepare before the event).
  */
 const router = express.Router();
 router.use(requireAuth);
@@ -39,12 +40,15 @@ router.get("/:registrationId", requireRole("registration_team", "master_admin", 
   try {
     const registrationId = String(req.params.registrationId || "");
     if (req.user.role === "coordinator") {
-      const checkedIn = req.user.assignedEventId
-        ? await prisma.attendance.findUnique({ where: { registrationId_eventId: { registrationId, eventId: req.user.assignedEventId } } })
+      const own = req.user.assignedEventId
+        ? await prisma.registration.findFirst({
+            where: { id: registrationId, status: "approved", eventIds: { has: req.user.assignedEventId } },
+            select: { id: true },
+          })
         : null;
-      if (!checkedIn) {
-        logSuspiciousActivity(req, "coordinator_details_not_checked_in", { coordinatorId: req.user.id, registrationId });
-        return res.status(403).json({ error: "You can see details only for participants checked in at your event" });
+      if (!own) {
+        logSuspiciousActivity(req, "coordinator_details_not_own_event", { coordinatorId: req.user.id, registrationId });
+        return res.status(403).json({ error: "You can see details only for approved participants of your event" });
       }
     }
     const details = await participantDetails({ id: registrationId });
