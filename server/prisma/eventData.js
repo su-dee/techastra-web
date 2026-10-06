@@ -19,7 +19,8 @@
  * FEES (organisers, 29 Sep 2026): ₹100 PER PERSON for every senior event
  * (a team pays members × ₹100); Hack Nexus is a flat ₹1000 per team and
  * Pen Your Vision a flat ₹250 per team of up to 4
- * (feePerTeam); combo passes are ₹200 per person. Junior events are free -
+ * (feePerTeam); Plot Twist is ₹50 per person (6 Oct 2026); combo passes are
+ * ₹200 per person. Junior events are free -
  * registration only collects the student's details. Senior team sizes follow
  * the organisers' combo sheet.
  *   Venue is left null (shows "TBA") wherever it isn't known.
@@ -387,7 +388,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Dr. B. Raja", "8754363789"), staff("Mr. Mohan", "9445761267"), student("Ms. Harshni Jayaraj", "7042613974"), student("Ms. Subitsha S", "8838741574"), student("Ms. Jayasri K", "6369719262")],
-    when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 50, team: [3, 3],
+    when: [1, [9, 30], [11, 30]], fee: 50, maxSeats: 50, team: [3, 3],
   },
   {
     name: "Team Feud",
