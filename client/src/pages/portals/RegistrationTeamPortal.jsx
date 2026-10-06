@@ -84,6 +84,9 @@ export default function RegistrationTeamPortal() {
     }
   };
   const [search, setSearch] = useState("");
+  // Narrow the list to team or individual events, or to one event.
+  const [kind, setKind] = useState("all"); // all | team | individual
+  const [eventFilter, setEventFilter] = useState("");
   const [loading, setLoading] = useState(true);
   // The registration an action is in flight for - its buttons lock so a
   // double tap can't approve/reject twice (or send two emails).
@@ -145,17 +148,46 @@ export default function RegistrationTeamPortal() {
   const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   // Selected events that need an option picked (e.g. the Clash Squad game).
   const cashChoiceEvents = cashRegistration.eventIds.map((id) => eventsById.get(id)).filter((e) => e?.choices?.length);
+  const isTeamEvent = (e) => !!e && (e.isTeamEvent || e.maxTeamSize > 1);
+  // Type and event filters come first, so the status tab counts follow them.
+  // A registration with both kinds of event shows under both types.
+  const narrowed = useMemo(
+    () =>
+      registrations.filter((r) => {
+        if (eventFilter && !r.eventIds.includes(eventFilter)) return false;
+        if (kind === "all") return true;
+        const regEvents = r.eventIds.map((id) => eventsById.get(id)).filter(Boolean);
+        return regEvents.some((e) => (kind === "team" ? isTeamEvent(e) : !isTeamEvent(e)));
+      }),
+    [registrations, eventsById, eventFilter, kind]
+  );
+  // Registrations per event, for the event dropdown.
+  const perEvent = useMemo(() => {
+    const m = new Map();
+    registrations.forEach((r) => r.eventIds.forEach((id) => m.set(id, (m.get(id) || 0) + 1)));
+    return m;
+  }, [registrations]);
+  // Events registered on this desk (not Junior: imported by the Junior
+  // coordinator; not Hack Nexus: its own website), team or individual as chosen.
+  const eventOptions = useMemo(
+    () =>
+      events
+        .filter((e) => levelOf(e) !== "junior" && !e.externalRegistration)
+        .filter((e) => kind === "all" || (kind === "team" ? isTeamEvent(e) : !isTeamEvent(e)))
+        .sort((a, b) => (a.category === b.category ? a.name.localeCompare(b.name) : a.category === "technical" ? -1 : 1)),
+    [events, kind]
+  );
   const counts = useMemo(() => {
-    const c = { pending: 0, approved: 0, rejected: 0, onspot: 0, all: registrations.length };
-    registrations.forEach((r) => {
+    const c = { pending: 0, approved: 0, rejected: 0, onspot: 0, all: narrowed.length };
+    narrowed.forEach((r) => {
       c[r.status] = (c[r.status] || 0) + 1;
       if (r.onSpot) c.onspot++;
     });
     return c;
-  }, [registrations]);
+  }, [narrowed]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return registrations.filter(
+    return narrowed.filter(
       (r) =>
         (filter === "all" || (filter === "onspot" ? r.onSpot : r.status === filter)) &&
         (!q ||
@@ -163,7 +195,8 @@ export default function RegistrationTeamPortal() {
             .filter(Boolean)
             .some((v) => String(v).toLowerCase().includes(q)))
     );
-  }, [registrations, filter, search]);
+  }, [narrowed, filter, search]);
+  const narrowing = kind !== "all" || !!eventFilter;
 
   const isJunior = (r) => r.eventIds.some((id) => eventsById.get(id) && levelOf(eventsById.get(id)) === "junior");
 
@@ -463,10 +496,78 @@ export default function RegistrationTeamPortal() {
           </div>
         </div>
 
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 -mt-2 mb-5">
+          <div className="flex rounded-lg border border-shade/15 p-0.5 self-start" role="group" aria-label="Event type">
+            {[
+              ["all", "All events"],
+              ["team", "Team events"],
+              ["individual", "Individual events"],
+            ].map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={kind === v}
+                onClick={() => {
+                  setKind(v);
+                  // Keep the chosen event only if it's still of this type.
+                  const ev = eventsById.get(eventFilter);
+                  if (ev && v !== "all" && (v === "team") !== isTeamEvent(ev)) setEventFilter("");
+                }}
+                className={`px-3 py-1.5 rounded-md text-sm ${kind === v ? "bg-shade/10 text-heading font-medium" : "text-[color:var(--c-b4ab9b)] hover:text-heading"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Select
+            value={eventFilter}
+            onChange={(e) => setEventFilter(e.target.value)}
+            aria-label="Filter by event"
+            className="sm:max-w-xs"
+          >
+            <option value="">{kind === "team" ? "All team events" : kind === "individual" ? "All individual events" : "Every event"}</option>
+            {["technical", "non_technical"].map((cat) => {
+              const list = eventOptions.filter((e) => (e.category === "non_technical" ? "non_technical" : "technical") === cat);
+              return list.length ? (
+                <optgroup key={cat} label={cat === "technical" ? "Technical" : "Non-technical"}>
+                  {list.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name} ({perEvent.get(e.id) || 0})
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null;
+            })}
+          </Select>
+          {narrowing && (
+            <button
+              type="button"
+              className="text-sm text-amber-light hover:underline self-start sm:self-auto"
+              onClick={() => {
+                setKind("all");
+                setEventFilter("");
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+          {narrowing && (
+            <span className="text-sm text-shade/60 sm:ml-auto" role="status">
+              {narrowed.length} of {registrations.length} registrations
+            </span>
+          )}
+        </div>
+
         {loading && registrations.length === 0 ? (
           <p className="text-shade/50">Loading...</p>
         ) : shown.length === 0 ? (
-          <p className="text-shade/50">{(() => { const kind = filter === "all" ? "" : filter === "onspot" ? "on-spot " : `${filter} `; return search ? `No ${kind}registrations match "${search}".` : `No ${kind}registrations.`; })()}</p>
+          <p className="text-shade/50">
+            {(() => {
+              const status = filter === "all" ? "" : filter === "onspot" ? "on-spot " : `${filter} `;
+              const scope = eventFilter ? ` for ${eventsById.get(eventFilter)?.name}` : kind !== "all" ? ` with ${kind} events` : "";
+              return search ? `No ${status}registrations${scope} match "${search}".` : `No ${status}registrations${scope}.`;
+            })()}
+          </p>
         ) : view === "table" ? (
           <ParticipantsTable
             rows={shown}
