@@ -16,6 +16,11 @@ const TABS = ["scan", "roster", "checked in", "winners"];
 // Junior Techastra: students are imported by the Junior coordinator - no ID
 // cards or check-in, and winners are picked from everyone imported.
 const JUNIOR_TABS = ["students", "winners"];
+// Check-in (scan or manual) opens an hour before the event starts; the
+// server enforces the same window (server/utils/checkinWindow.js).
+const CHECKIN_OPENS_BEFORE_MS = 60 * 60 * 1000;
+const istTime = (d) =>
+  d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 // One scan of the lead's ID card checks in everyone on the registration.
 // The team's members (lead first) from a roster row or scan details.
@@ -54,6 +59,12 @@ export default function CoordinatorPortal() {
   const [winners, setWinners] = useState({ 1: "", 2: "", 3: "" });
   const [locked, setLocked] = useState(false);
   const [existingResults, setExistingResults] = useState([]);
+  // Re-checked every 30 s so the scanner unlocks on its own when check-in opens.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
   const [confirmLock, setConfirmLock] = useState(false); // "are you sure?" before results are locked
   const [agreed, setAgreed] = useState(false);
   const [locking, setLocking] = useState(false);
@@ -163,6 +174,9 @@ export default function CoordinatorPortal() {
   const tabs = isJunior ? JUNIOR_TABS : TABS;
   const present = roster.filter((r) => r.present);
   const candidates = isJunior ? roster : present;
+  const checkinOpensAt = selectedEvent ? new Date(new Date(selectedEvent.startTime).getTime() - CHECKIN_OPENS_BEFORE_MS) : null;
+  const checkinLocked = !!checkinOpensAt && !isJunior && now < checkinOpensAt;
+  const lockedNote = checkinOpensAt ? `Check-in opens at ${istTime(checkinOpensAt)}, an hour before the event.` : "";
   const rosterById = new Map(roster.map((r) => [r.registrationId, r]));
   const people = (rows) => rows.reduce((n, r) => n + membersOf(r).length, 0);
   const hasTeams = roster.some((r) => membersOf(r).length > 1);
@@ -241,8 +255,16 @@ export default function CoordinatorPortal() {
 
           {tab === "scan" && !isJunior && (
             <Card>
-              <p className="text-shade/60 mb-4">Scan a participant's QR code to check them in.</p>
-              <Button onClick={() => setScannerOpen(true)}>Open Scanner</Button>
+              {checkinLocked ? (
+                <p role="status" className="mb-4 rounded-lg border border-warning/35 bg-warning/10 px-4 py-3 text-warning font-medium">
+                  🔒 {lockedNote}
+                </p>
+              ) : (
+                <p className="text-shade/60 mb-4">Scan a participant's QR code to check them in.</p>
+              )}
+              <Button onClick={() => setScannerOpen(true)} disabled={checkinLocked}>
+                Open Scanner
+              </Button>
               {hasTeams && <p className="text-sm text-shade/60 mt-3">Scanning any team member’s ID card checks in the whole team.</p>}
               <p className="text-sm text-shade/50 mt-4">{presentSummary}</p>
             </Card>
@@ -254,6 +276,7 @@ export default function CoordinatorPortal() {
                 <h3 className="font-semibold">Present / Absent List</h3>
                 <span className="text-sm text-shade/50">{presentSummary}</span>
               </div>
+              {checkinLocked && <p className="text-sm text-warning mb-3">🔒 {lockedNote}</p>}
               <div className="space-y-2">
                 {roster.map((r) => (
                   <div key={r.registrationId} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-shade/5 rounded-lg px-4 py-3">
@@ -274,7 +297,13 @@ export default function CoordinatorPortal() {
                         </Button>
                       )}
                       {!r.present && (
-                        <Button size="sm" variant="outline" onClick={() => manualCheckIn(r.registrationId)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => manualCheckIn(r.registrationId)}
+                          disabled={checkinLocked}
+                          title={checkinLocked ? lockedNote : undefined}
+                        >
                           Check In
                         </Button>
                       )}

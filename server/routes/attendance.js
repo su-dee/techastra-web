@@ -6,6 +6,7 @@ const { logSuspiciousActivity, logSecurityEvent } = require("../middleware/secur
 const { validateQRScanData } = require("../middleware/inputValidation");
 const { participantDetails } = require("../utils/participantDetails");
 const { juniorRoster } = require("../utils/juniorRoster");
+const { checkinNotOpen } = require("../utils/checkinWindow");
 
 // Junior Techastra has no ID cards, so its events have no check-in.
 async function isJuniorEvent(eventId) {
@@ -13,6 +14,17 @@ async function isJuniorEvent(eventId) {
   return event?.level === "junior";
 }
 const NO_JUNIOR_CHECKIN = "Junior Techastra events don't use check-in.";
+
+/**
+ * Why this event can't take check-ins right now (junior event, or before the
+ * check-in window opens an hour before it starts), or null when it can.
+ */
+async function checkinBlocked(eventId) {
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { name: true, level: true, startTime: true } });
+  if (!event) return null; // the lookups below report a missing registration/event
+  if (event.level === "junior") return NO_JUNIOR_CHECKIN;
+  return checkinNotOpen(event);
+}
 
 const router = express.Router();
 
@@ -58,7 +70,8 @@ router.post(
       });
       return res.status(403).json({ error: "You are not assigned to this event" });
     }
-    if (await isJuniorEvent(eventId)) return res.status(409).json({ error: NO_JUNIOR_CHECKIN });
+    const blocked = await checkinBlocked(eventId);
+    if (blocked) return res.status(409).json({ error: blocked, outcome: "not_open" });
 
     const registration = await prisma.registration.findUnique({
       where: { registrationCode },
@@ -189,7 +202,8 @@ router.post("/manual", requireAuth, requireRole("coordinator", "master_admin"), 
     if (req.user.role === "coordinator" && req.user.assignedEventId !== eventId) {
       return res.status(403).json({ error: "You are not assigned to this event" });
     }
-    if (await isJuniorEvent(eventId)) return res.status(409).json({ error: NO_JUNIOR_CHECKIN });
+    const blocked = await checkinBlocked(eventId);
+    if (blocked) return res.status(409).json({ error: blocked, outcome: "not_open" });
 
     // Same checks as a QR scan: the registration must exist, be approved and
     // include this event.
