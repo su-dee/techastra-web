@@ -122,6 +122,9 @@ model Registration {
   // guardian consented.
   consentAt         DateTime?
   guardianConsent   Boolean  @default(false)
+  // "Mr" | "Ms" for each person on the certificates, by their place in the
+  // team list (0 = the registrant). Picked on the dashboard; "" = not set.
+  memberTitles      String[] @default([])
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

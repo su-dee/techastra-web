@@ -15,20 +15,74 @@ const { siteUrl } = require("./registrationEmails");
  *   never emailed or shown to participants.
  */
 
+const TITLES = ["Mr", "Ms"];
+
 /** The people in a registration: its team list (lead first), or just the registrant. */
 function peopleOf(registration) {
+  const titles = registration.memberTitles || [];
+  const title = (index) => (TITLES.includes(titles[index]) ? titles[index] : "");
   const team = Array.isArray(registration.teamMembers) ? registration.teamMembers.filter((m) => m && m.name) : [];
   if (team.length) {
     return team.map((m, index) => ({
       index,
       name: m.name,
+      title: title(index),
       regNo: m.regNo || "",
       department: m.department || (index === 0 ? registration.user?.department : "") || "",
       yearOfStudy: m.yearOfStudy || (index === 0 ? registration.user?.yearOfStudy : "") || "",
     }));
   }
   const u = registration.user || {};
-  return [{ index: 0, name: u.name, regNo: u.registerNo || "", department: u.department || "", yearOfStudy: u.yearOfStudy || "" }];
+  return [{ index: 0, name: u.name, title: title(0), regNo: u.registerNo || "", department: u.department || "", yearOfStudy: u.yearOfStudy || "" }];
+}
+
+/**
+ * The name line as printed on a certificate, in two parts: the department
+ * and year of study are printed smaller. "Mr. Arjun Ramesh, " + "CSE-3rd Year".
+ */
+function certificateNameParts(person) {
+  const name = `${person.title ? `${person.title}. ` : ""}${person.name}`;
+  const study = [person.department, person.yearOfStudy].map((x) => String(x || "").trim()).filter(Boolean).join("-");
+  return study ? { main: `${name}, `, study } : { main: name, study: "" };
+}
+
+/** The name line as one string: "Mr. Arjun Ramesh, CSE-3rd Year". */
+function certificateName(person) {
+  const { main, study } = certificateNameParts(person);
+  return main + study;
+}
+
+function renderCertificate({ certificateCode, registration, event, type, person, position }) {
+  return generateCertificatePdf({
+    certificateCode,
+    participantName: certificateNameParts(person).main,
+    participantStudy: certificateNameParts(person).study,
+    eventName: event.name,
+    type,
+    position,
+    collegeName: registration.collegeName || registration.user?.collegeName,
+  });
+}
+
+/**
+ * Makes the registration's existing certificates again (same codes) after
+ * the names on them change, e.g. Mr/Ms picked on the dashboard.
+ */
+async function refreshCertificates(registration) {
+  const certs = await prisma.certificate.findMany({ where: { registrationId: registration.id } });
+  if (!certs.length) return 0;
+  const people = new Map(peopleOf(registration).map((p) => [p.index, p]));
+  const events = new Map((await prisma.event.findMany({ where: { id: { in: certs.map((c) => c.eventId) } } })).map((e) => [e.id, e]));
+  const results = await prisma.result.findMany({ where: { registrationId: registration.id } });
+  for (const c of certs) {
+    const person = people.get(c.memberIndex);
+    const event = events.get(c.eventId);
+    if (!person || !event) continue;
+    const position = results.find((r) => r.eventId === c.eventId)?.position ?? null;
+    const pdfUrl = await renderCertificate({ certificateCode: c.certificateCode, registration, event, type: c.type, person, position });
+    if (pdfUrl !== c.pdfUrl) await prisma.certificate.update({ where: { id: c.id }, data: { pdfUrl } });
+  }
+  return certs.length;
 }
 
 /** The person's certificate for this event and type, made (code + PDF) if it doesn't exist yet. */
@@ -37,14 +91,7 @@ async function ensureCertificate({ registration, event, type, person, position =
   const existing = await prisma.certificate.findUnique({ where: { registrationId_eventId_type_memberIndex: key } });
   if (existing) return existing;
   const certificateCode = await generateCertificateCode(prisma);
-  const pdfUrl = await generateCertificatePdf({
-    certificateCode,
-    participantName: person.name,
-    eventName: event.name,
-    type,
-    position,
-    collegeName: registration.collegeName || registration.user?.collegeName,
-  });
+  const pdfUrl = await renderCertificate({ certificateCode, registration, event, type, person, position });
   try {
     return await prisma.certificate.create({ data: { ...key, certificateCode, recipientName: person.name, pdfUrl } });
   } catch (err) {
@@ -211,4 +258,4 @@ async function winnerCertificates(event) {
   return out;
 }
 
-module.exports = { peopleOf, ensureCertificate, participationPlan, sendParticipationCertificates, sendStatus, winnerCertificates };
+module.exports = { TITLES, peopleOf, certificateName, certificateNameParts, refreshCertificates, ensureCertificate, participationPlan, sendParticipationCertificates, sendStatus, winnerCertificates };

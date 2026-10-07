@@ -219,17 +219,37 @@ function WinnersSection() {
     <section aria-labelledby="winners-title">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-1">
         <h2 id="winners-title" className="font-heading font-semibold text-xl">Winners (valedictory)</h2>
-        <Button
-          size="sm"
-          onClick={() => run("all-xlsx", "/api/certificates/winners.xlsx", "Techastra26-Winners.xlsx")}
-          disabled={busy === "all-xlsx" || !events?.length}
-        >
-          {busy === "all-xlsx" ? "Preparing…" : "Download winners list (Excel)"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            onClick={() => run("all-pdf", "/api/certificates/winners.pdf", "Techastra26-Winners-All-Events.pdf")}
+            disabled={busy === "all-pdf" || !events?.length}
+          >
+            {busy === "all-pdf" ? "Preparing…" : "Download all certificates (PDF)"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => run("list-pdf", "/api/certificates/winners-list.pdf", "Techastra26-Winners-List.pdf")}
+            disabled={busy === "list-pdf" || !events?.length}
+          >
+            {busy === "list-pdf" ? "Preparing…" : "Download winners list (PDF)"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => run("all-xlsx", "/api/certificates/winners.xlsx", "Techastra26-Winners.xlsx")}
+            disabled={busy === "all-xlsx" || !events?.length}
+          >
+            {busy === "all-xlsx" ? "Preparing…" : "Download winners list (Excel)"}
+          </Button>
+        </div>
       </div>
       <p className="text-sm text-shade/60 mb-4 max-w-3xl">
         Winner certificates are only for printing here - winners don’t receive them online, and they don’t get a
-        participation certificate for the event they won. The Excel has a sheet per event plus an “All winners” sheet.
+        participation certificate for the event they won. “All certificates” has every event’s winner certificates (one
+        page per person, events in day and time order, then 1st, 2nd, 3rd). The winners list (PDF or Excel) has each
+        winner’s place, team, name, department, year and college; the Excel also has a sheet per event.
       </p>
 
       {!events ? (

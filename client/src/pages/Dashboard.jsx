@@ -12,6 +12,7 @@ import { idCardVerifyUrl } from "../lib/idCard";
 import { CATEGORY_LABEL, categoryOf } from "../lib/site";
 import ApprovalHero from "../components/dashboard/ApprovalHero";
 import TeamCard from "../components/dashboard/TeamCard";
+import CertificateNames from "../components/dashboard/CertificateNames";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { usePanels } from "../context/PanelContext";
@@ -532,6 +533,12 @@ export default function Dashboard() {
 
             {(approved || certificates.length > 0) && (
               <Section id="certificates" title="Certificates" className="order-3 lg:order-none">
+                {approved && (
+                  <CertificateNames
+                    registration={registration}
+                    onSaved={(memberTitles) => setRegistration((r) => ({ ...r, memberTitles }))}
+                  />
+                )}
                 {certificates.length === 0 ? (
                   <p className="text-sm text-dim">
                     Participation certificates are sent at the end of each event day - they’ll appear here and in your email.

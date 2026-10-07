@@ -5,8 +5,12 @@ const { PDFDocument } = require("pdf-lib");
 const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { certificateFile } = require("../utils/certificatePdf");
+const { winnersListPdf } = require("../utils/winnersListPdf");
 const {
+  TITLES,
   peopleOf,
+  certificateName,
+  refreshCertificates,
   participationPlan,
   sendParticipationCertificates,
   sendStatus,
@@ -171,6 +175,52 @@ router.get("/winners.xlsx", ...committee, async (req, res) => {
 });
 
 /**
+ * GET /api/certificates/winners-list.pdf - the winners list for the
+ * valedictory as a printable PDF: every event, with place, team, name (with
+ * Mr/Ms), department, year and college of each person.
+ */
+router.get("/winners-list.pdf", ...committee, async (req, res) => {
+  try {
+    const list = await winnersByEvent();
+    const pdf = await winnersListPdf(list, { nameOf: (person) => `${person.title ? `${person.title}. ` : ""}${person.name}` });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Techastra26-Winners-List.pdf"');
+    res.send(pdf);
+  } catch (err) {
+    console.error("Winners list PDF error:", err);
+    res.status(500).json({ error: "Failed to make the winners list" });
+  }
+});
+
+/** One PDF of the given certificates, one page each, in order. */
+async function mergeCertificates(certs) {
+  const merged = await PDFDocument.create();
+  for (const c of certs) {
+    const doc = await PDFDocument.load(fs.readFileSync(certificateFile(c.pdfUrl)));
+    for (const page of await merged.copyPages(doc, doc.getPageIndices())) merged.addPage(page);
+  }
+  return Buffer.from(await merged.save());
+}
+
+/**
+ * GET /api/certificates/winners.pdf - every event's winner certificates in
+ * one PDF (events by day and time, then 1st, 2nd, 3rd), to print them all.
+ */
+router.get("/winners.pdf", ...committee, async (req, res) => {
+  try {
+    const certs = [];
+    for (const { event } of await winnersByEvent()) certs.push(...(await winnerCertificates(event)));
+    if (!certs.length) return res.status(409).json({ error: "No event has locked results yet." });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Techastra26-Winners-All-Events.pdf"');
+    res.send(await mergeCertificates(certs));
+  } catch (err) {
+    console.error("All winner certificates error:", err);
+    res.status(500).json({ error: "Failed to make the winner certificates" });
+  }
+});
+
+/**
  * GET /api/certificates/winners/:eventId/pdf - every winner certificate of
  * the event (one page per person), to print the hard copies.
  */
@@ -181,14 +231,9 @@ router.get("/winners/:eventId/pdf", ...committee, async (req, res) => {
     if (event.level === "junior") return res.status(409).json({ error: "Junior Techastra events have no certificates." });
     const certs = await winnerCertificates(event);
     if (!certs.length) return res.status(409).json({ error: "This event's results aren't locked yet." });
-    const merged = await PDFDocument.create();
-    for (const c of certs) {
-      const doc = await PDFDocument.load(fs.readFileSync(certificateFile(c.pdfUrl)));
-      for (const page of await merged.copyPages(doc, doc.getPageIndices())) merged.addPage(page);
-    }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="Techastra26-Winners-${event.name.replace(/[^A-Za-z0-9]+/g, "-")}.pdf"`);
-    res.send(Buffer.from(await merged.save()));
+    res.send(await mergeCertificates(certs));
   } catch (err) {
     console.error("Winner certificates error:", err);
     res.status(500).json({ error: "Failed to make the winner certificates" });
@@ -223,6 +268,31 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
   } catch (err) {
     console.error("My certificates error:", err);
     res.status(500).json({ error: "Failed to load certificates" });
+  }
+});
+
+/**
+ * PUT /api/certificates/mine/titles { titles: ["Mr", "Ms", ...] } - Mr or Ms
+ * for each person on the registration's certificates, in team-list order
+ * (the lead sets the whole team's). Certificates already made are made again
+ * with the new names.
+ */
+router.put("/mine/titles", requireAuth, requireRole("participant"), async (req, res) => {
+  try {
+    const registration = await prisma.registration.findUnique({ where: { userId: req.user.id }, include: { user: true } });
+    if (!registration) return res.status(404).json({ error: "No registration found for this account" });
+    if (registration.status === "rejected") return res.status(409).json({ error: "This registration was rejected." });
+    const titles = req.body?.titles;
+    const count = peopleOf(registration).length;
+    if (!Array.isArray(titles) || titles.length !== count || titles.some((t) => !TITLES.includes(t))) {
+      return res.status(400).json({ error: count > 1 ? "Choose Mr or Ms for every team member." : "Choose Mr or Ms." });
+    }
+    const updated = await prisma.registration.update({ where: { id: registration.id }, data: { memberTitles: titles }, include: { user: true } });
+    await refreshCertificates(updated);
+    res.json({ memberTitles: updated.memberTitles, names: peopleOf(updated).map(certificateName) });
+  } catch (err) {
+    console.error("Certificate titles error:", err);
+    res.status(500).json({ error: "Couldn't save Mr / Ms" });
   }
 });
 
