@@ -14,8 +14,16 @@ function currentSymposiumYear() {
 
 async function generateRegistrationCode(prisma) {
   const year = currentSymposiumYear();
-  const count = await prisma.registration.count();
-  return `SYM${year}-${pad(count + 1, 4)}`;
+  // Next after the highest code, not the row count: deleted registrations
+  // would otherwise make the next code one that's already taken.
+  const prefix = `SYM${year}-`;
+  const last = await prisma.registration.findFirst({
+    where: { registrationCode: { startsWith: prefix } },
+    orderBy: { registrationCode: "desc" },
+    select: { registrationCode: true },
+  });
+  const n = last ? parseInt(last.registrationCode.slice(prefix.length), 10) || 0 : 0;
+  return `${prefix}${pad(n + 1, 4)}`;
 }
 
 // Certificate codes are random, not sequential: the public verify page shows
