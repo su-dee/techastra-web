@@ -226,7 +226,7 @@ const EVENTS = [
     track: "Design Wars",
     category: "technical",
     day: 1,
-    venue: "Network Lab",
+    venue: "Internet Lab",
     description: "A two-round creative challenge where teams transform a given brand brief into a complete visual identity.",
     rules: {
       rounds: [
@@ -249,7 +249,7 @@ const EVENTS = [
     track: "Crime-Solving Investigation",
     category: "technical",
     day: 1,
-    venue: "C Programming Lab & VOC 414",
+    venue: "CAD Lab & VOC 414",
     description:
       "A crime-solving game where players work as a team to uncover what really happened using clues, digital information, and physical evidence.",
     rules: {
@@ -332,7 +332,7 @@ const EVENTS = [
     track: "Visual Puzzle Hunt",
     category: "non_technical",
     day: 1,
-    venue: "CAD Lab & VOC 201",
+    venue: "Hi-Tech Lab & Cisco Network Lab",
     description: "Look closer. Spot what is concealed in every frame and piece together the picture before anyone else does.",
     coordinators: [staff("Ms. G. Priyanka", "8072937403"), student("Mr. Dhevanathan R", "6383429727"), student("Mr. Sham Prasad G", "9043595650"), student("Mr. Rithvick Sree", "7397449938")],
     when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [3, 3],
@@ -451,7 +451,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Dr. M. Sujitha", "9176628345"), student("Mr. Hamdan Arabi AQ", "8122276912"), student("Mr. Lakshmikanth R", "6374786721"), student("Mr. Praveen T", "6307563967")],
-    when: [2, [9, 30], [14, 0]], fee: 50, maxSeats: 80, team: [1, 1],
+    when: [2, [9, 30], [12, 0]], fee: 50, maxSeats: 80, team: [1, 1],
     // Two tracks: each participant picks one game when registering.
     choiceLabel: "Game", choices: ["Free Fire Max", "BGMI"],
   },
