@@ -27,8 +27,8 @@ Turn on **Let's Encrypt SSL** for the domain. The QR camera scanners need https.
 - **Project:** `kmosxyeszbvdpmtxasxk`, region **Mumbai (ap-south-1)**, pooler host `aws-0-ap-south-1.pooler.supabase.com`.
 - **Turn off the Data API:** Project Settings → Data API. Neither app uses it, and it could otherwise publish tables.
 - **Get the connection strings:** Connect → ORMs → Prisma. Use the **pooler** addresses (`…pooler.supabase.com`), not `db.<ref>.supabase.co`, which is IPv6-only on the free plan.
-  - **Transaction pooler (port 6543):** the Techastra app uses this at runtime, with `?pgbouncer=true&connection_limit=5&sslmode=require` on the end.
-  - **Session pooler (port 5432):** use it with `?sslmode=require` for Techastra migrations and for the Hack Nexus app.
+  - **Session pooler (port 5432):** use it for everything: the Techastra app at runtime with `?connection_limit=5&sslmode=require`, migrations, and the Hack Nexus app with `?sslmode=require`.
+  - **Don't use the transaction pooler (port 6543)** for the app. With `pgbouncer=true`, Prisma needs about five round trips per query instead of one. The Plesk server is in Kansas City (US) and Supabase in Mumbai, about 250 ms per round trip, so every query took over a second (measured 7 Oct 2026: about 4x slower than the session pooler).
 - **Password:** letters and digits only. `@ : / ? # %` break the address; if the password has them, reset it (Project Settings → Database).
 - **Free-plan limits:** the project **pauses after about a week without activity**; restore it from the dashboard (the paid plan never pauses). Up to 60 pooled connections, so keep the pools small (below).
 - **Check the Plesk server can reach Supabase (SSH):** `cd ~/techweb/server && DATABASE_URL='<session URL>' npm run db:check`. If it hangs, ask the host to allow outgoing connections to ports 5432/6543.
@@ -52,7 +52,7 @@ The same checkout serves both Node apps. To update later: `cd ~/techweb && git p
 | Variable | Value |
 |---|---|
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | the Supabase **transaction pooler** URL (port 6543) with `?pgbouncer=true&connection_limit=5&sslmode=require` |
+| `DATABASE_URL` | the Supabase **session pooler** URL (port 5432) with `?connection_limit=5&sslmode=require` (not the 6543 transaction pooler, see 2.1) |
 | `JWT_SECRET` | 48+ random characters: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"` |
 | `CLIENT_ORIGIN` | `https://techastra.drmgrdu.ac.in` |
 | `TRUST_PROXY` | `1` |
@@ -76,7 +76,7 @@ npm ci                     # includes the prisma CLI (a dev dependency) needed b
 # migrations need the session pooler (port 5432); everything else uses the app's URL
 DATABASE_URL='<Supabase session URL, port 5432>' npx prisma migrate deploy
 npx prisma generate
-export DATABASE_URL='<Supabase transaction URL, port 6543, ?pgbouncer=true&connection_limit=5&sslmode=require>'
+export DATABASE_URL='<Supabase session URL, port 5432, ?connection_limit=5&sslmode=require>'
 NODE_ENV=production npm run seed        # events and combos (no demo data)
 # staff logins: first upload server/staff-credentials.csv from the laptop (SFTP / Plesk
 # File Manager) into ~/techweb/server/ so everyone keeps the same password, then:

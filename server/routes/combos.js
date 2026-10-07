@@ -13,33 +13,22 @@ router.get("/", async (req, res) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // Fetch full event details for each combo
-    const combosWithEvents = await Promise.all(
-      combos.map(async (combo) => {
-        const events = await prisma.event.findMany({
-          where: { id: { in: combo.eventIds } },
-          select: {
-            id: true,
-            name: true,
-            category: true,
-            startTime: true,
-            endTime: true,
-            fee: true,
-            day: true,
-          },
-        });
+    // Every combo's events in one query (not one per combo).
+    const events = await prisma.event.findMany({
+      where: { id: { in: [...new Set(combos.flatMap((c) => c.eventIds))] } },
+      select: { id: true, name: true, category: true, startTime: true, endTime: true, fee: true, day: true, maxSeats: true, seatsTaken: true },
+    });
+    const byId = new Map(events.map((e) => [e.id, e]));
 
-        return {
-          ...combo,
-          events,
-          // Calculate seats available as minimum across all included events
-          availableSeats: Math.min(
-            combo.availableSeats,
-            ...events.map((e) => e.maxSeats - e.seatsTaken || 0)
-          ),
-        };
-      })
-    );
+    const combosWithEvents = combos.map((combo) => {
+      const included = combo.eventIds.map((id) => byId.get(id)).filter(Boolean);
+      return {
+        ...combo,
+        events: included.map(({ maxSeats, seatsTaken, ...e }) => e),
+        // Seats available: the fewest left across the included events
+        availableSeats: Math.min(combo.availableSeats, ...included.map((e) => Math.max(e.maxSeats - e.seatsTaken, 0))),
+      };
+    });
 
     res.json({ combos: combosWithEvents });
   } catch (error) {

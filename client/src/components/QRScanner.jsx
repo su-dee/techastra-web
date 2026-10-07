@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 
 const SCANNER_ELEMENT_ID = "qr-scanner-viewport";
 
@@ -26,16 +26,28 @@ function describeCameraError(err) {
   return `Could not access the camera (${name || "unknown error"}). Check permissions, close other apps using the camera, and try again — or use manual search instead.`;
 }
 
+// After a scan: the same code is ignored for a while (it's still in front of
+// the camera), a different code is accepted almost at once (the next person).
+const SAME_CODE_PAUSE_MS = 2500;
+const NEXT_CODE_PAUSE_MS = 600;
+
 /**
  * Full-screen-modal-friendly camera QR scanner.
- * Calls onScan(decodedText) once per successful decode, then briefly pauses
- * to avoid firing the same scan multiple times in a row.
+ * Calls onScan(decodedText) once per successful decode. Tuned for speed:
+ * the phone's built-in QR detector where the browser has one (Chrome on
+ * Android), QR codes only, 25 frames a second, an HD auto-focus camera and
+ * a scan area of 70% of the view.
  */
 export default function QRScanner({ onScan, active = true }) {
   const scannerRef = useRef(null);
   const [error, setError] = useState(null);
   const [ready, setReady] = useState(false);
-  const pausedRef = useRef(false);
+  const [box, setBox] = useState(224);
+  const lastScanRef = useRef({ text: "", at: 0 });
+  // The latest onScan, so a new handler from the page (a re-render) never
+  // restarts the camera.
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
 
   useEffect(() => {
     if (!active) return;
@@ -52,7 +64,13 @@ export default function QRScanner({ onScan, active = true }) {
 
     let cancelled = false;
     let cleanedUp = false;
-    const html5QrCode = new Html5Qrcode(SCANNER_ELEMENT_ID);
+    // A freshly opened scanner accepts any code at once, even the last one.
+    lastScanRef.current = { text: "", at: 0 };
+    const html5QrCode = new Html5Qrcode(SCANNER_ELEMENT_ID, {
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      verbose: false,
+    });
     scannerRef.current = html5QrCode;
 
     // Hard fallback: directly stop every MediaStream track feeding any
@@ -83,14 +101,35 @@ export default function QRScanner({ onScan, active = true }) {
       });
     };
 
-    const config = { fps: 10, qrbox: { width: 240, height: 240 } };
+    const config = {
+      fps: 25,
+      // A square 70% of the shorter side: the QR needn't be lined up exactly.
+      qrbox: (width, height) => {
+        const size = Math.max(160, Math.floor(Math.min(width, height) * 0.7));
+        setBox(size);
+        return { width: size, height: size };
+      },
+      // ID-card QR codes are never mirrored: skip the flipped second pass.
+      disableFlip: true,
+    };
+    // HD with continuous auto-focus, so a small printed QR is sharp at arm's
+    // length. Browsers ignore what the camera can't do.
+    const backCamera = {
+      ...config,
+      videoConstraints: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        advanced: [{ focusMode: "continuous" }],
+      },
+    };
     const onSuccess = (decodedText) => {
-      if (cancelled || pausedRef.current) return;
-      pausedRef.current = true;
-      onScan(decodedText);
-      setTimeout(() => {
-        pausedRef.current = false;
-      }, 2000);
+      if (cancelled) return;
+      const now = Date.now();
+      const last = lastScanRef.current;
+      if (now - last.at < (decodedText === last.text ? SAME_CODE_PAUSE_MS : NEXT_CODE_PAUSE_MS)) return;
+      lastScanRef.current = { text: decodedText, at: now };
+      onScanRef.current(decodedText);
     };
     const onDecodeError = () => {
       // decode errors fire continuously while no QR is in frame - ignore
@@ -104,7 +143,7 @@ export default function QRScanner({ onScan, active = true }) {
     // Settles once the camera is running (or failed to start) - the cleanup
     // waits for it, see below.
     const started = html5QrCode
-      .start({ facingMode: "environment" }, config, onSuccess, onDecodeError)
+      .start({ facingMode: "environment" }, backCamera, onSuccess, onDecodeError)
       .then(() => {
         if (!cancelled) setReady(true);
       })
@@ -146,14 +185,14 @@ export default function QRScanner({ onScan, active = true }) {
         .catch(() => {})
         .finally(forceReleaseCamera);
     };
-  }, [active, onScan]);
+  }, [active]);
 
   return (
     <div className="relative">
       <div id={SCANNER_ELEMENT_ID} className="w-full rounded-xl overflow-hidden bg-black min-h-[280px]" />
       {ready && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="relative w-56 h-56 border-2 border-gold/70 rounded-xl overflow-hidden">
+          <div className="relative border-2 border-gold/70 rounded-xl overflow-hidden" style={{ width: box, height: box }}>
             <div className="absolute left-0 right-0 h-0.5 bg-gold animate-scanline" />
           </div>
         </div>

@@ -113,7 +113,7 @@ export default function CoordinatorPortal() {
 
   // A scan checks the participant in, then shows the outcome with their
   // full details (also when they're already in, in another event, or not
-  // approved). Memoised: the scanner restarts whenever onScan changes.
+  // approved).
   const handleScan = useCallback(
     async (decodedText) => {
       setScannerOpen(false);
