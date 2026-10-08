@@ -32,7 +32,7 @@ function Section({ title, children }) {
  */
 export default function ParticipantDetails({ details, highlightEventId }) {
   if (!details) return null;
-  const { person, team, events, payment, meals, kit } = details;
+  const { person, team, events, payment, kit } = details;
   // Check-in is per registration: the whole team is in once anyone's card is scanned.
   const hereAt = events.find((e) => e.id === highlightEventId)?.checkedInAt;
   return (
@@ -127,13 +127,10 @@ export default function ParticipantDetails({ details, highlightEventId }) {
         </dl>
       </Section>
 
-      <Section title="Kit & food">
+      <Section title="Kit">
         <dl>
           <Row label="Kit">
             {kit ? `${kit.kits} given by ${kit.givenByName} · ${time(kit.givenAt)}` : "Not collected yet"}
-          </Row>
-          <Row label="Food">
-            {meals.length ? meals.map((m) => `${m.mealSession.charAt(0).toUpperCase()}${m.mealSession.slice(1)} (${time(m.collectedAt)})`).join(", ") : "None collected yet"}
           </Row>
         </dl>
       </Section>
