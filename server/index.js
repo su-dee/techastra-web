@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
+const compression = require("compression");
 const path = require("path");
 const { Server } = require("socket.io");
 
@@ -97,6 +98,10 @@ const io = new Server(server, {
 initSocket(io);
 
 app.use(cors({ origin: corsOrigin }));
+// Gzip the API's JSON (the events list is ~48 KB raw, ~10 KB gzipped). The
+// host is far from most visitors, so fewer bytes means fewer round trips.
+// The web server already gzips the static files; PDFs aren't compressible.
+app.use("/api", compression());
 app.use(express.json({ limit: "100kb" }));
 app.use(requestLogger);
 app.use("/api", globalLimiter);
