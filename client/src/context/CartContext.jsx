@@ -52,7 +52,7 @@ export function CartProvider({ children }) {
   const addItem = (event) => {
     if (event.externalRegistration) return { ok: false, reason: `${event.name} has its own registration website.` };
     if (levelOf(event) === "junior") return { ok: false, reason: JUNIOR_REGISTRATION_NOTE };
-    if (registrationClosed(event)) return { ok: false, reason: `Registration for ${event.name} has closed - it has already started.` };
+    if (registrationClosed(event)) return { ok: false, reason: `Registration for ${event.name} has closed for the day.` };
     if (items.some((i) => i.id === event.id)) return { ok: false, reason: "Already in cart" };
     if (activeCombo) {
       return {
@@ -93,7 +93,7 @@ export function CartProvider({ children }) {
     const mismatch = comboEvents.map(levelMismatch).find(Boolean);
     if (mismatch) return { ok: false, reason: mismatch };
     const closed = comboEvents.find(registrationClosed);
-    if (closed) return { ok: false, reason: `${comboPass.name} has closed - ${closed.name} has already started.` };
+    if (closed) return { ok: false, reason: `${comboPass.name} has closed - registration for ${closed.name} has ended.` };
     // Check if any combo event is already in cart
     const alreadyInCart = comboEvents.find((e) => items.some((i) => i.id === e.id));
     if (alreadyInCart) {

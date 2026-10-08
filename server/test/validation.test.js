@@ -119,12 +119,19 @@ test("the same person can't be listed twice in a team", () => {
   assert.ok(validateRegistration({ ...valid, registerNo: "21cs009", teamMembers: leadTwice }).errors.some((e) => /different person/.test(e)));
 });
 
-test("registration closes when an event starts", () => {
-  const now = new Date("2026-10-08T05:00:00Z");
-  const later = { name: "Later", startTime: "2026-10-08T06:00:00Z" };
-  const started = { name: "Started", startTime: "2026-10-08T04:00:00Z" };
-  assert.equal(checkRegistrationOpen([later], now), null);
-  assert.match(checkRegistrationOpen([later, started], now), /Started.*closed/);
+test("registration stays open until the end of the event's day (IST)", () => {
+  const started = { name: "Started", startTime: "2026-10-08T04:00:00Z" }; // 9:30 AM IST, 8 Oct
+  const tomorrow = { name: "Tomorrow", startTime: "2026-10-09T04:00:00Z" };
+  assert.equal(checkRegistrationOpen([started, tomorrow], new Date("2026-10-08T05:00:00Z")), null); // after it started
+  assert.equal(checkRegistrationOpen([started], new Date("2026-10-08T18:29:00Z")), null); // 11:59 PM IST
+  assert.match(checkRegistrationOpen([started, tomorrow], new Date("2026-10-08T18:31:00Z")), /Started.*closed/); // 12:01 AM IST, 9 Oct
+});
+
+test("a pay-later hold lasts until the event starts, or the end of its day if made after", () => {
+  const { holdEndsAt } = require("../utils/payLater");
+  const events = [{ startTime: "2026-10-08T06:30:00Z" }, { startTime: "2026-10-08T04:00:00Z" }];
+  assert.equal(holdEndsAt(events, new Date("2026-10-07T10:00:00Z")).toISOString(), "2026-10-08T04:00:00.000Z");
+  assert.equal(holdEndsAt(events, new Date("2026-10-08T05:00:00Z")).toISOString(), "2026-10-08T18:29:59.999Z");
 });
 
 test("team size of a saved registration", () => {

@@ -177,7 +177,21 @@ export function levelOf(event) {
   return event.level === "junior" ? "junior" : "senior";
 }
 
-/** Online registration for an event closes once it has started (the server checks this too). */
+/** The end (23:59:59 IST) of the symposium day a time falls on. */
+export function endOfDayIST(time) {
+  const ymd = new Date(time).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
+  return new Date(`${ymd}T23:59:59.999+05:30`);
+}
+
+/**
+ * Online registration for an event stays open until the end of its day (IST),
+ * also after it has started (the server checks this too).
+ */
 export function registrationClosed(event) {
-  return !!event?.startTime && new Date(event.startTime) <= new Date();
+  return !!event?.startTime && endOfDayIST(event.startTime) <= new Date();
+}
+
+/** Until when a pay-later seat is held: the first event's start, or the end of its day if that has passed. */
+export function holdEndsAt(firstStart, now = new Date()) {
+  return now >= firstStart ? endOfDayIST(firstStart) : firstStart;
 }

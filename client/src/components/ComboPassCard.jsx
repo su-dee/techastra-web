@@ -10,7 +10,7 @@ import { registrationClosed } from "../lib/site";
  */
 export default function ComboPassCard({ combo, comboEvents, onAddCombo, inCart }) {
   const allEventsAvailable = comboEvents.every((e) => e.maxSeats - e.seatsTaken > 0);
-  // Closes once any of its events has started.
+  // Closes once registration for any of its events has (end of that day).
   const closed = comboEvents.some(registrationClosed);
   const free = combo.comboPrice === 0;
   const savingsPercent = combo.individualPrice > 0 ? Math.round((combo.savings / combo.individualPrice) * 100) : 0;

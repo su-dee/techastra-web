@@ -305,13 +305,22 @@ function registrationTeamSize(registration) {
   return Array.isArray(registration.teamMembers) && registration.teamMembers.length ? registration.teamMembers.length : 1;
 }
 
+/** The end (23:59:59 IST) of the symposium day a time falls on. */
+function endOfDayIST(time) {
+  const ymd = new Date(time).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
+  return new Date(`${ymd}T23:59:59.999+05:30`);
+}
+
 /**
- * Registration closes for an event once it has started. Returns an error
- * message for the first closed event, or null.
+ * Online registration for an event stays open until the end of its day (IST),
+ * also after it has started (organisers, 8 Oct 2026).
  */
+const registrationClosesAt = (event) => endOfDayIST(event.startTime);
+
+/** An error message for the first event whose registration has closed, or null. */
 function checkRegistrationOpen(events, now = new Date()) {
-  const closed = events.find((e) => new Date(e.startTime) <= now);
-  return closed ? `Registration for "${closed.name}" has closed - the event has already started.` : null;
+  const closed = events.find((e) => registrationClosesAt(e) <= now);
+  return closed ? `Registration for "${closed.name}" has closed for the day.` : null;
 }
 
 /**
@@ -348,5 +357,7 @@ module.exports = {
   checkOnSpotSeats,
   registrationTeamSize,
   checkRegistrationOpen,
+  registrationClosesAt,
+  endOfDayIST,
   checkParticipation,
 };

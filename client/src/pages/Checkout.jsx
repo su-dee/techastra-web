@@ -8,7 +8,7 @@ import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
 import { loadDraft, clearDraft } from "../lib/registrationDraft";
 import { QRCodeCanvas } from "qrcode.react";
-import { UPI_ID, upiPayLink, registrationClosed } from "../lib/site";
+import { UPI_ID, upiPayLink, registrationClosed, holdEndsAt } from "../lib/site";
 import { formatFee } from "../components/EventInfo";
 import { computeTotal } from "../lib/pricing";
 import { eventsPath, confirmOnSpot, getOnSpotToken, clearOnSpot } from "../lib/onSpot";
@@ -47,8 +47,8 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [copied, setCopied] = useState(false);
-  // "Pay later": block the seats now, pay before the first event starts
-  // (online from the status page, or cash at the desk).
+  // "Pay later": block the seats now, pay before the hold ends (online from
+  // the status page, or cash at the desk).
   const [payMode, setPayMode] = useState("now"); // "now" | "later"
   // On-spot registration (the desk's QR, lib/onSpot.js): cash at the desk only.
   const [onSpot, setOnSpot] = useState(() => !!getOnSpotToken());
@@ -106,8 +106,8 @@ export default function Checkout() {
   }, []);
 
   // The cart keeps copies of the events from when they were added, so check
-  // the current start times before showing the QR: an event that has started
-  // since can't be registered (the server refuses it too).
+  // the current times before showing the QR: an event whose registration has
+  // closed since can't be registered (the server refuses it too).
   const [startedIds, setStartedIds] = useState(null);
   useEffect(() => {
     api
@@ -130,11 +130,12 @@ export default function Checkout() {
   // Junior events are free: no payment step, the registration just collects
   // the student's details and is confirmed straight away.
   const free = total === 0;
-  // The seat is held until the earliest event in the cart starts (the server
-  // releases it then if it's still unpaid).
+  // The seat is held until the earliest event in the cart starts, or the end
+  // of its day if it has already started (the server releases it then if it's
+  // still unpaid).
   const firstStart = items.length ? new Date(Math.min(...items.map((i) => new Date(i.startTime).getTime()))) : null;
   const holdUntil = firstStart
-    ? firstStart
+    ? holdEndsAt(firstStart)
         .toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
         .replace(/\b(am|pm)\b/, (m) => m.toUpperCase())
     : "";
@@ -292,9 +293,9 @@ export default function Checkout() {
     return (
       <div className="max-w-lg mx-auto px-6 pt-6 pb-14 sm:py-14 text-center">
         <div className="kicker">Registration closed</div>
-        <h1 className="h2">{closedItem.name} has already started</h1>
+        <h1 className="h2">Registration for {closedItem.name} has closed</h1>
         <p className="lead mt-3">
-          Online registration for an event closes when it starts. Remove it from your cart{closedItem.isComboItem ? ` (with ${closedItem.comboName})` : ""} to
+          Online registration for an event closes at the end of its day. Remove it from your cart{closedItem.isComboItem ? ` (with ${closedItem.comboName})` : ""} to
           continue - please don’t pay for it.
         </p>
         <Link to="/cart" className="btn-small inline-block mt-6">Go to your cart</Link>
@@ -354,7 +355,7 @@ export default function Checkout() {
           <p className="text-[15px] text-heading">Pay ₹{total} in cash at the registration desk</p>
           <p className="mt-1 text-[13px] text-dim">
             Your seat is held now. Show your registration code at the desk and pay - you get your ID card once it’s paid.
-            Unpaid seats are released when the event starts ({holdUntil}).
+            Unpaid seats are released at {holdUntil}.
           </p>
         </section>
       )}
@@ -366,7 +367,7 @@ export default function Checkout() {
           <div className="grid gap-3 sm:grid-cols-2">
             {[
               ["now", "Pay now", "Pay by UPI and upload the screenshot. The desk approves it, then you get your ID card."],
-              ["later", "Pay later - block my seat", `Your seat is held until your first event starts (${holdUntil}). Pay online or in cash at the desk before then.`],
+              ["later", "Pay later - block my seat", `Your seat is held until ${holdUntil}. Pay online or in cash at the desk before then.`],
             ].map(([value, title, text]) => (
               <label
                 key={value}
@@ -393,7 +394,7 @@ export default function Checkout() {
             <p role="status" className="mt-4 rounded-[10px] border border-amber/40 bg-amber/10 px-4 py-3 text-[14px] text-text">
               <strong className="font-semibold text-heading">Your registration isn’t complete until you pay.</strong> Your
               ID card with its QR code is issued only after your payment of ₹{total} is approved. Unpaid seats are released
-              when the event starts ({holdUntil}).
+              at {holdUntil}.
             </p>
           )}
         </fieldset>

@@ -211,20 +211,19 @@ export default function Status() {
               <>
                 <div className="mt-4 rounded-[10px] border border-amber/40 bg-amber/10 px-4 py-3 text-sm text-text">
                   <p className="font-semibold text-heading">
-                    Seat blocked until your first event starts
+                    Seat blocked
                     {result.payBy && (
                       <>
-                        {" "}(
+                        {" "}until{" "}
                         {new Date(result.payBy)
                           .toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
                           .replace(/\b(am|pm)\b/, (m) => m.toUpperCase())}
-                        )
                       </>
                     )}
                   </p>
                   <p className="mt-1">
                     Your registration isn’t complete until you pay. Pay online below, or in cash at the registration desk,
-                    before then - an unpaid seat is released when the event starts. Your ID card with its QR code is issued
+                    before then - an unpaid seat is released at that time. Your ID card with its QR code is issued
                     once your payment is approved.
                   </p>
                 </div>

@@ -123,8 +123,8 @@ async function createRegistration(req, res) {
         (levels.has("junior") ? null : checkMemberDetails(value.teamMembers));
       if (detailsError) return reject(400, detailsError);
 
-      // Online registration for an event closes once it has started (the
-      // desk can still add a walk-up on the day).
+      // Online registration for an event closes at the end of its day (the
+      // desk's cash form can always add a walk-up).
       const closedError = checkRegistrationOpen(events);
       if (closedError && !cash) return reject(400, closedError);
 
@@ -360,10 +360,10 @@ router.get("/status", statusLimiter, async (req, res) => {
     }
 
     // Pay later: seats blocked, nothing paid yet - the page offers "Pay now"
-    // and says the seat is held until the first event starts.
+    // and says until when the seat is held.
     const paymentDue = isPaymentDue(registration);
     const payBy = paymentDue
-      ? holdEndsAt(await prisma.event.findMany({ where: { id: { in: registration.eventIds } }, select: { startTime: true } }))
+      ? holdEndsAt(await prisma.event.findMany({ where: { id: { in: registration.eventIds } }, select: { startTime: true } }), registration.createdAt)
       : null;
     res.json({
       registrationCode: registration.registrationCode,

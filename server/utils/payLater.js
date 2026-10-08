@@ -1,4 +1,5 @@
 const prisma = require("../db");
+const { endOfDayIST } = require("./validation");
 const { applySeatChange } = require("./seats");
 const { sendRejectionEmail } = require("./registrationEmails");
 
@@ -10,16 +11,23 @@ const { sendRejectionEmail } = require("./registrationEmails");
  * online (status page: UTR + screenshot, checked by the desk like any UPI
  * payment) or in cash at the registration desk (approved on the spot).
  *
- * The seat is held until the registration's first event starts. An unpaid
- * hold is then released: it becomes "rejected" (seats freed) with an email.
+ * The seat is held until the registration's first event starts - or, if it
+ * was made after that (registration stays open all day), until the end of
+ * that day. An unpaid hold is then released: it becomes "rejected" (seats
+ * freed) with an email.
  * The desk can still take cash for it afterwards, while seats remain.
  */
 const PAY_LATER = "later";
 
-/** When a hold on these events ends: the earliest event start. */
-function holdEndsAt(events) {
+/**
+ * When a hold on these events ends: the earliest event start, or the end of
+ * that event's day for a registration made after it had started.
+ */
+function holdEndsAt(events, madeAt = new Date()) {
   const starts = events.map((e) => new Date(e.startTime).getTime()).filter(Number.isFinite);
-  return starts.length ? new Date(Math.min(...starts)) : null;
+  if (!starts.length) return null;
+  const first = new Date(Math.min(...starts));
+  return new Date(madeAt) >= first ? endOfDayIST(first) : first;
 }
 
 /** "8 Oct, 9:30 AM" in IST, for messages and emails. */
@@ -32,7 +40,7 @@ function formatWhen(d) {
 /** Seats blocked, nothing paid yet. */
 const isPaymentDue = (registration) => registration.status === "pending" && registration.paymentMethod === PAY_LATER;
 
-/** Releases every unpaid hold whose first event has started. Returns how many. */
+/** Releases every unpaid hold whose time is up (see holdEndsAt). Returns how many. */
 async function releaseExpiredHolds(now = new Date()) {
   const due = await prisma.registration.findMany({ where: { status: "pending", paymentMethod: PAY_LATER } });
   if (!due.length) return 0;
@@ -44,9 +52,8 @@ async function releaseExpiredHolds(now = new Date()) {
   let released = 0;
   for (const reg of due) {
     const regEvents = reg.eventIds.map((id) => byId.get(id)).filter(Boolean);
-    const endsAt = holdEndsAt(regEvents);
+    const endsAt = holdEndsAt(regEvents, reg.createdAt);
     if (!endsAt || endsAt > now) continue;
-    const first = regEvents.find((e) => new Date(e.startTime).getTime() === endsAt.getTime());
     try {
       const updated = await prisma.$transaction(async (tx) => {
         // Re-check inside the transaction: it may have been paid meanwhile.
@@ -54,9 +61,9 @@ async function releaseExpiredHolds(now = new Date()) {
           where: { id: reg.id, status: "pending", paymentMethod: PAY_LATER },
           data: {
             status: "rejected",
-            rejectionReason: `Seat released: payment not received before ${first ? first.name : "your event"} started (${formatWhen(endsAt)})`,
+            rejectionReason: `Seat released: payment not received by ${formatWhen(endsAt)}`,
             reviewedById: null,
-            reviewedByName: "Automatic (event started, not paid)",
+            reviewedByName: "Automatic (not paid in time)",
             reviewedAt: now,
           },
         });
@@ -72,7 +79,7 @@ async function releaseExpiredHolds(now = new Date()) {
       console.error(`Releasing unpaid hold ${reg.registrationCode} failed:`, err.message);
     }
   }
-  if (released) console.log(`Released ${released} unpaid pay-later registration(s) whose event has started.`);
+  if (released) console.log(`Released ${released} unpaid pay-later registration(s).`);
   return released;
 }
 
