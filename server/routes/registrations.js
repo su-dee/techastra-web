@@ -574,11 +574,11 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
       include: { user: true },
     });
     if (!registration) return res.status(404).json({ error: "No registration found for this account" });
-    // Event-day activity for the profile dashboard: check-ins, placings, meals.
-    const [attendance, results, meals] = await Promise.all([
+    // Event-day activity for the profile dashboard: check-ins and placings
+    // (meals aren't shown to participants).
+    const [attendance, results] = await Promise.all([
       prisma.attendance.findMany({ where: { registrationId: registration.id }, select: { eventId: true, scannedAt: true } }),
       prisma.result.findMany({ where: { registrationId: registration.id }, select: { eventId: true, position: true } }),
-      prisma.foodLog.findMany({ where: { registrationId: registration.id }, select: { mealSession: true, collectedAt: true } }),
     ]);
     // Their events' WhatsApp groups - only once approved, and only their events.
     const whatsappGroups =
@@ -593,7 +593,7 @@ router.get("/mine", requireAuth, requireRole("participant"), async (req, res) =>
         : [];
     res.json({
       registration: { ...registration, idCardToken: idCardToken(registration.registrationCode) },
-      activity: { attendance, results, meals },
+      activity: { attendance, results },
       whatsappGroups,
     });
   } catch (err) {

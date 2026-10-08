@@ -30,7 +30,6 @@ function welcomeSeenKey(userId) {
 }
 
 const PLACE = { 1: "1st place", 2: "2nd place", 3: "3rd place" };
-const MEAL_LABEL = { breakfast: "Breakfast", lunch: "Lunch", snacks: "Snacks" };
 const PAY_METHOD = { upi: "UPI", razorpay: "Online", cash: "Cash" };
 
 const when = (iso) =>
@@ -132,7 +131,7 @@ function startsIn(event, now) {
  * progress so far. Check-in is per registration: scanning one ID card
  * checks in the whole team.
  */
-function TodayPanel({ registration, registeredEvents, attendedAt, whatsappGroups, certificateCount, mealCount }) {
+function TodayPanel({ registration, registeredEvents, attendedAt, whatsappGroups, certificateCount }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60000);
@@ -204,11 +203,10 @@ function TodayPanel({ registration, registeredEvents, attendedAt, whatsappGroups
         </div>
       )}
 
-      <dl className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-shade/10">
+      <dl className="grid grid-cols-2 gap-2 mt-6 pt-5 border-t border-shade/10">
         {[
           ["Checked in", `${checkedInCount} / ${registeredEvents.length}`],
           ["Certificates", certificateCount],
-          ["Meals", mealCount],
         ].map(([label, value]) => (
           <div key={label}>
             <dt className="mono-label">{label}</dt>
@@ -264,7 +262,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { openPanel } = usePanels();
   const [registration, setRegistration] = useState(null);
-  const [activity, setActivity] = useState({ attendance: [], results: [], meals: [] });
+  const [activity, setActivity] = useState({ attendance: [], results: [] });
   const [whatsappGroups, setWhatsappGroups] = useState([]); // [{ eventId, name, url }] - approved only
   // loading | ready | none (no registration on this account) | error
   const [loadState, setLoadState] = useState("loading");
@@ -482,7 +480,6 @@ export default function Dashboard() {
             attendedAt={attendedAt}
             whatsappGroups={whatsappGroups}
             certificateCount={certificates.length}
-            mealCount={activity.meals.length}
           />
         ) : (
           <StatusPanel registration={registration} email={profile?.email} onHelp={() => openPanel("help")} />
@@ -629,16 +626,6 @@ export default function Dashboard() {
                 {registration.transactionId && <Fact label="UTR / transaction ID" wide><span className="font-mono text-[13px]">{registration.transactionId}</span></Fact>}
                 <Fact label="Registered on">{when(registration.createdAt)}</Fact>
               </div>
-              {activity.meals.length > 0 && (
-                <div className="mt-4">
-                  <p className="mono-label mb-2">Meals collected</p>
-                  <div className="flex flex-wrap gap-2">
-                    {activity.meals.map((m) => (
-                      <Badge key={m.mealSession} status="collected">{MEAL_LABEL[m.mealSession] || m.mealSession}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
             </Section>
           </div>
         </div>
