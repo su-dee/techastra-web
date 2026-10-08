@@ -22,7 +22,9 @@
  * (feePerTeam); Plot Twist is ₹50 per person (6 Oct 2026); combo passes are
  * ₹200 per person. Junior events are free -
  * registration only collects the student's details. Senior team sizes follow
- * the organisers' combo sheet.
+ * the organisers' combo sheet. Every team event takes 1 up to its maximum
+ * (organisers, 8 Oct 2026) - a team of 1 registers on their own - except
+ * Hack Nexus, whose own app checks its squads of 2-3.
  *   Venue is left null (shows "TBA") wherever it isn't known.
  *
  * Senior non-technical descriptions and rounds are from "NTE overall
@@ -177,7 +179,7 @@ const EVENTS = [
       student("Ms. Mamathi", "9150733457"),
       student("Mr. Sabarinathan P", "9361232667"),
     ],
-    when: [2, [9, 30], [12, 30]], fee: 100, maxSeats: 50, team: [2, 3],
+    when: [2, [9, 30], [12, 30]], fee: 100, maxSeats: 50, team: [1, 3],
   },
   {
     name: "Trial of Truth",
@@ -201,7 +203,7 @@ const EVENTS = [
       student("Mr. Geetkumar B", "9514773056"),
       student("Ms. Mohana Priya B", "8270633107"),
     ],
-    when: [2, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [2, 2],
+    when: [2, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [1, 2],
   },
   {
     name: "Code Rescue",
@@ -266,7 +268,7 @@ const EVENTS = [
       student("Mr. Jeevan", "9884994951"),
       student("Ms. J N Tanya Miriam", "9551028258"),
     ],
-    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 40, team: [3, 3],
+    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 40, team: [1, 3],
   },
   {
     name: "Prompt Arena",
@@ -325,7 +327,7 @@ const EVENTS = [
       student("Ms. Dharanirajan B", "8610555944"),
       student("Ms. Nandika Hegde N", "9943007783"),
     ],
-    when: [1, [14, 0], [16, 0]], fee: 100, maxSeats: 60, team: [3, 3],
+    when: [1, [14, 0], [16, 0]], fee: 100, maxSeats: 60, team: [1, 3],
   },
   {
     name: "Hidden Frames",
@@ -335,7 +337,7 @@ const EVENTS = [
     venue: "Hi-Tech Lab & Cisco Network Lab",
     description: "Look closer. Spot what is concealed in every frame and piece together the picture before anyone else does.",
     coordinators: [staff("Ms. G. Priyanka", "8072937403"), student("Mr. Dhevanathan R", "6383429727"), student("Mr. Sham Prasad G", "9043595650"), student("Mr. Rithvick Sree", "7397449938")],
-    when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [3, 3],
+    when: [1, [9, 30], [11, 30]], fee: 100, maxSeats: 100, team: [1, 3],
   },
   {
     name: "Verbal Combat",
@@ -370,7 +372,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Mrs. E. Nalini", "9176497770"), student("Ms. Lathika S", "8122690763"), student("Mr. Gopishankar V", "8939496446"), student("Mr. Sai Jeevan N", "8778592427")],
-    when: [1, [14, 15], [16, 15]], fee: 100, maxSeats: 90, team: [3, 3],
+    when: [1, [14, 15], [16, 15]], fee: 100, maxSeats: 90, team: [1, 3],
   },
   {
     name: "Plot Twist",
@@ -379,7 +381,7 @@ const EVENTS = [
     day: 1,
     venue: "VOC 415",
     description:
-      "A team event that tests creativity, teamwork, quick thinking, communication and the ability to adapt to the unexpected. Teams of 3 complete a task in each of 3 rounds within a time limit and set rules — but at any point the host may introduce surprise twists and conditions, forcing teams to change strategy on the spot.",
+      "A team event that tests creativity, teamwork, quick thinking, communication and the ability to adapt to the unexpected. Teams of up to 3 complete a task in each of 3 rounds within a time limit and set rules — but at any point the host may introduce surprise twists and conditions, forcing teams to change strategy on the spot.",
     rules: {
       rounds: [
         { title: "Cup and Ball Challenge" },
@@ -388,7 +390,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Dr. B. Raja", "8754363789"), staff("Mr. Mohan", "9445761267"), student("Ms. Harshni Jayaraj", "7042613974"), student("Ms. Subitsha S", "8838741574"), student("Ms. Jayasri K", "6369719262")],
-    when: [1, [9, 30], [11, 30]], fee: 50, maxSeats: 50, team: [3, 3],
+    when: [1, [9, 30], [11, 30]], fee: 50, maxSeats: 50, team: [1, 3],
   },
   {
     name: "Team Feud",
@@ -411,7 +413,7 @@ const EVENTS = [
       student("Mr. Guru Prasath L", "7904186779"),
       student("Mr. Venkatesh V", "9110348446"),
     ],
-    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 60, team: [3, 3],
+    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 60, team: [1, 3],
   },
   {
     name: "Cap Chaos",
@@ -429,7 +431,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Mrs. M. Kanagapriya", "9176818964"), student("Ms. Sonali M", "9790574852"), student("Ms. Harini Sri R", "6385554331"), student("Mr. Kumaresan M", "6381090465")],
-    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 100, team: [3, 3],
+    when: [1, [12, 0], [14, 0]], fee: 100, maxSeats: 100, team: [1, 3],
   },
   {
     name: "Clash Squad E-Sports",
@@ -489,7 +491,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Mr. M. Uma Mahesh", "9790948948"), student("Mr. Arya Venkata Sai", "9703288071"), student("Mr. Sunil Reddy", "9581513594"), student("Mr. S. Dhanush", "9150739030")],
-    when: [2, [10, 0], [11, 0]], fee: 0, maxSeats: 60, team: [2, 2],
+    when: [2, [10, 0], [11, 0]], fee: 0, maxSeats: 60, team: [1, 2],
   },
   {
     level: "junior",
@@ -502,7 +504,7 @@ const EVENTS = [
       "An AI generation challenge testing memory and prompt engineering. Teams are shown a reference image for 60 seconds and must observe and remember it. Once it is hidden, they craft a prompt to recreate the image on a specified AI platform. The team with the highest overall score wins.",
     rules: {
       rules: [
-        "Only 2 students are allowed per team.",
+        "Up to 2 students are allowed per team.",
         "The reference image is displayed for 60 seconds; participants must not obtain or view it after it has been hidden.",
         "Teams create a prompt to recreate the hidden image using the specified AI platform. Multiple reference images may be given during the competition.",
         "Each challenge must be completed within the announced time limit; only images submitted in time are evaluated.",
@@ -515,7 +517,7 @@ const EVENTS = [
       judging: ["Visual similarity", "Accuracy", "Creativity", "Prompt effectiveness"],
     },
     coordinators: [staff("Dr. S. Akila", "9941615902"), staff("Mr. L. Magnus Jesrus", "9840513775"), student("Ms. Nandhitha L", "6383937832"), student("Ms. Dharshini K", "9080495122"), student("Mr. Bharathi V")],
-    when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 45, team: [2, 2],
+    when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 45, team: [1, 2],
   },
   {
     level: "junior",
@@ -542,7 +544,7 @@ const EVENTS = [
       judging: ["Creativity & innovation", "Theme relevance", "Effective use of materials", "Practicality / problem-solving", "Presentation"],
     },
     coordinators: [staff("Mr. E. Murali", "9444558197"), staff("Mrs. G. S. Ashitha", "8939168215"), student("Ms. S. M. Pooja", "7200376899"), student("Ms. B. Nisha", "8122608126"), student("Ms. J. Kavya", "7845515045")],
-    when: [2, [10, 0], [13, 0]], fee: 0, maxSeats: 45, team: [3, 3],
+    when: [2, [10, 0], [13, 0]], fee: 0, maxSeats: 45, team: [1, 3],
   },
   {
     level: "junior",
@@ -568,7 +570,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Mrs. Ruth Rubavathy", "7702957580"), student("Mr. Aravind Kumar", "8940807776"), student("Mr. Aravind Krishan", "9344858132"), student("Ms. G. Lekha Sri", "8681831760")],
-    when: [2, [12, 0], [13, 0]], fee: 0, maxSeats: 40, team: [2, 2],
+    when: [2, [12, 0], [13, 0]], fee: 0, maxSeats: 40, team: [1, 2],
   },
   {
     level: "junior",
@@ -617,7 +619,7 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Mrs. K. C. Anu", "9841138462"), student("Mr. Gokul Krishan S R", "6385132601"), student("Mr. Gowtham Pandian", "8122739807"), student("Mr. Bavanan S", "7708009302")],
-    when: [2, [13, 0], [14, 0]], fee: 0, maxSeats: 40, team: [3, 3],
+    when: [2, [13, 0], [14, 0]], fee: 0, maxSeats: 40, team: [1, 3],
   },
   {
     level: "junior",
@@ -645,7 +647,7 @@ const EVENTS = [
       judging: ["Correct connections", "Speed", "Accuracy"],
     },
     coordinators: [staff("Mr. J. R. Jayavelu", "9940268573"), staff("Dr. K. K. Rekha", "9841246265"), student("Ms. Lalitha", "7904294376"), student("Mr. Linga Munishwar", "6374052798"), student("Ms. Mythreya", "8939121925")],
-    when: [2, [10, 0], [11, 0]], fee: 0, maxSeats: 45, team: [3, 3],
+    when: [2, [10, 0], [11, 0]], fee: 0, maxSeats: 45, team: [1, 3],
   },
   {
     level: "junior",
@@ -671,7 +673,7 @@ const EVENTS = [
       judging: ["Correct answers", "Speed"],
     },
     coordinators: [staff("Mrs. Vidhyalakshmi", "9176627897"), staff("Mrs. S. Amutha", "7550108982"), student("Mr. Ferlin Jose", "6381524624"), student("Mr. Siva Sankar", "7810070834"), student("Mr. Dhaya T", "7305431403")],
-    when: [2, [12, 0], [13, 0]], fee: 0, maxSeats: 40, team: [2, 2],
+    when: [2, [12, 0], [13, 0]], fee: 0, maxSeats: 40, team: [1, 2],
   },
   {
     level: "junior",
@@ -698,7 +700,7 @@ const EVENTS = [
       judging: ["Originality", "Presentation", "Teamwork", "Impact"],
     },
     coordinators: [staff("Mr. P. Sudarsan", "9790780562"), staff("Mr. P. Jayakrishnan", "9884766568"), student("Mr. Pavan", "8807059054"), student("Mr. Kevin Adithya", "9384860454"), student("Ms. Lavanya A", "8148206146")],
-    when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 20, team: [3, 3],
+    when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 20, team: [1, 3],
   },
   {
     level: "junior",
@@ -727,7 +729,7 @@ const EVENTS = [
       judging: ["Identification accuracy", "Creativity", "Imagination", "Logical connection", "Storytelling", "Presentation"],
     },
     coordinators: [staff("Dr. M. Manikandan", "9840291680"), staff("Dr. M. Anand", "9600686861"), student("Mr. Rubesh Kumar R", "9025036748"), student("Mr. Abhishek", "9491535251"), student("Mr. Abdul Basith", "9962765727")],
-    when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 40, team: [2, 2],
+    when: [2, [11, 0], [12, 0]], fee: 0, maxSeats: 40, team: [1, 2],
   },
   {
     level: "junior",
