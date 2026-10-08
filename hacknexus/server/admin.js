@@ -791,7 +791,7 @@ export function createAdminRouter(
   });
 
   router.get("/meals", async (req, res) => {
-    const [counts, expected, recent] = await Promise.all([
+    const [counts, expected, recent, squads, handouts] = await Promise.all([
       db.query(
         "SELECT meal, COUNT(*)::int AS squads, COALESCE(SUM(people),0)::int AS people FROM meal_handouts GROUP BY meal",
       ),
@@ -802,8 +802,23 @@ export function createAdminRouter(
         `SELECT m.meal,m.people,m.given_at,m.given_by,r.team_name FROM meal_handouts m JOIN registrations r ON r.id=m.registration_id
          ORDER BY m.given_at DESC LIMIT 20`,
       ),
+      // Every squad that should be fed (approved, payment verified), plus
+      // any that collected a meal but no longer qualifies.
+      db.query(
+        `SELECT r.id,r.team_name,r.squad_size,(r.status='approved' AND p.status IS NOT DISTINCT FROM 'verified') AS expected
+         FROM registrations r LEFT JOIN payments p ON p.registration_id=r.id
+         WHERE (r.status='approved' AND p.status='verified') OR EXISTS (SELECT 1 FROM meal_handouts m WHERE m.registration_id=r.id)
+         ORDER BY LOWER(r.team_name)`,
+      ),
+      db.query("SELECT registration_id,meal,people,given_at,given_by FROM meal_handouts"),
     ]);
     const byMeal = new Map(counts.rows.map((c) => [c.meal, c]));
+    // Per squad, the meals it has collected: { [mealId]: { people, given_at, given_by } }.
+    const collected = new Map();
+    for (const h of handouts.rows) {
+      if (!collected.has(h.registration_id)) collected.set(h.registration_id, {});
+      collected.get(h.registration_id)[h.meal] = { people: h.people, given_at: h.given_at, given_by: h.given_by };
+    }
     res.json({
       meals: MEALS.map((m) => ({
         ...m,
@@ -812,6 +827,12 @@ export function createAdminRouter(
       })),
       expected: expected.rows[0],
       recent: recent.rows.map((r) => ({ ...r, label: mealById(r.meal)?.label || r.meal })),
+      teams: squads.rows.map((s) => ({
+        team_name: s.team_name,
+        squad_size: s.squad_size,
+        expected: s.expected,
+        meals: collected.get(s.id) || {},
+      })),
     });
   });
 

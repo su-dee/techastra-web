@@ -1073,3 +1073,16 @@ label.search-field input:not([type="checkbox"]) {
 .meal-totals strong small {
   font-size: 13px;
 }
+
+/* Food tab: every squad and whether it has collected the chosen meal */
+.meal-teams {
+  margin-top: 14px;
+}
+.meal-teams-count {
+  margin: 4px 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.meal-teams-count strong {
+  color: #c2f478;
+}

@@ -507,6 +507,13 @@ test("the food counter gives each meal once per squad", async () => {
   assert.deepEqual([lunch.squads, lunch.people], [1, 3]);
   assert.equal(summary.body.recent[0].label, "Day 1 · Evening snacks");
   assert.ok(summary.body.expected.squads >= 1);
+  // The full list: every squad to feed, with the meals it has collected.
+  const squad = summary.body.teams.find((t) => t.team_name === "Paying Squad");
+  assert.equal(squad.expected, true);
+  assert.deepEqual(Object.keys(squad.meals).sort(), ["d1_evening_snacks", "d1_lunch"]);
+  assert.equal(squad.meals.d1_lunch.given_by, "lead_admin");
+  assert.equal(squad.meals.d1_morning_snacks, undefined);
+  assert.equal(summary.body.teams.filter((t) => t.expected).length, summary.body.expected.squads);
 });
 
 test("admins can add check-in volunteers who can only scan", async () => {
