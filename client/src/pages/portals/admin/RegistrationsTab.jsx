@@ -168,7 +168,7 @@ export default function RegistrationsTab() {
         />
       )}
 
-      <ParticipantDetailsModal registrationId={detailsId} onClose={() => setDetailsId(null)} />
+      <ParticipantDetailsModal registrationId={detailsId} onClose={() => setDetailsId(null)} canSetPassword />
     </div>
   );
 }

@@ -22,6 +22,8 @@ const {
   normalizeEmail,
   normalizeTxn,
   isUpiTxn,
+  MIN_PASSWORD,
+  MAX_PASSWORD,
 } = require("../utils/validation");
 const { reserveSeats, reserveForRegistration, applySeatChange } = require("../utils/seats");
 const { PAY_LATER, holdEndsAt, formatWhen, isPaymentDue, releaseExpiredHolds } = require("../utils/payLater");
@@ -814,6 +816,34 @@ router.patch("/:id/override", requireAuth, requireRole("master_admin"), async (r
     if (err.status) return res.status(err.status).json({ error: err.message });
     console.error("Override error:", err);
     res.status(500).json({ error: "Failed to override registration" });
+  }
+});
+
+/**
+ * POST /api/registrations/:id/password { password } - the registration desk
+ * sets a new login password for a participant who has forgotten theirs
+ * (participants can't reset it themselves). Never logged.
+ */
+router.post("/:id/password", requireAuth, requireRole("registration_team", "master_admin"), async (req, res) => {
+  try {
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD) {
+      return res.status(400).json({ error: `The password must be ${MIN_PASSWORD}–${MAX_PASSWORD} characters.` });
+    }
+    const registration = await prisma.registration.findUnique({
+      where: { id: req.params.id },
+      include: { user: { select: { id: true, role: true, email: true } } },
+    });
+    if (!registration) return res.status(404).json({ error: "Registration not found" });
+    if (registration.user.role !== "participant") {
+      return res.status(400).json({ error: "Only participant passwords can be changed here." });
+    }
+    await prisma.user.update({ where: { id: registration.user.id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+    console.log(`Login password for ${registration.registrationCode} changed by ${req.user.name || req.user.id}.`);
+    res.json({ email: registration.user.email, canSignIn: registration.status === "approved" });
+  } catch (err) {
+    console.error("Set password error:", err);
+    res.status(500).json({ error: "Couldn't change the password" });
   }
 });
 

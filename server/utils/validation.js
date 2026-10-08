@@ -336,6 +336,7 @@ function checkParticipation(events, teamSize) {
 
 module.exports = {
   MIN_PASSWORD,
+  MAX_PASSWORD,
   YEARS_OF_STUDY,
   checkParticipantDetails,
   checkMemberDetails,
