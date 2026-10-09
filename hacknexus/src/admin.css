@@ -1086,3 +1086,25 @@ label.search-field input:not([type="checkbox"]) {
 .meal-teams-count strong {
   color: #c2f478;
 }
+
+/* Certificates tab */
+.cert-note {
+  margin: 4px 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 760px;
+}
+.cert-job {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.cert-job.ok {
+  color: #c2f478;
+}
+.cert-job.bad {
+  color: #ffb3a3;
+}
+.admin-toolbar a.button[aria-disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}

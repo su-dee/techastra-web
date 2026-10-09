@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword, tokenHash } from "./auth.js";
 import { newPassCode, parsePassCode, paymentReference } from "./payments.js";
 import { membersOf } from "./members.js";
 import { MEALS, mealById } from "./meals.js";
+import { TITLES, certificatesPdf, certificateName, fileSafe } from "./certificates.js";
 
 export const ADMIN_COOKIE = "hn_admin";
 export const STATUSES = ["pending", "approved", "waitlisted", "rejected"];
@@ -834,6 +835,126 @@ export function createAdminRouter(
         meals: collected.get(s.id) || {},
       })),
     });
+  });
+
+  // --- Participation certificates (admins only) ---------------------------
+  // Every member of a checked-in squad gets one, on the organisers' template.
+  async function certificateSquads() {
+    const squads = await db.query(
+      `SELECT r.id,r.team_name,r.lead_email,r.certificates_emailed_at FROM registrations r
+       WHERE r.checked_in_at IS NOT NULL ORDER BY LOWER(r.team_name)`,
+    );
+    const members = await db.query(
+      `SELECT m.registration_id,m.position,m.full_name,m.college,m.title FROM registration_members m
+       JOIN registrations r ON r.id=m.registration_id WHERE r.checked_in_at IS NOT NULL ORDER BY m.position`,
+    );
+    return squads.rows.map((s) => ({
+      ...s,
+      members: members.rows.filter((m) => m.registration_id === s.id),
+    }));
+  }
+  // One email run at a time; the tab polls its progress.
+  let certificateJob = null;
+
+  router.get("/certificates", async (req, res) => {
+    const squads = await certificateSquads();
+    const people = squads.flatMap((s) => s.members);
+    res.json({
+      squads,
+      totals: {
+        squads: squads.length,
+        people: people.length,
+        missingTitles: people.filter((m) => !TITLES.includes(m.title)).length,
+        emailed: squads.filter((s) => s.certificates_emailed_at).length,
+      },
+      canEmail: !!mailer,
+      job: certificateJob,
+    });
+  });
+
+  router.put("/certificates/title", async (req, res) => {
+    const { registrationId, position, title } = req.body || {};
+    if (!["", ...TITLES].includes(title))
+      return res.status(400).json({ error: "Choose Mr or Ms." });
+    const result = await db.query(
+      "UPDATE registration_members SET title=$3 WHERE registration_id=$1 AND position=$2 RETURNING full_name",
+      [registrationId, Number(position), title],
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: "Member not found." });
+    await audit(req, "set_certificate_title", "registration", registrationId, {
+      member: result.rows[0].full_name,
+      title,
+    });
+    res.json({ ok: true });
+  });
+
+  router.get("/certificates.pdf", async (req, res) => {
+    const members = (await certificateSquads()).flatMap((s) => s.members);
+    if (!members.length)
+      return res.status(409).json({ error: "No squad has checked in yet." });
+    const pdf = await certificatesPdf(members, "Hack Nexus participation certificates");
+    await audit(req, "download_certificates", "certificates", "*", { people: members.length });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="HackNexus-Participation-Certificates.pdf"',
+    );
+    res.send(pdf);
+  });
+
+  // Emails each checked-in squad's lead its members' certificates (one PDF
+  // each). Squads already emailed are skipped unless { resend: true }.
+  router.post("/certificates/email", async (req, res) => {
+    if (!mailer)
+      return res.status(503).json({ error: "Email isn't set up on this server (SMTP settings)." });
+    if (certificateJob?.state === "running")
+      return res.status(409).json({ error: "Certificates are already being emailed." });
+    const resend = req.body?.resend === true;
+    const squads = (await certificateSquads()).filter((s) => resend || !s.certificates_emailed_at);
+    const missing = squads.flatMap((s) => s.members).filter((m) => !TITLES.includes(m.title));
+    if (missing.length)
+      return res.status(409).json({
+        error: `Set Mr or Ms for every member first (${missing.length} missing).`,
+      });
+    const job = (certificateJob = {
+      state: "running",
+      total: squads.length,
+      done: 0,
+      sent: 0,
+      failed: [],
+      startedBy: req.admin.username,
+      startedAt: new Date(),
+    });
+    res.status(202).json({ job });
+    for (const squad of squads) {
+      try {
+        const attachments = [];
+        for (const member of squad.members)
+          attachments.push({
+            filename: `HackNexus-Certificate-${fileSafe(member.full_name)}.pdf`,
+            content: await certificatesPdf([member], `Hack Nexus certificate - ${certificateName(member)}`),
+            contentType: "application/pdf",
+          });
+        await mailer.sendCertificatesEmail({
+          to: squad.lead_email,
+          teamName: squad.team_name,
+          members: squad.members.map(certificateName),
+          attachments,
+        });
+        await db.query("UPDATE registrations SET certificates_emailed_at=NOW() WHERE id=$1", [squad.id]);
+        job.sent++;
+      } catch (error) {
+        console.error(`Certificate email for ${squad.team_name} failed:`, error.message);
+        job.failed.push({ team: squad.team_name, email: squad.lead_email });
+      }
+      job.done++;
+    }
+    job.state = "done";
+    job.finishedAt = new Date();
+    await audit(req, "email_certificates", "certificates", "*", {
+      sent: job.sent,
+      failed: job.failed.length,
+    }).catch(() => {});
   });
 
   // --- Admin accounts -----------------------------------------------------

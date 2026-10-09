@@ -28,6 +28,9 @@ const mailer = {
   async sendPaymentReceivedEmail(message) {
     sentMail.push({ kind: "payment", ...message });
   },
+  async sendCertificatesEmail(message) {
+    sentMail.push({ kind: "certificates", ...message });
+  },
 };
 const mailOf = (kind) => sentMail.filter((m) => m.kind === kind);
 // Some emails are sent after a database lookup that follows the response.
@@ -782,4 +785,33 @@ test("the scanners are not held back by the shared per-IP limit", async () => {
   assert.notEqual(scan.status, 429);
   // Other routes still share the per-IP limit, which these 110 didn't use up.
   await send("get", "/api/admin/stats", undefined, adminCookie).expect(200);
+});
+
+test("participation certificates for checked-in squads: Mr/Ms, PDF download and email to the lead", async () => {
+  const { PDFDocument } = await import("pdf-lib");
+  const list = await send("get", "/api/admin/certificates", undefined, adminCookie).expect(200);
+  const squad = list.body.squads.find((s) => s.team_name === "Paying Squad");
+  assert.ok(squad, "the checked-in squad is listed");
+  assert.equal(list.body.totals.missingTitles, list.body.totals.people);
+  // Emailing waits until every member has Mr or Ms.
+  await send("post", "/api/admin/certificates/email", {}, adminCookie).expect(409);
+  await send("put", "/api/admin/certificates/title", { registrationId: squad.id, position: 1, title: "Dr" }, adminCookie).expect(400);
+  for (const s of list.body.squads)
+    for (const m of s.members)
+      await send("put", "/api/admin/certificates/title", { registrationId: s.id, position: m.position, title: m.position === 1 ? "Mr" : "Ms" }, adminCookie).expect(200);
+  const pdf = await send("get", "/api/admin/certificates.pdf", undefined, adminCookie).expect(200).buffer(true).parse((res, cb) => {
+    const chunks = [];
+    res.on("data", (c) => chunks.push(c));
+    res.on("end", () => cb(null, Buffer.concat(chunks)));
+  });
+  assert.equal(pdf.headers["content-type"], "application/pdf");
+  assert.equal((await PDFDocument.load(pdf.body)).getPageCount(), list.body.totals.people);
+  await send("post", "/api/admin/certificates/email", {}, adminCookie).expect(202);
+  const mails = await mailFor("certificates", list.body.totals.squads);
+  const mail = mails.find((m) => m.teamName === "Paying Squad");
+  assert.equal(mail.to, squad.lead_email);
+  assert.equal(mail.members[0], `Mr. ${squad.members[0].full_name}`);
+  assert.equal(mail.attachments.length, squad.members.length);
+  const after = await send("get", "/api/admin/certificates", undefined, adminCookie).expect(200);
+  assert.equal(after.body.totals.emailed, after.body.totals.squads);
 });

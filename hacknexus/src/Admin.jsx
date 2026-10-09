@@ -30,6 +30,7 @@ import {
 import Payments from "./AdminPayments.jsx";
 import CheckIn from "./AdminCheckin.jsx";
 import Meals from "./AdminMeals.jsx";
+import Certificates from "./AdminCertificates.jsx";
 import AdminTeam, { roleLabels } from "./AdminTeam.jsx";
 import "./admin.css";
 import { to, BASE } from "./base.js";
@@ -40,6 +41,7 @@ const allTabs = [
   ["payments", "Payments"],
   ["checkin", "Check-in"],
   ["meals", "Food"],
+  ["certificates", "Certificates"],
   ["accounts", "Accounts"],
   ["admins", "Admins"],
   ["activity", "Activity"],
@@ -56,6 +58,9 @@ const actionLabels = {
   revoke_sessions: "Signed out account",
   reset_password: "Reset account password",
   export_csv: "Exported CSV",
+  set_certificate_title: "Set certificate Mr/Ms",
+  download_certificates: "Downloaded certificates",
+  email_certificates: "Emailed certificates",
   verify_payment: "Verified payment",
   reject_payment: "Rejected payment",
   meal_given: "Gave meal",
@@ -1116,6 +1121,7 @@ export default function Admin() {
         )}
         {current === "checkin" && <CheckIn onExpired={onExpired} />}
         {current === "meals" && <Meals onExpired={onExpired} />}
+        {current === "certificates" && <Certificates onExpired={onExpired} />}
         {current === "admins" && <AdminTeam me={admin} onExpired={onExpired} />}
         {current === "registrations" && (
           <Registrations

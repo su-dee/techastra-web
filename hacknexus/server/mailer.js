@@ -42,7 +42,7 @@ function layout({
   accent,
   paragraphs,
   details,
-  sections,
+  sections = [],
   action,
   signoffHtml,
 }) {
@@ -74,8 +74,12 @@ function layout({
 ${paragraphs.map((p) => `<p style="margin:0 0 14px;color:#374151">${p}</p>`).join("")}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border:1px solid #e5e7eb;border-radius:6px;border-collapse:separate;font-size:14px">${rows}</table>
 ${blocks}
-<p style="margin:28px 0 8px"><a href="${escapeHtml(action.url)}" style="display:inline-block;padding:12px 24px;background:#111827;color:#ffffff;text-decoration:none;font-weight:600;border-radius:6px">${escapeHtml(action.label)}</a></p>
-<p style="margin:0 0 20px;font-size:13px;color:#6b7280">If the button does not work, copy this link into your browser: ${escapeHtml(action.url)}</p>
+${
+  action
+    ? `<p style="margin:28px 0 8px"><a href="${escapeHtml(action.url)}" style="display:inline-block;padding:12px 24px;background:#111827;color:#ffffff;text-decoration:none;font-weight:600;border-radius:6px">${escapeHtml(action.label)}</a></p>
+<p style="margin:0 0 20px;font-size:13px;color:#6b7280">If the button does not work, copy this link into your browser: ${escapeHtml(action.url)}</p>`
+    : ""
+}
 ${signoffHtml}
 </td></tr>
 <tr><td style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280">This is an automated message about your ${EVENT.name} registration. You received it because this address is listed as the squad lead's email.</td></tr>
@@ -87,7 +91,7 @@ function plainText({
   greeting,
   paragraphs,
   details,
-  sections,
+  sections = [],
   action,
   signoff,
 }) {
@@ -104,8 +108,7 @@ function plainText({
       ...(items || []).map((item, i) => `${i + 1}. ${item}`),
       "",
     ]),
-    `${action.label}: ${action.url}`,
-    "",
+    ...(action ? [`${action.label}: ${action.url}`, ""] : []),
     ...signoff,
   ].join("\n");
 }
@@ -131,7 +134,7 @@ export function createMailer(env = settings) {
   ];
   const signoffHtml = `<p style="margin:24px 0 0;color:#374151">Warm regards,<br><strong>Organising Committee, ${EVENT.name}</strong><br><a href="mailto:${escapeHtml(contact)}" style="color:#374151">${escapeHtml(contact)}</a></p>`;
 
-  async function send({ to, subject, greeting, accent, heading, ...content }) {
+  async function send({ to, subject, greeting, accent, heading, attachments, ...content }) {
     const html = layout({
       heading,
       accent,
@@ -146,6 +149,7 @@ export function createMailer(env = settings) {
       subject,
       text: plainText({ greeting, ...content, signoff }),
       html,
+      ...(attachments?.length ? { attachments } : {}),
     });
   }
 
@@ -354,6 +358,23 @@ export function createMailer(env = settings) {
           },
         ],
         action: { label: "Resubmit payment", url: paymentUrl },
+      });
+    },
+    // Participation certificates for a checked-in squad, one PDF per
+    // member, sent to the squad lead.
+    async sendCertificatesEmail({ to, teamName, members, attachments }) {
+      await send({
+        to,
+        subject: `Your participation certificates: ${teamName}, ${EVENT.name}`,
+        greeting: `Dear Squad Lead of ${teamName},`,
+        accent: "#16a34a",
+        heading: "Your participation certificates",
+        paragraphs: [
+          `Thank you for taking part in ${EVENT.name} at Techastra '26. The participation certificates for <strong>${escapeHtml(teamName)}</strong> are attached, one for each member.`,
+          "Please forward each member their own certificate.",
+        ],
+        details: members.map((m, i) => [i === 0 ? "Squad lead" : `Member ${i + 1}`, m]),
+        attachments,
       });
     },
   };
