@@ -6,6 +6,7 @@ const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { certificateFile } = require("../utils/certificatePdf");
 const { winnersListPdf } = require("../utils/winnersListPdf");
+const { hackNexusWinners } = require("../utils/hackNexusWinners");
 const {
   TITLES,
   peopleOf,
@@ -74,7 +75,7 @@ async function winnersByEvent(eventId) {
     prisma.registration.findMany({ where: { id: { in: results.map((r) => r.registrationId) } }, include: { user: true } }),
   ]);
   const regById = new Map(regs.map((r) => [r.id, r]));
-  return events.map((event) => ({
+  const list = events.map((event) => ({
     event,
     places: results
       .filter((r) => r.eventId === event.id && regById.has(r.registrationId))
@@ -83,6 +84,17 @@ async function winnersByEvent(eventId) {
         return { position: r.position, registration: reg, people: peopleOf(reg) };
       }),
   }));
+  // Hack Nexus locks its winners in its own admin (separate squads).
+  const hackNexus = await hackNexusWinners(prisma);
+  if (hackNexus && (!eventId || eventId === hackNexus.event.id)) {
+    list.push(hackNexus);
+    const when = (e) => [e.day ?? 99, new Date(e.startTime).getTime()];
+    list.sort((a, b) => {
+      const [da, ta] = when(a.event), [db, tb] = when(b.event);
+      return da - db || ta - tb;
+    });
+  }
+  return list;
 }
 
 /** GET /api/certificates/winners - winners per event, for the portal. */
@@ -90,10 +102,12 @@ router.get("/winners", ...committee, async (req, res) => {
   try {
     const list = await winnersByEvent();
     res.json({
-      events: list.map(({ event, places }) => ({
+      events: list.map(({ event, places, external }) => ({
         eventId: event.id,
         name: event.name,
         day: event.day,
+        // Hack Nexus: locked in its own admin; no winner certificates here.
+        external: !!external,
         places: places.map((p) => ({
           position: p.position,
           registrationCode: p.registration.registrationCode,
@@ -139,7 +153,7 @@ router.get("/winners.xlsx", ...committee, async (req, res) => {
           course: person.course,
           department: person.department,
           year: person.yearOfStudy,
-          college: p.registration.collegeName || p.registration.user.collegeName || "",
+          college: person.college || p.registration.collegeName || p.registration.user.collegeName || "",
           phone: p.registration.user.phone || "",
           code: p.registration.registrationCode,
         }))

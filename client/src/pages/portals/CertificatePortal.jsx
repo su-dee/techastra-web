@@ -276,14 +276,19 @@ function WinnersSection() {
                   </li>
                 ))}
               </ol>
+              {e.external && (
+                <p className="mt-3 text-xs text-shade/50">Locked in the Hack Nexus admin (Certificates tab). No winner certificates here.</p>
+              )}
               <div className="flex flex-wrap gap-2 mt-4">
-                <Button
-                  size="sm"
-                  onClick={() => run(`pdf-${e.eventId}`, `/api/certificates/winners/${e.eventId}/pdf`, `Techastra26-Winners-${fileSafe(e.name)}.pdf`)}
-                  disabled={busy === `pdf-${e.eventId}`}
-                >
-                  {busy === `pdf-${e.eventId}` ? "Preparing…" : "Winner certificates (PDF)"}
-                </Button>
+                {!e.external && (
+                  <Button
+                    size="sm"
+                    onClick={() => run(`pdf-${e.eventId}`, `/api/certificates/winners/${e.eventId}/pdf`, `Techastra26-Winners-${fileSafe(e.name)}.pdf`)}
+                    disabled={busy === `pdf-${e.eventId}`}
+                  >
+                    {busy === `pdf-${e.eventId}` ? "Preparing…" : "Winner certificates (PDF)"}
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"

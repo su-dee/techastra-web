@@ -116,7 +116,7 @@ async function winnersListPdf(list, { nameOf = (person) => person.name } = {}) {
         person.course || "-",
         person.department || "-",
         person.yearOfStudy || "-",
-        college || "-",
+        person.college || college || "-",
       ].map(latin1);
       const fontOf = (c) => ((c === 0 || c === 1) && i === 0 ? bold : font);
       const lines = cells.map((text, c) => wrap(text, fontOf(c), SIZE, widths[c] - 2 * PAD));
