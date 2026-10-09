@@ -50,12 +50,15 @@ export default function AdminCertificates({ onExpired }) {
     }
   };
 
-  const setWinner = async (squad, value) => {
-    setSaving(`winner-${squad.id}`);
+  // Picks the squad for a place ("" clears whoever has it).
+  const setPlace = async (place, squadId) => {
+    const current = data.squads.find((s) => s.winner_position === place);
+    if (!squadId && !current) return;
+    setSaving(`place-${place}`);
     try {
       await api("/admin/certificates/winner", {
         method: "PUT",
-        body: { registrationId: squad.id, place: value ? Number(value) : null },
+        body: squadId ? { registrationId: squadId, place } : { registrationId: current.id, place: null },
       });
       reload();
     } catch (e) {
@@ -103,13 +106,44 @@ export default function AdminCertificates({ onExpired }) {
         ))}
       </div>
 
-      <section className="admin-card">
+      <section className="admin-card winners-card">
+        <h3>Hack Nexus winners</h3>
+        <p className="cert-note">
+          Lock the 1st, 2nd and 3rd place squads. They appear in the Techastra ’26 valedictory winners list and get no
+          participation certificate.
+        </p>
+        <div className="winner-picks">
+          {[1, 2, 3].map((place) => {
+            const current = squads.find((s) => s.winner_position === place);
+            return (
+              <label key={place}>
+                <span>{["1st", "2nd", "3rd"][place - 1]} place</span>
+                <select
+                  value={current?.id || ""}
+                  onChange={(e) => setPlace(place, e.target.value)}
+                  disabled={saving === `place-${place}`}
+                >
+                  <option value="">Not set</option>
+                  {squads.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.team_name}
+                      {s.winner_position && s.winner_position !== place ? ` (now ${["1st", "2nd", "3rd"][s.winner_position - 1]})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="admin-card meal-teams">
         <h3>Participation certificates</h3>
         <p className="cert-note">
           Every member of a checked-in squad gets one, on the Techastra ’26 participation template: “Mr./Ms. Name”, their
           college, and Hack Nexus. Emailing sends each squad lead one PDF per member; squads already emailed are skipped.
-          Releasing shows them on each checked-in squad’s dashboard for download; you can hide them again. Squads marked
-          1st, 2nd or 3rd below get no participation certificate.
+          Releasing shows them on each checked-in squad’s dashboard for download; you can hide them again. The winners
+          above get no participation certificate.
         </p>
         <div className="admin-toolbar">
           <a
@@ -168,7 +202,6 @@ export default function AdminCertificates({ onExpired }) {
                   <th>Member</th>
                   <th>College</th>
                   <th>Mr / Ms</th>
-                  <th>Winner</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,7 +215,7 @@ export default function AdminCertificates({ onExpired }) {
                             <small>
                               {squad.lead_email}
                               {squad.winner_position
-                                ? " · winner, no participation certificate"
+                                ? ` · ${["1st", "2nd", "3rd"][squad.winner_position - 1]} place, no participation certificate`
                                 : squad.certificates_emailed_at
                                   ? ` · emailed ${formatDate(squad.certificates_emailed_at)}`
                                   : " · not emailed"}
@@ -206,21 +239,6 @@ export default function AdminCertificates({ onExpired }) {
                           <option value="Mr">Mr</option>
                           <option value="Ms">Ms</option>
                         </select>
-                      </td>
-                      <td>
-                        {i === 0 && (
-                          <select
-                            value={squad.winner_position || ""}
-                            onChange={(e) => setWinner(squad, e.target.value)}
-                            disabled={saving === `winner-${squad.id}`}
-                            aria-label={`Winning place for ${squad.team_name}`}
-                          >
-                            <option value="">—</option>
-                            <option value="1">1st</option>
-                            <option value="2">2nd</option>
-                            <option value="3">3rd</option>
-                          </select>
-                        )}
                       </td>
                     </tr>
                   )),
