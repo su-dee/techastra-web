@@ -453,7 +453,8 @@ const EVENTS = [
       ],
     },
     coordinators: [staff("Dr. M. Sujitha", "9176628345"), student("Mr. Hamdan Arabi AQ", "8122276912"), student("Mr. Lakshmikanth R", "6374786721"), student("Mr. Praveen T", "6307563967")],
-    when: [2, [9, 30], [12, 0]], fee: 50, maxSeats: 80, team: [1, 1],
+    // No seat limit (organisers, 9 Oct 2026): a seat count no event reaches.
+    when: [2, [9, 30], [12, 0]], fee: 50, maxSeats: 10000, team: [1, 1],
     // Two tracks: each participant picks one game when registering.
     choiceLabel: "Game", choices: ["Free Fire Max", "BGMI"],
   },
