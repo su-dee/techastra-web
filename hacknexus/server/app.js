@@ -13,6 +13,7 @@ import {
   tokenHash,
 } from "./auth.js";
 import { createAdminRouter } from "./admin.js";
+import { certificatesPdf, certificateName, certificatesReleased, fileSafe } from "./certificates.js";
 import { createPaymentRouter, paymentConfig } from "./payments.js";
 import {
   memberValues,
@@ -302,13 +303,44 @@ export function createApp(
   );
   app.get("/api/registrations/me", requireUser, async (req, res) => {
     const result = await db.query(
-      "SELECT r.id,r.team_name,r.lead_email,r.domain,r.squad_size,r.problem_id,r.abstract,r.status,r.checked_in_at,r.created_at,p.status AS payment_status FROM registrations r LEFT JOIN payments p ON p.registration_id=r.id WHERE r.user_id=$1",
+      "SELECT r.id,r.team_name,r.lead_email,r.domain,r.squad_size,r.problem_id,r.abstract,r.status,r.checked_in_at,r.winner_position,r.created_at,p.status AS payment_status FROM registrations r LEFT JOIN payments p ON p.registration_id=r.id WHERE r.user_id=$1",
       [req.user.id],
     );
     const registration = result.rows[0];
-    if (registration)
+    if (registration) {
       registration.members = await membersOf(db, registration.id);
+      // Participation certificates, once the organisers release them (not
+      // for the 1st-3rd place squads).
+      registration.certificates =
+        registration.checked_in_at && !registration.winner_position && (await certificatesReleased(db))
+          ? registration.members.map((m) => ({ position: m.position, name: m.fullName }))
+          : null;
+    }
     res.json({ registration: registration || null });
+  });
+  // A checked-in squad's participation certificates ("all" or one member's
+  // position), once released.
+  app.get("/api/registrations/me/certificates/:which", requireUser, async (req, res) => {
+    const registration = (
+      await db.query(
+        "SELECT id,team_name,checked_in_at,winner_position FROM registrations WHERE user_id=$1",
+        [req.user.id],
+      )
+    ).rows[0];
+    if (!registration?.checked_in_at || registration.winner_position || !(await certificatesReleased(db)))
+      return res.status(404).json({ error: "Your certificates aren't available yet." });
+    const all = (
+      await db.query(
+        "SELECT position,full_name,college,title FROM registration_members WHERE registration_id=$1 ORDER BY position",
+        [registration.id],
+      )
+    ).rows;
+    const members = req.params.which === "all" ? all : all.filter((m) => String(m.position) === req.params.which);
+    if (!members.length) return res.status(404).json({ error: "Certificate not found." });
+    const name = members.length === 1 ? fileSafe(members[0].full_name) : fileSafe(registration.team_name);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="HackNexus-Certificate-${name}.pdf"`);
+    res.send(await certificatesPdf(members, `Hack Nexus certificate - ${members.map(certificateName).join(", ")}`));
   });
   // The lead can add or correct member details until the squad checks in.
   app.put("/api/registrations/me/members", requireUser, async (req, res) => {

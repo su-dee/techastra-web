@@ -5,7 +5,14 @@ import { hashPassword, verifyPassword, tokenHash } from "./auth.js";
 import { newPassCode, parsePassCode, paymentReference } from "./payments.js";
 import { membersOf } from "./members.js";
 import { MEALS, mealById } from "./meals.js";
-import { TITLES, certificatesPdf, certificateName, fileSafe } from "./certificates.js";
+import {
+  TITLES,
+  certificatesPdf,
+  certificateName,
+  fileSafe,
+  certificatesReleased,
+  setCertificatesReleased,
+} from "./certificates.js";
 
 export const ADMIN_COOKIE = "hn_admin";
 export const STATUSES = ["pending", "approved", "waitlisted", "rejected"];
@@ -841,7 +848,7 @@ export function createAdminRouter(
   // Every member of a checked-in squad gets one, on the organisers' template.
   async function certificateSquads() {
     const squads = await db.query(
-      `SELECT r.id,r.team_name,r.lead_email,r.certificates_emailed_at FROM registrations r
+      `SELECT r.id,r.team_name,r.lead_email,r.certificates_emailed_at,r.winner_position FROM registrations r
        WHERE r.checked_in_at IS NOT NULL ORDER BY LOWER(r.team_name)`,
     );
     const members = await db.query(
@@ -853,23 +860,45 @@ export function createAdminRouter(
       members: members.rows.filter((m) => m.registration_id === s.id),
     }));
   }
+  // The 1st-3rd place squads get no participation certificate.
+  const participating = (squads) => squads.filter((s) => !s.winner_position);
   // One email run at a time; the tab polls its progress.
   let certificateJob = null;
 
   router.get("/certificates", async (req, res) => {
     const squads = await certificateSquads();
-    const people = squads.flatMap((s) => s.members);
+    const getting = participating(squads);
+    const people = getting.flatMap((s) => s.members);
     res.json({
       squads,
       totals: {
-        squads: squads.length,
+        squads: getting.length,
         people: people.length,
         missingTitles: people.filter((m) => !TITLES.includes(m.title)).length,
-        emailed: squads.filter((s) => s.certificates_emailed_at).length,
+        emailed: getting.filter((s) => s.certificates_emailed_at).length,
+        winners: squads.length - getting.length,
       },
       canEmail: !!mailer,
+      released: await certificatesReleased(db),
       job: certificateJob,
     });
+  });
+
+  // Shows (or hides) the certificates on the squads' dashboards.
+  router.put("/certificates/release", async (req, res) => {
+    const released = req.body?.released === true;
+    if (released) {
+      const missing = participating(await certificateSquads())
+        .flatMap((s) => s.members)
+        .filter((m) => !TITLES.includes(m.title));
+      if (missing.length)
+        return res.status(409).json({
+          error: `Set Mr or Ms for every member first (${missing.length} missing).`,
+        });
+    }
+    await setCertificatesReleased(db, released, req.admin.username);
+    await audit(req, released ? "release_certificates" : "hide_certificates", "certificates", "*");
+    res.json({ released });
   });
 
   router.put("/certificates/title", async (req, res) => {
@@ -888,8 +917,26 @@ export function createAdminRouter(
     res.json({ ok: true });
   });
 
+  // Marks a checked-in squad as 1st, 2nd or 3rd (or clears it: place null).
+  // A place belongs to one squad, so setting it moves it from any other.
+  router.put("/certificates/winner", async (req, res) => {
+    const { registrationId } = req.body || {};
+    const place = req.body?.place === null ? null : Number(req.body?.place);
+    if (place !== null && ![1, 2, 3].includes(place))
+      return res.status(400).json({ error: "Choose 1st, 2nd or 3rd." });
+    const squad = (
+      await db.query("SELECT team_name FROM registrations WHERE id=$1 AND checked_in_at IS NOT NULL", [registrationId])
+    ).rows[0];
+    if (!squad) return res.status(404).json({ error: "Checked-in squad not found." });
+    if (place !== null)
+      await db.query("UPDATE registrations SET winner_position=NULL WHERE winner_position=$1 AND id<>$2", [place, registrationId]);
+    await db.query("UPDATE registrations SET winner_position=$2 WHERE id=$1", [registrationId, place]);
+    await audit(req, "set_winner", "registration", registrationId, { team: squad.team_name, place });
+    res.json({ place });
+  });
+
   router.get("/certificates.pdf", async (req, res) => {
-    const members = (await certificateSquads()).flatMap((s) => s.members);
+    const members = participating(await certificateSquads()).flatMap((s) => s.members);
     if (!members.length)
       return res.status(409).json({ error: "No squad has checked in yet." });
     const pdf = await certificatesPdf(members, "Hack Nexus participation certificates");
@@ -910,7 +957,7 @@ export function createAdminRouter(
     if (certificateJob?.state === "running")
       return res.status(409).json({ error: "Certificates are already being emailed." });
     const resend = req.body?.resend === true;
-    const squads = (await certificateSquads()).filter((s) => resend || !s.certificates_emailed_at);
+    const squads = participating(await certificateSquads()).filter((s) => resend || !s.certificates_emailed_at);
     const missing = squads.flatMap((s) => s.members).filter((m) => !TITLES.includes(m.title));
     if (missing.length)
       return res.status(409).json({

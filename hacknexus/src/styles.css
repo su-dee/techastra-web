@@ -3340,3 +3340,8 @@ html.hn-loading .hero-wordmark {
     display: none;
   }
 }
+
+/* Participation certificates on the squad dashboard */
+.squad-certificates li .text-button {
+  justify-self: start;
+}

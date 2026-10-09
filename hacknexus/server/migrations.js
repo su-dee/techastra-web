@@ -8,6 +8,8 @@ const files = [
   "007_short_pass_codes.sql",
   "008_meals.sql",
   "009_certificates.sql",
+  "010_settings.sql",
+  "011_winners.sql",
 ];
 export async function applyMigrations(db) {
   // Versioned SQL is additive/idempotent and preserves existing registrations.

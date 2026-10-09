@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Download, Mail } from "lucide-react";
+import { Download, Eye, EyeOff, Mail } from "lucide-react";
 import { api } from "./api.js";
 import { BASE } from "./base.js";
 import { formatDate, useAdminData } from "./adminShared.jsx";
@@ -50,6 +50,37 @@ export default function AdminCertificates({ onExpired }) {
     }
   };
 
+  const setWinner = async (squad, value) => {
+    setSaving(`winner-${squad.id}`);
+    try {
+      await api("/admin/certificates/winner", {
+        method: "PUT",
+        body: { registrationId: squad.id, place: value ? Number(value) : null },
+      });
+      reload();
+    } catch (e) {
+      if (e.status === 401) return onExpired();
+      setMessage({ tone: "bad", text: e.message });
+    } finally {
+      setSaving("");
+    }
+  };
+
+  const release = async (released) => {
+    const text = released
+      ? "Show the certificates on every checked-in squad’s dashboard?"
+      : "Hide the certificates from the squads’ dashboards?";
+    if (!window.confirm(text)) return;
+    setMessage(null);
+    try {
+      await api("/admin/certificates/release", { method: "PUT", body: { released } });
+      reload();
+    } catch (e) {
+      if (e.status === 401) return onExpired();
+      setMessage({ tone: "bad", text: e.message });
+    }
+  };
+
   if (error) return <p className="cert-job bad" role="alert">{error}</p>;
   if (!data) return <p className="admin-empty">{loading ? "Loading…" : ""}</p>;
   const { squads, totals } = data;
@@ -59,10 +90,10 @@ export default function AdminCertificates({ onExpired }) {
     <div>
       <div className="stat-grid">
         {[
-          ["Checked-in squads", totals.squads],
+          ["Squads getting certificates", totals.squads, `${totals.winners} winner${totals.winners === 1 ? "" : "s"} left out`],
           ["Certificates", totals.people, "one per member"],
           ["Mr / Ms missing", totals.missingTitles],
-          ["Emailed to leads", `${totals.emailed} / ${totals.squads}`],
+          ["Emailed to leads", `${totals.emailed} / ${totals.squads}`, data.released ? "on dashboards: shown" : "on dashboards: hidden"],
         ].map(([label, value, note]) => (
           <div className="stat-tile" key={label}>
             <span>{label}</span>
@@ -77,6 +108,8 @@ export default function AdminCertificates({ onExpired }) {
         <p className="cert-note">
           Every member of a checked-in squad gets one, on the Techastra ’26 participation template: “Mr./Ms. Name”, their
           college, and Hack Nexus. Emailing sends each squad lead one PDF per member; squads already emailed are skipped.
+          Releasing shows them on each checked-in squad’s dashboard for download; you can hide them again. Squads marked
+          1st, 2nd or 3rd below get no participation certificate.
         </p>
         <div className="admin-toolbar">
           <a
@@ -94,6 +127,15 @@ export default function AdminCertificates({ onExpired }) {
           >
             <Mail size={16} /> Email squad leads
           </button>
+          {data.released ? (
+            <button className="button ghost" onClick={() => release(false)}>
+              <EyeOff size={16} /> Hide from dashboards
+            </button>
+          ) : (
+            <button className="button ghost" onClick={() => release(true)} disabled={totals.missingTitles > 0 || !totals.people}>
+              <Eye size={16} /> Release to participants
+            </button>
+          )}
           {allEmailed && (
             <button className="button ghost" onClick={() => email(true)} disabled={!data.canEmail || running}>
               Send again to all
@@ -126,6 +168,7 @@ export default function AdminCertificates({ onExpired }) {
                   <th>Member</th>
                   <th>College</th>
                   <th>Mr / Ms</th>
+                  <th>Winner</th>
                 </tr>
               </thead>
               <tbody>
@@ -138,9 +181,11 @@ export default function AdminCertificates({ onExpired }) {
                             {squad.team_name}
                             <small>
                               {squad.lead_email}
-                              {squad.certificates_emailed_at
-                                ? ` · emailed ${formatDate(squad.certificates_emailed_at)}`
-                                : " · not emailed"}
+                              {squad.winner_position
+                                ? " · winner, no participation certificate"
+                                : squad.certificates_emailed_at
+                                  ? ` · emailed ${formatDate(squad.certificates_emailed_at)}`
+                                  : " · not emailed"}
                             </small>
                           </>
                         )}
@@ -161,6 +206,21 @@ export default function AdminCertificates({ onExpired }) {
                           <option value="Mr">Mr</option>
                           <option value="Ms">Ms</option>
                         </select>
+                      </td>
+                      <td>
+                        {i === 0 && (
+                          <select
+                            value={squad.winner_position || ""}
+                            onChange={(e) => setWinner(squad, e.target.value)}
+                            disabled={saving === `winner-${squad.id}`}
+                            aria-label={`Winning place for ${squad.team_name}`}
+                          >
+                            <option value="">—</option>
+                            <option value="1">1st</option>
+                            <option value="2">2nd</option>
+                            <option value="3">3rd</option>
+                          </select>
+                        )}
                       </td>
                     </tr>
                   )),

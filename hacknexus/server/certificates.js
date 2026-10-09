@@ -77,3 +77,24 @@ export async function certificatesPdf(members, title = `${EVENT_NAME} certificat
 /** "Priya-Lakshmi-S" for file names. */
 export const fileSafe = (text) =>
   String(text || "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") || "member";
+
+// Squads see their certificates on their dashboard only once the organisers
+// release them (Admin -> Certificates).
+const RELEASED_KEY = "certificates_released";
+export async function certificatesReleased(db) {
+  try {
+    const result = await db.query("SELECT value FROM app_settings WHERE key=$1", [RELEASED_KEY]);
+    return result.rows[0]?.value === true;
+  } catch (error) {
+    // Before migration 010 has run there's no settings table: not released.
+    if (error.code === "42P01") return false;
+    throw error;
+  }
+}
+export async function setCertificatesReleased(db, released, by) {
+  await db.query(
+    `INSERT INTO app_settings (key,value,updated_at,updated_by) VALUES ($1,$2,NOW(),$3)
+     ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW(),updated_by=EXCLUDED.updated_by`,
+    [RELEASED_KEY, JSON.stringify(released), by],
+  );
+}

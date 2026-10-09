@@ -19,13 +19,14 @@ import {
   Layers,
   Lock,
   Pencil,
+  Download,
 } from "lucide-react";
 import content from "./content.json";
 import { api } from "./api.js";
 import useScrollMotion from "./useScrollMotion";
 import "./styles.css";
 import "./motion.css";
-import { to, currentPath } from "./base.js";
+import { to, currentPath, BASE } from "./base.js";
 
 const Admin = lazy(() => import("./Admin.jsx"));
 const PaymentPage = lazy(() =>
@@ -771,6 +772,39 @@ const membersFromForm = (form, size) =>
     college: form.get(`m${i}-college`),
   }));
 // Member list on the registration card, with an editor for the lead.
+// Participation certificates, once the organisers release them (they arrive
+// as registration.certificates for a checked-in squad).
+function SquadCertificates({ registration }) {
+  const certificates = registration.certificates;
+  if (!certificates?.length) return null;
+  const href = (which) => `${BASE}/api/registrations/me/certificates/${which}`;
+  return (
+    <div className="squad-members squad-certificates">
+      <div className="squad-members-head">
+        <h4>Participation certificates</h4>
+        {certificates.length > 1 && (
+          <a className="text-button" href={href("all")} download>
+            <Download size={13} /> Download all
+          </a>
+        )}
+      </div>
+      <ol>
+        {certificates.map((c) => (
+          <li key={c.position}>
+            <strong>
+              {c.name}
+              {c.position === 1 && <em>Lead</em>}
+            </strong>
+            <a className="text-button" href={href(c.position)} download>
+              <Download size={13} /> Download certificate
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function SquadMembers({ registration, onSaved }) {
   const members = registration.members || [];
   const [editing, setEditing] = useState(false),
@@ -1020,6 +1054,7 @@ function Registration({
                   setRegistration((r) => ({ ...r, members }))
                 }
               />
+              <SquadCertificates registration={registration} />
               {registration.payment_status === "verified" ? (
                 <a className="button primary registration-cta" href={to("/pass")}>
                   View squad ID card <ArrowUpRight size={18} />
