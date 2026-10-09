@@ -23,8 +23,11 @@ async function hackNexusWinners(prisma) {
     );
     if (!squads.length) return null;
     members = await prisma.$queryRawUnsafe(
-      `SELECT registration_id::text AS registration_id, position, full_name, college, phone, title
-       FROM "${schema}".registration_members WHERE registration_id::text = ANY($1::text[]) ORDER BY position`,
+      // Year and department via to_jsonb, so this still works before Hack
+      // Nexus migration 012 has added them.
+      `SELECT registration_id::text AS registration_id, position, full_name, college, phone, title,
+         to_jsonb(m)->>'year_of_study' AS year_of_study, to_jsonb(m)->>'department' AS department
+       FROM "${schema}".registration_members m WHERE registration_id::text = ANY($1::text[]) ORDER BY position`,
       squads.map((s) => s.id),
     );
   } catch (err) {
@@ -45,16 +48,16 @@ async function hackNexusWinners(prisma) {
           collegeName: lead.college || "",
           user: { phone: lead.phone || "", collegeName: lead.college || "" },
         },
-        // Hack Nexus records no course, department or year - each member's
-        // own college, and the Mr/Ms set in its admin.
+        // Each member's own college, the Mr/Ms set in its admin, and the year
+        // and department the organisers set (registration never asked).
         people: team.map((m, index) => ({
           index,
           name: m.full_name,
           title: TITLES.includes(m.title) ? m.title : "",
           regNo: "",
           course: "",
-          department: "",
-          yearOfStudy: "",
+          department: m.department || "",
+          yearOfStudy: m.year_of_study || "",
           college: m.college || "",
         })),
       };

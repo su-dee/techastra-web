@@ -212,7 +212,7 @@ router.get("/winners-list.pdf", ...committee, async (req, res) => {
 /**
  * GET /api/certificates/valedictory.pdf - the valedictory sheet in the
  * department's paper format: Technical and Non Technical sections, three
- * rows (I-III) per event, Prize Amount and Signature left to fill in.
+ * rows (I-III) per event.
  */
 router.get("/valedictory.pdf", ...committee, async (req, res) => {
   try {

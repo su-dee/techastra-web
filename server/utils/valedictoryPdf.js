@@ -6,28 +6,25 @@ const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
  * The valedictory winners sheet, laid out like the department's paper form
  * (9 Oct 2026): university header, "Senior Techastra", then a Technical and
  * a Non Technical section, each a grid of S.No | Event Name | Name | College
- * Name | Year/Branch/Degree | Place | Prize Amount | Signature, with three
- * rows (I, II, III) per event. Prize Amount and Signature stay blank to fill
- * in by hand; so do the rows of an event without locked results.
+ * Name | Year/Branch/Degree | Place, with three rows (I, II, III) per event.
+ * The rows of a place without a locked result stay blank to fill in.
  *
  * `events` are every senior event; `winners` is winnersByEvent()'s list.
  */
 const PAGE = [595.28, 841.89]; // A4 portrait
 const MARGIN = 28;
 const COLUMNS = [
-  { title: "S.No", width: 28, align: "center" },
-  { title: "Event Name", width: 74 },
-  { title: "Name", width: 106 },
-  { title: "College Name", width: 104 },
-  { title: "Year / Branch / Degree", width: 80 },
-  { title: "Place", width: 34, align: "center" },
-  { title: "Prize Amount", width: 46 },
-  { title: "Signature", width: 67 },
+  { title: "S.No", width: 30, align: "center" },
+  { title: "Event Name", width: 84 },
+  { title: "Name", width: 140 },
+  { title: "College Name", width: 136 },
+  { title: "Year / Branch / Degree", width: 110 },
+  { title: "Place", width: 39, align: "center" },
 ];
 const SIZE = 8;
 const LINE = 10;
 const PAD = 4;
-const MIN_ROW = 30; // room to sign
+const MIN_ROW = 26;
 const PLACE = ["I", "II", "III"];
 const INK = rgb(0, 0, 0);
 const GRID = rgb(0.25, 0.25, 0.25);
@@ -184,7 +181,7 @@ async function valedictoryPdf(events, winners, { nameOf = (p) => p.name } = {}) 
       let top = y;
       rows.forEach((cells, r) => {
         let cx = x;
-        const values = [...cells, PLACE[r], "", ""];
+        const values = [...cells, PLACE[r]];
         values.forEach((text, i) => {
           const column = COLUMNS[i + 2];
           page.drawRectangle({ x: cx, y: top - heights[r], width: column.width, height: heights[r], borderColor: GRID, borderWidth: 0.7 });

@@ -257,7 +257,7 @@ function WinnersSection() {
         participation certificate for the event they won. “All certificates” has every event’s winner certificates (one
         page per person, events in day and time order, then 1st, 2nd, 3rd). The winners list (PDF or Excel) has each
         winner’s place, team, name, course, department, year and college; the Excel also has a sheet per event. The
-        valedictory sheet is the department’s form: every event with rows I–III, Prize Amount and Signature to fill in.
+        valedictory sheet is the department’s form: every event with rows I–III (place, name, college, year/branch).
       </p>
 
       {!events ? (
