@@ -122,6 +122,7 @@ router.get("/winners.xlsx", ...committee, async (req, res) => {
       { header: "Name", key: "name", width: 26 },
       { header: "Team", key: "team", width: 20 },
       { header: "Register No", key: "regNo", width: 16 },
+      { header: "Course", key: "course", width: 14 },
       { header: "Department", key: "department", width: 26 },
       { header: "Year", key: "year", width: 10 },
       { header: "College", key: "college", width: 40 },
@@ -135,6 +136,7 @@ router.get("/winners.xlsx", ...committee, async (req, res) => {
           name: person.name,
           team: p.registration.teamName || "",
           regNo: person.regNo,
+          course: person.course,
           department: person.department,
           year: person.yearOfStudy,
           college: p.registration.collegeName || p.registration.user.collegeName || "",
@@ -177,7 +179,7 @@ router.get("/winners.xlsx", ...committee, async (req, res) => {
 /**
  * GET /api/certificates/winners-list.pdf - the winners list for the
  * valedictory as a printable PDF: every event, with place, team, name (with
- * Mr/Ms), department, year and college of each person.
+ * Mr/Ms), course, department, year and college of each person.
  */
 router.get("/winners-list.pdf", ...committee, async (req, res) => {
   try {

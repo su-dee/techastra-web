@@ -249,7 +249,7 @@ function WinnersSection() {
         Winner certificates are only for printing here - winners don’t receive them online, and they don’t get a
         participation certificate for the event they won. “All certificates” has every event’s winner certificates (one
         page per person, events in day and time order, then 1st, 2nd, 3rd). The winners list (PDF or Excel) has each
-        winner’s place, team, name, department, year and college; the Excel also has a sheet per event.
+        winner’s place, team, name, course, department, year and college; the Excel also has a sheet per event.
       </p>
 
       {!events ? (

@@ -28,12 +28,15 @@ function peopleOf(registration) {
       name: m.name,
       title: title(index),
       regNo: m.regNo || "",
+      // Only the registrant (the lead) was asked for a course: members
+      // without one are shown with the lead's (organisers, 9 Oct 2026).
+      course: m.course || registration.user?.course || "",
       department: m.department || (index === 0 ? registration.user?.department : "") || "",
       yearOfStudy: m.yearOfStudy || (index === 0 ? registration.user?.yearOfStudy : "") || "",
     }));
   }
   const u = registration.user || {};
-  return [{ index: 0, name: u.name, title: title(0), regNo: u.registerNo || "", department: u.department || "", yearOfStudy: u.yearOfStudy || "" }];
+  return [{ index: 0, name: u.name, title: title(0), regNo: u.registerNo || "", course: u.course || "", department: u.department || "", yearOfStudy: u.yearOfStudy || "" }];
 }
 
 /**

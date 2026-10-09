@@ -3,7 +3,8 @@ const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 /**
  * The winners list for the valedictory as a printable PDF: one section per
  * event (in day and time order), one row per person - place, team, name,
- * department, year and college. A4 landscape, Helvetica.
+ * course, department, year and college. Only the registrant gave a course;
+ * team members are shown with the lead's. A4 landscape, Helvetica.
  *
  * `list` is winnersByEvent() from routes/certificates.js:
  * [{ event, places: [{ position, registration, people }] }].
@@ -14,8 +15,9 @@ const PLACE = { 1: "1st", 2: "2nd", 3: "3rd" };
 const COLUMNS = [
   { title: "Place", width: 46 },
   { title: "Team", width: 110 },
-  { title: "Participant", width: 160 },
-  { title: "Department", width: 120 },
+  { title: "Participant", width: 150 },
+  { title: "Course", width: 72 },
+  { title: "Department", width: 100 },
   { title: "Year", width: 56 },
   { title: "College", width: 0 }, // the rest of the row
 ];
@@ -111,6 +113,7 @@ async function winnersListPdf(list, { nameOf = (person) => person.name } = {}) {
         i === 0 ? PLACE[place.position] || `${place.position}th` : "",
         i === 0 ? reg.teamName || "-" : "",
         nameOf(person),
+        person.course || "-",
         person.department || "-",
         person.yearOfStudy || "-",
         college || "-",
