@@ -222,6 +222,13 @@ function WinnersSection() {
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
+            onClick={() => run("valedictory", "/api/certificates/valedictory.pdf", "Techastra26-Valedictory.pdf")}
+            disabled={busy === "valedictory"}
+          >
+            {busy === "valedictory" ? "Preparing…" : "Valedictory sheet (PDF)"}
+          </Button>
+          <Button
+            size="sm"
             onClick={() => run("all-pdf", "/api/certificates/winners.pdf", "Techastra26-Winners-All-Events.pdf")}
             disabled={busy === "all-pdf" || !events?.length}
           >
@@ -249,7 +256,8 @@ function WinnersSection() {
         Winner certificates are only for printing here - winners don’t receive them online, and they don’t get a
         participation certificate for the event they won. “All certificates” has every event’s winner certificates (one
         page per person, events in day and time order, then 1st, 2nd, 3rd). The winners list (PDF or Excel) has each
-        winner’s place, team, name, course, department, year and college; the Excel also has a sheet per event.
+        winner’s place, team, name, course, department, year and college; the Excel also has a sheet per event. The
+        valedictory sheet is the department’s form: every event with rows I–III, Prize Amount and Signature to fill in.
       </p>
 
       {!events ? (

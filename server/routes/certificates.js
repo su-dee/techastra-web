@@ -7,6 +7,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { certificateFile } = require("../utils/certificatePdf");
 const { winnersListPdf } = require("../utils/winnersListPdf");
 const { hackNexusWinners } = require("../utils/hackNexusWinners");
+const { valedictoryPdf } = require("../utils/valedictoryPdf");
 const {
   TITLES,
   peopleOf,
@@ -205,6 +206,29 @@ router.get("/winners-list.pdf", ...committee, async (req, res) => {
   } catch (err) {
     console.error("Winners list PDF error:", err);
     res.status(500).json({ error: "Failed to make the winners list" });
+  }
+});
+
+/**
+ * GET /api/certificates/valedictory.pdf - the valedictory sheet in the
+ * department's paper format: Technical and Non Technical sections, three
+ * rows (I-III) per event, Prize Amount and Signature left to fill in.
+ */
+router.get("/valedictory.pdf", ...committee, async (req, res) => {
+  try {
+    const [events, winners] = await Promise.all([
+      prisma.event.findMany({ where: { level: "senior" }, orderBy: { startTime: "asc" } }),
+      winnersByEvent(),
+    ]);
+    const pdf = await valedictoryPdf(events, winners, {
+      nameOf: (person) => `${person.title ? `${person.title}. ` : ""}${person.name}`,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Techastra26-Valedictory.pdf"');
+    res.send(pdf);
+  } catch (err) {
+    console.error("Valedictory PDF error:", err);
+    res.status(500).json({ error: "Failed to make the valedictory sheet" });
   }
 });
 
