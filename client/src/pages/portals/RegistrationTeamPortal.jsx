@@ -11,6 +11,7 @@ import { idCardVerifyUrl } from "../../lib/idCard";
 import { levelOf } from "../../lib/site";
 import KitDesk from "./KitDesk";
 import OnSpotQr from "./OnSpotQr";
+import Collections from "./Collections";
 import ParticipantDetailsModal from "../../components/ParticipantDetailsModal";
 import ParticipantsTable from "../../components/ParticipantsTable";
 
@@ -442,6 +443,9 @@ export default function RegistrationTeamPortal() {
   return (
     <div className={`${view === "table" ? "max-w-[1500px]" : "max-w-6xl"} mx-auto px-6 py-10`}>
       <h1 className="font-heading text-3xl font-bold mb-6">Registration Team Portal</h1>
+
+      {/* Money collected: total, online, on spot, pay later. */}
+      <Collections />
 
       {/* Event day: scan ID cards and hand out the welcome kits. */}
       <KitDesk />

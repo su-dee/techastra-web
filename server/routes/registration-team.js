@@ -4,6 +4,7 @@ const prisma = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { exportLimiter } = require("../middleware/rateLimiter");
 const { logSecurityEvent } = require("../middleware/securityLogger");
+const { collections, paymentKind } = require("../utils/collections");
 
 const router = express.Router();
 
@@ -13,6 +14,130 @@ router.use(requireAuth, (req, res, next) => {
     return res.status(403).json({ error: "Access denied" });
   }
   next();
+});
+
+/**
+ * GET /api/registration-team/collections - money collected from approved
+ * registrations: total, online (UPI), on spot (cash) and pay later (paid at
+ * the desk), plus pay-later holds still unpaid. See utils/collections.js.
+ */
+router.get("/collections", async (req, res) => {
+  try {
+    const registrations = await prisma.registration.findMany({
+      where: { status: { in: ["approved", "pending"] } },
+      select: { status: true, paymentMethod: true, onSpot: true, totalAmount: true, createdAt: true, reviewedAt: true },
+    });
+    res.json(collections(registrations));
+  } catch (err) {
+    console.error("Collections error:", err);
+    res.status(500).json({ error: "Failed to load the collections" });
+  }
+});
+
+const KIND_LABEL = { online: "Online", onSpot: "On spot", payLater: "Pay later", due: "Pay later - not paid" };
+const METHOD_LABEL = { upi: "UPI", razorpay: "Razorpay", cash: "Cash", later: "Not paid yet" };
+
+/**
+ * GET /api/registration-team/collections.xlsx?kind=all|online|onSpot|payLater|due
+ * The registrations behind "Money collected" as a list. kind=all: a summary
+ * sheet, every collected registration, then a sheet per kind.
+ */
+router.get("/collections.xlsx", exportLimiter, async (req, res) => {
+  try {
+    const kind = String(req.query.kind || "all");
+    if (kind !== "all" && !KIND_LABEL[kind]) return res.status(400).json({ error: "Unknown list." });
+    const [registrations, events] = await Promise.all([
+      prisma.registration.findMany({
+        where: { status: { in: ["approved", "pending"] } },
+        include: { user: { select: { name: true, email: true, phone: true, collegeName: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.event.findMany({ select: { id: true, name: true } }),
+    ]);
+    const eventName = new Map(events.map((e) => [e.id, e.name]));
+    const when = (d) => (d ? new Date(d).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "");
+    const rows = registrations
+      .map((reg) => ({ reg, kind: paymentKind(reg) }))
+      .filter((r) => r.kind)
+      .map(({ reg, kind: k }) => ({
+        kind: k,
+        code: reg.registrationCode,
+        payment: KIND_LABEL[k],
+        method: METHOD_LABEL[reg.paymentMethod] || reg.paymentMethod,
+        amount: reg.totalAmount,
+        name: reg.user?.name || "",
+        phone: reg.user?.phone || "",
+        email: reg.user?.email || "",
+        college: reg.collegeName || reg.user?.collegeName || "",
+        team: reg.teamName || "",
+        people: Array.isArray(reg.teamMembers) && reg.teamMembers.length ? reg.teamMembers.length : 1,
+        events: (reg.eventIds || []).map((id) => eventName.get(id) || id).join(", "),
+        utr: reg.transactionId || "",
+        registered: when(reg.createdAt),
+        approved: k === "due" ? "" : when(reg.reviewedAt),
+        approvedBy: k === "due" ? "" : reg.reviewedByName || "",
+      }));
+
+    const columns = [
+      { header: "Registration Code", key: "code", width: 17 },
+      { header: "Payment", key: "payment", width: 18 },
+      { header: "Method", key: "method", width: 12 },
+      { header: "Amount (₹)", key: "amount", width: 11 },
+      { header: "Name", key: "name", width: 24 },
+      { header: "Phone", key: "phone", width: 14 },
+      { header: "Email", key: "email", width: 28 },
+      { header: "College", key: "college", width: 34 },
+      { header: "Team", key: "team", width: 18 },
+      { header: "People", key: "people", width: 8 },
+      { header: "Events", key: "events", width: 40 },
+      { header: "UTR", key: "utr", width: 18 },
+      { header: "Registered", key: "registered", width: 21 },
+      { header: "Approved", key: "approved", width: 21 },
+      { header: "Approved by", key: "approvedBy", width: 20 },
+    ];
+    const workbook = new ExcelJS.Workbook();
+    const addList = (name, list) => {
+      const sheet = workbook.addWorksheet(name);
+      sheet.columns = columns;
+      sheet.addRows(list);
+      const total = list.reduce((sum, r) => sum + r.amount, 0);
+      const totalRow = sheet.addRow({ code: "Total", amount: total, name: `${list.length} registration${list.length === 1 ? "" : "s"}` });
+      totalRow.font = { bold: true };
+      sheet.getRow(1).font = { bold: true };
+      sheet.views = [{ state: "frozen", ySplit: 1 }];
+    };
+    const collected = rows.filter((r) => r.kind !== "due");
+    if (kind === "all") {
+      const summary = workbook.addWorksheet("Summary");
+      summary.columns = [
+        { header: "Payment", key: "label", width: 26 },
+        { header: "Registrations", key: "count", width: 14 },
+        { header: "Amount (₹)", key: "amount", width: 14 },
+      ];
+      const line = (label, list) => ({ label, count: list.length, amount: list.reduce((s, r) => s + r.amount, 0) });
+      summary.addRows([
+        line("Online", rows.filter((r) => r.kind === "online")),
+        line("On spot", rows.filter((r) => r.kind === "onSpot")),
+        line("Pay later", rows.filter((r) => r.kind === "payLater")),
+      ]);
+      summary.addRow(line("Total collected", collected)).font = { bold: true };
+      summary.addRow({});
+      summary.addRow(line("Still due (pay later, not paid)", rows.filter((r) => r.kind === "due")));
+      summary.getRow(1).font = { bold: true };
+      addList("All collected", collected);
+      for (const k of ["online", "onSpot", "payLater", "due"]) addList(KIND_LABEL[k], rows.filter((r) => r.kind === k));
+    } else {
+      addList(KIND_LABEL[kind], rows.filter((r) => r.kind === kind));
+    }
+
+    const file = kind === "all" ? "All" : KIND_LABEL[kind].replace(/[^A-Za-z]+/g, "-");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="Techastra26-Collections-${file}.xlsx"`);
+    res.send(Buffer.from(await workbook.xlsx.writeBuffer()));
+  } catch (err) {
+    console.error("Collections export error:", err);
+    res.status(500).json({ error: "Failed to export the collections" });
+  }
 });
 
 /**
